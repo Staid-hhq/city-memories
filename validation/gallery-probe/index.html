@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>城影记 · 原图加载验证</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;background:#f5f3ef;color:#24322c;font:16px/1.55 "Segoe UI","Microsoft YaHei",sans-serif}
+  main{max-width:1180px;margin:auto;padding:24px} h1{margin:4px 0;font-size:26px}
+  .label{font-size:12px;letter-spacing:.12em;color:#668474} .note{color:#606b65;margin:8px 0 16px}
+  nav{display:flex;gap:12px;align-items:center;margin:16px 0} button{border:1px solid #b9c8bf;background:white;color:#294a3d;border-radius:8px;padding:8px 15px;cursor:pointer}
+  button:disabled{opacity:.4;cursor:default} #grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  figure{margin:0;background:white;border:1px solid #dde3dc;border-radius:10px;overflow:hidden}
+  figure button{display:block;border:0;padding:0;width:100%;border-radius:0} figure img{display:block;width:100%;height:145px;object-fit:cover}
+  figcaption{padding:8px 10px;font-size:13px} #status{background:#e7eee7;padding:10px 14px;border-radius:8px}
+  #error{color:#a22b22;min-height:1.5em} dialog{border:0;border-radius:12px;max-width:96vw;background:#f5f3ef} dialog::backdrop{background:#17251cbb}
+  dialog img{display:block;max-width:88vw;max-height:70vh;margin:12px 0}
+  #report{font-size:13px;color:#4b6255;white-space:pre-wrap} iframe{display:none}
+</style>
+<main>
+  <div class="label">CITY MEMORIES · 独立技术验证</div>
+  <h1>深圳 · 2024 年 · 原图加载</h1>
+  <p class="note">400 条合成记录，循环使用 23 张真实 JPG。每页 12 张仅用于测试，不代表最终界面设计。</p>
+  <div id="status" role="status">正在准备验证…</div>
+  <nav><button id="previous">上一页</button><span id="page"></span><button id="next">下一页</button><button id="last">末页</button></nav>
+  <div id="grid"></div>
+  <p id="error" role="alert"></p>
+  <div id="report"></div>
+  <dialog id="viewer"><button id="close">返回影集</button><img id="original" alt="完整原图"></dialog>
+</main>
+<!-- Keeps the document load pending until the self-test reports completion. -->
+<iframe src="./hold" title="验证完成信号"></iframe>
+<script src="./client.js" defer></script>
+</html>

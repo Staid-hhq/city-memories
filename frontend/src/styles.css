@@ -1,0 +1,96 @@
+:root {
+  color: #3f332a;
+  background: #f7efe3;
+  font-family: "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1024px;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.foundation-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 48px;
+  background:
+    radial-gradient(circle at 22% 18%, rgb(226 161 111 / 24%), transparent 28%),
+    linear-gradient(145deg, #fbf6ee 0%, #efe1cf 100%);
+}
+
+.foundation-card {
+  width: min(680px, 100%);
+  padding: 64px;
+  border: 1px solid rgb(128 88 59 / 18%);
+  border-radius: 28px;
+  background: rgb(255 252 247 / 84%);
+  box-shadow: 0 24px 70px rgb(98 66 43 / 14%);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: #a45d38;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+h1 {
+  margin: 0;
+  color: #523b2d;
+  font-family: Georgia, "Noto Serif SC", serif;
+  font-size: clamp(3.2rem, 8vw, 5.4rem);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.intro {
+  max-width: 30rem;
+  margin: 24px 0 44px;
+  color: #746256;
+  font-size: 1.08rem;
+  line-height: 1.8;
+}
+
+.service-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.service-status span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #c89a77;
+}
+
+.service-status--available span {
+  background: #648667;
+}
+
+.service-status--unavailable span {
+  background: #b86a55;
+}
+
+.stage-note {
+  margin: 12px 0 0;
+  color: #8b7b70;
+  font-size: 0.9rem;
+}

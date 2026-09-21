@@ -1,0 +1,23 @@
+# Frontend dependencies and builds
+frontend/node_modules/
+frontend/dist/
+
+# Python environments and caches
+backend/.venv/
+backend/.uv-cache/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+
+# Private runtime data and local configuration
+.local-data/
+.env
+.env.local
+!.env.example
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

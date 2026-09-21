@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>城影记 · 把旅途写进生活</title>
+<link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./atlas.css">
+</head>
+<body>
+<div class="preview-note"><span class="tiny-dot"></span>旅行手帐 · 交互原型<span class="preview-detail">演示改动仅保留在本次打开期间，照片不会上传</span></div>
+<header class="site-header">
+  <button class="brand" data-action="home" aria-label="城影记，返回旅程地图"><span class="brand-mark">影</span><span>城影记<small>CITY MEMORIES</small></span></button>
+  <nav id="main-nav" aria-label="主导航"><button class="nav-link active" data-action="home">旅程地图</button><button class="nav-link" data-action="my-albums">我的影集</button></nav>
+  <div class="account" id="account"></div>
+</header>
+<main>
+  <section id="map-screen" class="screen">
+    <div class="atlas-intro"><div><h1>我的中国足迹<span class="heading-dot">.</span></h1><p>把照片放进城市，让走过的地方亮起来。</p></div><div id="journey-counts" class="journey-counts"></div></div>
+    <div class="journal-layout atlas-layout">
+      <section class="map-paper" aria-label="中国城市足迹地图">
+        <div class="map-wrap"><div id="travel-map"></div><div id="map-status" class="map-status" role="status">正在展开中国地图…</div>
+          <div class="atlas-caption"><span>中国</span><small>点击城市，翻开影集</small></div>
+          <div class="atlas-controls"><button id="map-zoom-in" aria-label="放大地图" title="放大">＋</button><button id="map-zoom-out" aria-label="缩小地图" title="缩小">−</button><button id="map-reset" title="回到中国全图" aria-label="回到中国全图">⌂</button></div>
+          <div class="map-legend"><span class="legend-dot"></span>有照片，已点亮<span class="legend-dot empty"></span>还未留下照片</div>
+        </div>
+        <div class="map-foot"><span id="map-source">行政区边界来源：天地图</span><span>按城市收藏 · 不按省份分组</span></div>
+      </section>
+      <aside class="city-index"><div class="index-tab">城市手帐</div><label class="search-box"><span aria-hidden="true">⌕</span><input id="city-search" placeholder="搜索城市，如深圳" aria-label="搜索城市"><button id="search-clear" aria-label="清空城市搜索" hidden>×</button></label><div class="index-heading"><h2 id="city-list-title">我的城市</h2><span id="city-list-count"></span></div><div id="city-list"></div><div class="index-note"><p>空影集也可以先建好。<br>有了第一张照片，城市就会点亮。</p></div></aside>
+    </div>
+  </section>
+  <section id="detail-screen" class="screen" hidden></section>
+  <section id="auth-screen" class="screen" hidden></section>
+</main>
+<footer class="site-footer"><span>每一座城，都有一页属于你。</span><span>城影记 · 私人旅行手帐</span></footer>
+<dialog id="year-dialog" class="paper-dialog"><form id="year-form"><button type="button" class="dialog-close" data-action="close-year" aria-label="关闭创建影集">×</button><p class="eyebrow">A NEW CHAPTER</p><h2>为哪一年，留下一页？</h2><p id="year-city-label" class="muted"></p><label class="field-label" for="album-year">影集年份</label><select id="album-year"></select><p class="field-help">还没有照片，也可以先建好影集。</p><div class="dialog-actions"><button type="button" class="button secondary" data-action="close-year">再想想</button><button class="button primary" type="submit">创建影集 <span>＋</span></button></div></form></dialog>
+<dialog id="import-dialog" class="paper-dialog import-dialog"><button class="dialog-close" data-action="close-import" aria-label="关闭照片检查">×</button><p class="eyebrow">KEEP A MOMENT</p><h2>把这些片刻收进来</h2><p id="import-summary" class="muted"></p><div id="import-files"></div><div id="import-message"></div><label id="conflict-label" class="check-label" hidden><input id="confirm-conflict" type="checkbox">我已核对，仍添加到当前影集</label><p class="field-help">本次只体验添加流程，原型不会上传或永久保存照片。</p><div class="dialog-actions"><button class="button secondary" data-action="close-import">取消</button><button id="confirm-import" class="button primary">确认添加</button></div></dialog>
+<dialog id="photo-dialog" class="photo-dialog"><div class="viewer-top"><span id="viewer-count"></span><button data-action="close-photo" class="viewer-close" aria-label="关闭原图">关闭 ×</button></div><div class="viewer-layout"><div class="original-stage"><img id="original-image" alt="照片原图"><div id="original-error" hidden>这张照片暂时打不开。<button data-action="retry-original">重新加载</button></div><button class="image-arrow prev" data-action="previous-photo" aria-label="上一张照片">‹</button><button class="image-arrow next" data-action="next-photo" aria-label="下一张照片">›</button></div><aside class="photo-writing"><p class="eyebrow">这一刻的旁白</p><h2 id="viewer-title"></h2><p id="viewer-filename" class="muted"></p><div class="writing-rule"></div><label for="photo-note">想起了什么，就写下来。</label><textarea id="photo-note" placeholder="天气、同行的人，或那天的一点小心情……"></textarea><div class="note-state" id="note-state">文字可以留白。</div><button class="button primary" id="save-note">保存这段记忆</button><p class="small-note">照片的位置可以变，文字会一直跟着它。</p></aside></div></dialog>
+<input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="./china-map-data.js" defer></script><script src="./china-map.js" defer></script><script src="./app.js" defer></script>
+</body>
+</html>

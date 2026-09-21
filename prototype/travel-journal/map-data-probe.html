@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>中国城市边界 · 本机接口检查</title>
+  <style>
+    body { max-width: 960px; margin: 48px auto; padding: 0 24px; background: #f5f3ee; color: #203b30; font: 16px/1.7 system-ui, "Microsoft YaHei", sans-serif; }
+    h1 { font-size: 26px; } button { padding: 12px 20px; border: 0; border-radius: 8px; background: #285640; color: white; font: inherit; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; } pre { padding: 24px; border: 1px solid #d6ddd5; border-radius: 12px; background: white; color: #25332c; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+    a { color: #285640; } .note { color: #5b6b62; }
+  </style>
+</head>
+<body>
+  <h1>中国城市边界 · 本机接口检查</h1>
+  <p>检查天地图行政区划 V2 是否返回全国城市目录及边界。点击后仅发送一次公开行政区查询；不读取或上传照片、账号和文字记录。</p>
+  <p class="note">响应只保留在当前页面内存中。这里仅显示请求状态与字段统计，不显示密钥或含密钥的网址。</p>
+  <p><label for="probe-scope">本次查询：</label><select id="probe-scope"><option value="guangdong" selected>仅广东省边界（156440000）</option><option value="shenzhen">仅深圳边界（不含子节点）</option><option value="country">全国目录（含两级子节点）</option></select></p>
+  <button id="run-probe" type="button">检查中国城市边界</button>
+  <p id="probe-state" role="status">尚未发送请求。</p>
+  <pre id="probe-result" aria-label="脱敏检查结果">等待检查。</pre>
+  <p><a href="./">返回影集原型</a> · <a href="http://lbs.tianditu.gov.cn/server/administrative2.html" target="_blank" rel="noopener noreferrer">官方接口说明</a></p>
+  <script src="./china-map-data.js"></script>
+  <script type="module" src="./map-data-probe.js"></script>
+</body>
+</html>
