@@ -77,10 +77,31 @@ def test_transaction_rolls_back_on_error(tmp_path, monkeypatch) -> None:
                 created_at=1,
             )
         )
+        session.flush()
         raise RuntimeError("force rollback")
 
     with Session(engine) as session:
         assert session.scalar(select(User).where(User.id == user_id)) is None
+
+
+def test_wal_reader_has_stable_snapshot_while_writer_commits(tmp_path, monkeypatch) -> None:
+    _upgrade(tmp_path, monkeypatch)
+    engine = build_engine(Settings(data_dir=tmp_path))
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users (id, username, username_key, password_hash, created_at) "
+                "VALUES ('snapshot-user', 'before', 'before', 'test-fixture-only', 1)"
+            )
+        )
+    with engine.connect() as reader:
+        assert reader.scalar(text("SELECT username FROM users")) == "before"
+        with engine.begin() as writer:
+            writer.execute(text("UPDATE users SET username = 'after'"))
+        assert reader.scalar(text("SELECT username FROM users")) == "before"
+        reader.rollback()
+        assert reader.scalar(text("SELECT username FROM users")) == "after"
+    engine.dispose()
 
 
 def _upgrade(tmp_path, monkeypatch) -> None:

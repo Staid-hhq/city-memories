@@ -1,6 +1,8 @@
 # Frontend dependencies and builds
 frontend/node_modules/
 frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
 
 # Python environments and caches
 backend/.venv/
@@ -14,7 +16,10 @@ backend/.uv-cache/
 .local-data/
 .env
 .env.local
+.env.*
 !.env.example
+*.key
+*.pem
 
 # Editor and operating-system files
 .idea/

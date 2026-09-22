@@ -1,96 +1,67 @@
 :root {
-  color: #3f332a;
-  background: #f7efe3;
+  color: #483d33;
+  background: #f5efe5;
   font-family: "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
-
-* {
-  box-sizing: border-box;
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1024px; min-height: 100vh; }
+button, input { font: inherit; }
+button, a, input { -webkit-tap-highlight-color: transparent; }
+button, a { touch-action: manipulation; }
+button { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .65; }
+a { color: #9d5534; text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 3px solid #567168; outline-offset: 4px; }
+.auth-page {
+  display: grid; grid-template-columns: 1fr 480px; align-items: center;
+  gap: clamp(48px, 7vw, 120px); min-height: 100vh;
+  max-width: 1320px; margin: auto; padding: 48px 72px;
 }
-
-body {
-  margin: 0;
-  min-width: 1024px;
-  min-height: 100vh;
-}
-
-button,
-input,
-textarea {
-  font: inherit;
-}
-
-.foundation-page {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 48px;
-  background:
-    radial-gradient(circle at 22% 18%, rgb(226 161 111 / 24%), transparent 28%),
-    linear-gradient(145deg, #fbf6ee 0%, #efe1cf 100%);
-}
-
-.foundation-card {
-  width: min(680px, 100%);
-  padding: 64px;
-  border: 1px solid rgb(128 88 59 / 18%);
-  border-radius: 28px;
-  background: rgb(255 252 247 / 84%);
-  box-shadow: 0 24px 70px rgb(98 66 43 / 14%);
-}
-
-.eyebrow {
-  margin: 0 0 12px;
-  color: #a45d38;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-}
-
-h1 {
-  margin: 0;
-  color: #523b2d;
-  font-family: Georgia, "Noto Serif SC", serif;
-  font-size: clamp(3.2rem, 8vw, 5.4rem);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-}
-
-.intro {
-  max-width: 30rem;
-  margin: 24px 0 44px;
-  color: #746256;
-  font-size: 1.08rem;
-  line-height: 1.8;
-}
-
-.service-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  font-weight: 600;
-}
-
-.service-status span {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #c89a77;
-}
-
-.service-status--available span {
-  background: #648667;
-}
-
-.service-status--unavailable span {
-  background: #b86a55;
-}
-
-.stage-note {
-  margin: 12px 0 0;
-  color: #8b7b70;
-  font-size: 0.9rem;
-}
+.eyebrow { margin: 0 0 18px; color: #956447; font-size: .75rem; letter-spacing: .16em; font-weight: 700; }
+h1, h2 { font-family: Georgia, "Noto Serif SC", "SimSun", serif; }
+.journal-intro h1 { font-size: 56px; margin: 0; letter-spacing: .12em; color: #533b2e; font-weight: 600; }
+.brand-line { margin: 28px 0 18px; font-size: 27px; line-height: 1.65; letter-spacing: .04em; }
+.intro-copy { color: #867768; font-size: 14px; line-height: 1.9; }
+.paper-stack { position: relative; width: 260px; height: 215px; margin: 28px 0 20px 25px; }
+.paper-back, .paper-front { position: absolute; width: 212px; height: 183px; border: 1px solid #e1d3bc; }
+.paper-back { top: 10px; left: 15px; background: #e9d9bd; transform: rotate(7deg); }
+.paper-front { padding: 15px; top: 0; background: #fffaf0; transform: rotate(-6deg); box-shadow: 0 14px 24px #63482c14; overflow: hidden; }
+.paper-front::before { content: ""; display: block; height: 125px; background: #e0ded0; }
+.paper-sun { position: absolute; width: 44px; height: 44px; border-radius: 50%; background: #cf9371; top: 31px; right: 34px; }
+.paper-hill { position: absolute; width: 160px; height: 110px; background: #87958a; border-radius: 70% 60% 0 0; top: 58px; left: 16px; transform: rotate(12deg); }
+.paper-caption { position: absolute; bottom: 12px; left: 0; width: 100%; text-align: center; background: #fffaf0; color: #8a7c6b; font-size: 11px; padding-top: 10px; letter-spacing: .18em; }
+.travel-stamp { position: absolute; right: 0; bottom: 15px; border: 2px solid #a86c4c; color: #a86c4c; font-size: 14px; letter-spacing: .15em; padding: 9px; transform: rotate(13deg); border-radius: 5px; line-height: 1.5; }
+.private-note { color: #8a7e6f; font-size: 12px; letter-spacing: .08em; }
+.auth-card { padding: 36px 40px 28px; background: #fffcf6; border: 1px solid #e7dac8; border-radius: 22px; box-shadow: 0 24px 70px #6d492312; }
+.auth-tabs { display: flex; gap: 32px; border-bottom: 1px solid #eadecc; margin-bottom: 34px; }
+.auth-tabs a { display: block; padding: 0 0 13px; color: #9a8b7c; font-weight: 600; font-size: 15px; }
+.auth-tabs a[aria-current="page"] { border-bottom: 2px solid #ae6842; color: #7a482f; }
+.auth-card .eyebrow { font-size: 11px; margin-bottom: 10px; }
+.auth-card h2 { margin: 0; font-size: 29px; font-weight: 600; letter-spacing: .03em; }
+.auth-description { font-size: 13px; color: #8a7b6c; margin: 14px 0 27px; line-height: 1.7; }
+form label { display: block; font-size: 13px; font-weight: 600; margin: 20px 0 9px; }
+form input { width: 100%; padding: 12px 14px; border: 1px solid #dcccba; border-radius: 8px; background: #fffdf8; color: #49372d; font-size: 15px; }
+form input:focus { border-color: #ad7451; }
+form input::placeholder { color: #b1a494; font-size: 13px; }
+.field-help { color: #958575; font-size: 11px; line-height: 1.6; margin: 7px 0 0; }
+.primary-button { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 13px 18px; margin-top: 28px; border: 1px solid #a4643c; border-radius: 8px; color: #fffaf4; background: #ac704a; font-weight: 600; font-size: 14px; }
+.primary-button:hover:not(:disabled) { background: #95603e; }
+.form-footnote { font-size: 12px; color: #978472; text-align: center; margin: 20px 0 0; line-height: 1.7; }
+.form-error { color: #a23d31; background: #faeae3; padding: 10px 12px; border-radius: 6px; font-size: 12px; line-height: 1.6; }
+.global-notice { margin: 0; padding: 12px; text-align: center; background: #e8eddf; font-size: 13px; }
+.status-page { min-height: 100vh; display: grid; place-items: center; }
+.status-card { width: 440px; padding: 44px; border: 1px solid #e3d3bc; border-radius: 18px; background: #fffcf6; }
+.status-card h1 { font-size: 40px; }
+.status-card p { line-height: 1.8; }
+.home-header { display: flex; align-items: center; justify-content: space-between; padding: 22px 44px; border-bottom: 1px solid #e4d8c6; background: #fffcf6; }
+.wordmark { font-family: "SimSun", serif; font-size: 25px; font-weight: 700; letter-spacing: .15em; }
+.home-header small { font-size: 9px; color: #a48b72; letter-spacing: .15em; margin-left: 18px; }
+.account-menu { display: flex; align-items: center; gap: 22px; font-size: 14px; }
+.quiet-button { background: transparent; padding: 8px 14px; border: 1px solid #d6c4ae; border-radius: 7px; color: #825b3f; }
+.empty-journal { max-width: 800px; margin: 100px auto; padding: 50px; text-align: center; }
+.empty-journal h1 { font-size: 36px; overflow-wrap: anywhere; }
+.empty-journal p { color: #8b7867; font-size: 15px; line-height: 1.9; }
+.journal-icon { display: inline-block; border: 1px solid #c3a78b; color: #a97955; font-size: 40px; padding: 18px 24px; border-radius: 6px 16px 16px 6px; margin-bottom: 28px; }
