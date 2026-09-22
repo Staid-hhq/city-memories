@@ -15,6 +15,8 @@ from city_memories.boundary import ApiBoundary
 from city_memories.config import Settings
 from city_memories.database import build_engine
 from city_memories.errors import ApiError, error_response
+from city_memories.imports import ImportService
+from city_memories.imports import router as imports_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -29,11 +31,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 connection.execute(text("SELECT token_hash FROM sessions LIMIT 1"))
             app.state.engine = engine
             app.state.auth = AuthService(engine, settings)
+            app.state.imports = ImportService(app.state.auth)
             yield
         finally:
             engine.dispose()
 
-    app = FastAPI(title="城影记 API", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(title="城影记 API", version="0.4.0", lifespan=lifespan)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=list({urlsplit(origin).hostname for origin in settings.allowed_origins}),
@@ -54,7 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "VALIDATION_FAILED",
                 "请检查用户名、密码长度及两次密码是否一致"
                 if request.url.path.startswith("/api/v1/auth/")
-                else "请检查输入：年份须为 1–9999 的整数或未标年份，分页参数须有效",
+                else "请检查输入：年份和分页参数须有效，文件名、大小和校验信息须完整",
             ),
         )
 
@@ -67,7 +70,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return error_response(request, ApiError(error.status_code, code, message, error.headers))
 
     @app.exception_handler(OperationalError)
-    async def handle_storage_error(request: Request, _error: OperationalError):
+    @app.exception_handler(OSError)
+    async def handle_storage_error(request: Request, _error: Exception):
         return error_response(
             request,
             ApiError(
@@ -85,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(router)
     app.include_router(albums_router)
+    app.include_router(imports_router)
     return app
 
 

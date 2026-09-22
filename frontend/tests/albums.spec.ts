@@ -39,7 +39,7 @@ test('城市搜索、空年份、重复进入、未标年份唯一和重载保�
   await page.getByRole('button', { name: '创建或进入影集' }).click()
   await expect(page.getByRole('alert')).toContainText('请输入 1–9999')
   const original = await create(page, '2026')
-  await expect(page.getByRole('button', { name: '添加照片 · 即将开放' })).toBeDisabled()
+  await expect(page.getByLabel('选择原图', { exact: true })).toBeEnabled()
   await page.screenshot({ path: testInfo.outputPath('empty-album.png'), fullPage: true })
   await page.getByRole('link', { name: '返回深圳市年份影集' }).click()
   expect(await create(page, '2026')).toBe(original)

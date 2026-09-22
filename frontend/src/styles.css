@@ -118,6 +118,20 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .album-empty button:disabled { cursor: not-allowed; }
 .more-button { display: block; margin: 24px auto 0; }
 .load-error { padding: 24px; background: #faeee5; border-radius: 10px; font-size: 14px; line-height: 1.8; }
+.upload-panel { border: 1px solid #dfcfb9; background: #fffcf5; border-radius: 14px; padding: 28px 32px; margin-bottom: 32px; }
+.upload-destination { font-size: 14px; color: #80674f; }
+.file-picker { border: 1px dashed #cbb799; border-radius: 8px; padding: 20px; margin: 22px 0 14px; background: #f7f2e8; }
+.file-picker label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+.file-picker input { max-width: 100%; font-size: 13px; }
+.file-picker input::file-selector-button { padding: 8px 14px; margin-right: 16px; border: 1px solid #c5af92; border-radius: 6px; background: #fffaf2; color: #805b3b; cursor: pointer; }
+.file-summary { font-size: 13px; overflow-wrap: anywhere; color: #76634f; }
+.upload-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 20px 0 0; }
+.upload-actions .primary-button { width: auto; min-width: 160px; justify-content: center; margin: 0; }
+.staged-notice, .saved-notice { color: #55725a; font-size: 14px; line-height: 1.8; }
+.original-preview { border: 1px solid #dfcfb9; background: #fffcf5; padding: 28px 32px; border-radius: 14px; }
+.original-preview img { display: block; margin: auto; max-width: 100%; max-height: 65vh; object-fit: contain; }
+.compact-empty { padding: 28px; }
+.compact-empty .journal-icon { font-size: 26px; padding: 12px 18px; }
 @media (max-width: 1150px) {
   .journal-main { padding-inline: 36px; }
   .album-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

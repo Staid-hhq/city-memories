@@ -1,6 +1,6 @@
 # 城影记数据与接口设计
 
-基线日期：2026-09-21，状态更新：2026-09-22。依据 [需求](requirements.md) 和 [技术方案](tech-stack.md)。T01 已建立正式迁移，T02 已实现第 4 节认证，T03 已实现第 5 节城市与年份影集接口；照片、导入和整理接口仍是后续契约。[SQL 设计样例](data-model.sql) 保留为设计依据。
+基线日期：2026-09-21，状态更新：2026-09-22。依据 [需求](requirements.md) 和 [技术方案](tech-stack.md)。T01 已建立正式迁移，T02 已实现第 4 节认证，T03 已实现城市与年份影集，T04 已实现第 6 节导入协议及鉴权原图读取；照片列表、详情、整理及完整清理仍按后续任务实现。[SQL 设计样例](data-model.sql) 保留为设计依据。
 
 本轮复查补齐数据关系图、请求/响应示例及城市入口的跨年份导入衔接。结构与接口设计完成不代表真实接口测试通过，整体状态见 [项目总览](../README.md)。
 
@@ -123,7 +123,7 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 
 城市年份列表为 `data: {city, items, next_cursor}`，城市与年份列表默认 24 条、最多 100 条；签名游标绑定查询范围，私人年份游标绑定账号和城市。年份按 year 降序（null 最后）加 ID 排序，新插入已读页之前的年份需刷新列表查看。`GET /albums/{id}` 的 data 为 id、city、year、revision、photo_count、cover_photo_id、original_url、created_at、updated_at；POST 创建在这些字段上增加 created。year 必填，严格整数 1–9999 或 null，不接受字符串、布尔值和客户端 owner_id。并发重复创建不覆盖原有记录。
 
-城市统计为 `data: {items, album_count, photo_count}`；每项包含 city、album_count、photo_count、lit，只统计本账号。空影集城市仍在列表中，lit=false。停用城市只能由已有影集的本人读取历史，POST 返回 409/CITY_UNAVAILABLE。T03 尚无照片写入，元数据统计测试不代表原图接口已实现。响应通过 Pydantic 白名单模型输出并生成 OpenAPI schema，验证见 [T03 记录](t03-albums-verification.md)。
+城市统计为 `data: {items, album_count, photo_count}`；每项包含 city、album_count、photo_count、lit，只统计本账号。空影集城市仍在列表中，lit=false。停用城市只能由已有影集的本人读取历史，POST 返回 409/CITY_UNAVAILABLE。响应通过 Pydantic 白名单模型输出并生成 OpenAPI schema，验证见 [T03 记录](t03-albums-verification.md)。T04 已追加真实导入后的数量和 lit 验证，并接入 `GET /photos/{photo_id}/original`：仅本人有效照片可读，不暴露私有路径，返回校验所得 MIME 和原始字节；照片列表、详情、重复分组及文字接口尚未实现。
 
 ## 6. 导入协议与失败恢复
 
@@ -131,7 +131,7 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 
 | 方法与路径 | 输入/行为 | 结果 |
 | --- | --- | --- |
-| POST /albums/{album_id}/imports | Idempotency-Key 请求头；按用户最终确认顺序排列的 items，每项含 original_filename、byte_size、sha256 | 201 返回 batch_id、逐项 item_id；相同键和内容重试返回原批次，不同内容返回 409 |
+| POST /albums/{album_id}/imports | Idempotency-Key 请求头；按用户最终确认顺序排列的 items，每项含 original_filename、byte_size、sha256 | 201 返回批次 id、items[].id；相同键和内容重试 200 返回原批次，不同内容返回 409 |
 | PUT /imports/{batch_id}/items/{item_id}/content | multipart 的单个 file；实际文件大小和哈希须匹配创建资料 | 暂存完成 200；接收中重复请求 409；失败可按同项重新上传 |
 | GET /imports/{batch_id} | 查询本人的批次与逐项状态 | 返回暂存、失败、提交结果；不返回服务器路径 |
 | POST /imports/{batch_id}/commit | expected_album_revision、allow_partial（默认 false） | 200，一次提交选定批次的已暂存项，返回 photo_ids、失败项及新版本 |
@@ -150,6 +150,16 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 创建幂等键按账号隔离，请求摘要包含影集和有序文件资料。重复 commit 返回原收据，不重复插入；重复提交参数不同返回 409。幂等重放在校验账号后、检查当前影集版本前处理，避免响应丢失后无法取得原成功结果。已提交批次不接受取消；对应照片以后被移动或删除也不会因重放而重建。收据保留元数据，不留额外原图副本；其裁剪策略另行设计，第一版不贸然释放旧幂等键。
 
 刷新页面可查询服务端暂存结果；尚未上传完成的本地文件可能需要重新选择。本协议支持按文件重试，不承诺断点续传或后台自动读取 U 盘。
+
+### T04 已实现的格式与边界
+
+创建和查询的 `data` 为 `{id, album_id, album_revision, state, expires_at, items, result}`，其中 album_revision 是查询时影集的当前版本；items 每项为 `{id, item_index, original_filename, byte_size, state, failure_code}`。接收成功只返回该项资料。提交收据为 `{batch_id, album_id, photo_ids, failed_item_ids, album_revision}`，查询已提交批次时 result 返回同一收据；未提交时为 null。无 storage_key、完整哈希、会话或磁盘路径输出。
+
+Idempotency-Key 为 1–128 位英文字母、数字、下划线或连字符；sha256 为 64 位小写十六进制；byte_size 为 1–50 MiB 的严格整数。文件名只作显示，不允许路径分隔符、盘符或控制字符，不用于磁盘寻址。元数据 JSON 上限 1 MiB，提交 JSON 上限 16 KiB；实际 multipart 总量不超过声明文件字节加 64 KiB，仅一个 file、无文本字段，部件头累计上限 16 KiB。服务端通过 Pillow 校验并完整解码 JPEG、PNG、静态 WebP，但不保存重编码结果；动画、损坏、超像素及伪装文件不生成照片。
+
+当前单实例通过随机尝试标识和 15 分钟租约保护接收，全局同时最多两项解析/解码，同批最多两项接收；超出返回 429 和 Retry-After。启动将旧 receiving 标为 failed/INTERRUPTED，用户可重选同文件重试。24 小时到期立即拒绝继续接收/提交；过期状态落库及孤立文件定期回收仍属 T10，当前不会冒充清理已完成。数据库失败可能已将文件移到 originals，重试会重新校验该未引用副本后完成同一事务；取消只处理本批未引用副本，删除失败留待清理，不删除现有照片。
+
+当前 UI 每次只添加一张，明确区分暂存与保存；地址 `?import=<批次 UUID>` 支持当前页刷新恢复，不在浏览器持久存储图片或凭据。遇到 ALBUM_CHANGED 必须重新查询并再次点击保存，不自动覆盖。协议有序提交和显式部分成功用少量合成样本验证，批量 UI、跨年份分组及 400/3000 张规模未交付。详细证据见 [T04 记录](t04-originals-verification.md)。
 
 ## 7. 排序、移动与回收站接口
 
@@ -232,4 +242,4 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 
 正式实现还须验证：越权原图及上传拒绝、CSRF/会话到期、并发分页与版本冲突、响应丢失后的幂等重放、并发上传顺序、部分失败显式提交、清理与恢复竞争、文件系统故障、原图哈希及 Edge 关键操作。此前地图和小范围原图检查不重复执行；真实规模与地图未完成项继续跟踪。
 
-阶段 7 [开发任务拆分](development-plan.md) 已明确任务依赖和完成标准。上文第 9 节为准备阶段验证记录；当前正式开发已完成 T01–T03，从 T04 继续，后续照片与恢复的验收条件仍保留。
+阶段 7 [开发任务拆分](development-plan.md) 已明确任务依赖和完成标准。上文第 9 节为准备阶段验证记录；当前正式开发已完成 T01–T04，从 T05 继续，完整照片浏览、批量、清理与恢复的验收条件仍保留。

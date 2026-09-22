@@ -10,11 +10,15 @@ uv run uvicorn city_memories.main:app --reload --host 127.0.0.1 --port 8000 --no
 
 只运行单个应用实例。`--no-proxy-headers` 保证限流根据真实连接来源计数，客户端不能伪造 `X-Forwarded-For` 换地址；未来部署的代理信任范围另在 T17 配置。
 
-配置取自项目根目录 `.env` 或 `CITY_MEMORIES_` 环境变量，示例见 [.env.example](.env.example)。默认目录为项目根目录 `.local-data`：`database/` 保存 SQLite，`originals/` 和 `staging/` 留给后续原图功能，`auth-secret.key` 在第一次启动时随机创建，之后重启沿用。不要把这些内容提交到公开仓库。
+配置取自项目根目录 `.env` 或 `CITY_MEMORIES_` 环境变量，示例见 [.env.example](.env.example)。默认目录为项目根目录 `.local-data`：`database/` 保存 SQLite，`originals/` 保存独立原图副本，`staging/` 保存待提交图片；`auth-secret.key` 在第一次启动时随机创建，之后重启沿用。不要把这些内容提交到公开仓库。
 
 `/api/v1/auth/csrf`、`register`、`login`、`me`、`logout` 已实现。修改请求必须携带当前会话 Cookie、可信的 Origin/Referer 和 `X-CSRF-Token`；密码、Token、数据库路径不出现在错误响应里。OpenAPI 由运行服务的 `/docs` 提供。
 
 T03 新增 `/api/v1/cities`、`/me/atlas`、`/cities/{city_id}/albums`（GET/POST）和 `/albums/{album_id}`；均要求登录，具体影集必须属于会话本人。迁移 `b61e24f803a7` 加入三个公共城市映射，详情和已测边界见 [T03 记录](../docs/t03-albums-verification.md)。年份为严格整数 1–9999 或 null，重复创建返回原影集；城市与年份列表有签名游标分页，不能用私人游标跨账号读取。
+
+T04 新增创建导入、逐文件接收、状态查询、提交和取消，以及 `/photos/{photo_id}/original`。沿用现有表和依赖，不新增迁移。先校验权限再读取 multipart；实际格式、大小、像素和 SHA256 均由服务端核验。原始字节不重编码，文件先就绪、照片记录和幂等收据再通过短事务一起保存。详细请求格式、50 MiB/8000 万像素限制、租约和失败恢复边界见 [接口契约](../docs/data-api-design.md#6-导入协议与失败恢复) 与 [T04 记录](../docs/t04-originals-verification.md)。
+
+当前仅支持单实例：全局最多同时接收/解码两张，接收租约 15 分钟，未提交批次 24 小时过期。启动时把上次中断的 receiving 项标为可重试失败；不自动提交照片。取消只清除该批次未发布的系统副本，删除失败及崩溃遗留文件待 T10 清理；不要手动清空原图目录。
 
 ```powershell
 uv run ruff check .

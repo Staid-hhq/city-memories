@@ -36,6 +36,14 @@ class ApiBoundary:
             json_write = scope["path"].startswith("/api/v1/auth/") or (
                 scope["path"].startswith("/api/v1/cities/") and scope["path"].endswith("/albums")
             )
+            new_import = scope["path"].startswith("/api/v1/albums/") and scope["path"].endswith(
+                "/imports"
+            )
+            commit_import = scope["path"].startswith("/api/v1/imports/") and scope["path"].endswith(
+                "/commit"
+            )
+            json_write = json_write or new_import or commit_import
+            json_limit = 1024 * 1024 if new_import else 16 * 1024
             if json_write and request.method == "POST":
                 # 在 JSON 解析之前计实际字节，不信任 Content-Length。
                 body = bytearray()
@@ -44,7 +52,7 @@ class ApiBoundary:
                     if message["type"] == "http.disconnect":
                         return
                     chunk = message.get("body", b"")
-                    if len(body) + len(chunk) > 16 * 1024:
+                    if len(body) + len(chunk) > json_limit:
                         raise ApiError(413, "REQUEST_TOO_LARGE", "请求内容过大")
                     body.extend(chunk)
                     if not message.get("more_body", False):

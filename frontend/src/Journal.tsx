@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router'
 import { api, ApiError, errorMessage, isAbort } from './api'
 import type { User } from './api'
+import { UploadPanel } from './UploadPanel'
 
 type City = { id: string; name: string; parent_name: string; unit_kind: string; can_create: boolean }
 type Album = {
@@ -167,16 +168,38 @@ function CityPage({ cityId }: { cityId: string }) {
 
 function AlbumPage({ albumId }: { albumId: string }) {
   const result = useResource<Album>(`/albums/${encodeURIComponent(albumId)}`)
+  if (result.loading) return <main className="journal-main"><p role="status">正在打开影集…</p></main>
+  if (!result.data) return <main className="journal-main"><LoadError error={result.error} retry={result.retry} /></main>
+  return <AlbumContent initial={result.data} />
+}
+
+function AlbumContent({ initial }: { initial: Album }) {
+  const [album, setAlbum] = useState(initial)
+  const [photoId, setPhotoId] = useState<string | null>(initial.cover_photo_id)
+  const [imageError, setImageError] = useState(false)
+  const [imageAttempt, setImageAttempt] = useState(0)
+  const [error, setError] = useState('')
+  const refreshRequest = useRef<AbortController | null>(null)
+  useEffect(() => () => refreshRequest.current?.abort(), [])
+  const saved = useCallback((id: string) => {
+    setPhotoId(id); setImageError(false); setError('')
+    refreshRequest.current?.abort()
+    const controller = new AbortController()
+    refreshRequest.current = controller
+    void api<Album>(`/albums/${initial.id}`, { signal: controller.signal }).then(setAlbum)
+      .catch((reason) => { if (!isAbort(reason)) setError('图片已保存，但影集数量刷新失败，请重新打开影集。') })
+  }, [initial.id])
   return <main className="journal-main">
-    {result.loading ? <p role="status">正在打开影集…</p> : !result.data ? <LoadError error={result.error} retry={result.retry} /> : <>
-      <Link className="back-link" to={`/cities/${result.data.city.id}`}>← 返回{result.data.city.name}年份影集</Link>
-      <div className="page-heading"><div><p className="eyebrow">{result.data.city.name} · 私人影集</p><h1>{result.data.year === null ? '未标年份' : `${result.data.year} 年`}</h1><p className="muted">{result.data.photo_count} 张照片 · 已保存的年份影集</p></div><span className="chapter-mark">第三章 / 影集</span></div>
-      <section className="album-empty"><span className="journal-icon" aria-hidden="true">册</span><h2>位置已经留好，故事慢慢填满。</h2>
-        <p>影集已保存，关闭页面或重启服务后仍可回来。</p>
-        <button className="quiet-button" disabled aria-describedby="upload-later">添加照片 · 即将开放</button>
-        <p id="upload-later" className="scope-note">照片保存将在下一步接入，现在无需选择或上传文件。</p>
-      </section>
-    </>}
+    <Link className="back-link" to={`/cities/${album.city.id}`}>← 返回{album.city.name}年份影集</Link>
+    <div className="page-heading"><div><p className="eyebrow">{album.city.name} · 私人影集</p><h1>{album.year === null ? '未标年份' : `${album.year} 年`}</h1><p className="muted">{album.photo_count} 张照片 · 已保存的年份影集</p></div><span className="chapter-mark">第三章 / 影集</span></div>
+    {error && <p className="form-error" role="alert">{error}</p>}
+    <UploadPanel albumId={album.id} cityName={album.city.name} year={album.year} onSaved={saved} />
+    {photoId ? <section className="original-preview" aria-labelledby="original-title">
+      <div className="section-heading"><h2 id="original-title">已保存的原图</h2><span>直接读取私有副本</span></div>
+      {imageError ? <div role="alert"><p>原图暂时无法读取，影集记录仍然保留。</p><button className="quiet-button" onClick={() => { setImageError(false); setImageAttempt((value) => value + 1) }}>重试读取原图</button></div> :
+        <img key={`${photoId}:${imageAttempt}`} src={`/api/v1/photos/${photoId}/original`} alt="已独立保存的原图" onError={() => setImageError(true)} />}
+      <p className="scope-note">当前显示本次保存或影集首张原图。完整分页列表、前后张浏览将在 T05 接入。</p>
+    </section> : <section className="album-empty compact-empty"><span className="journal-icon" aria-hidden="true">册</span><h2>位置已经留好，故事慢慢填满。</h2><p>选好一张照片，确认保存后就能在这里重新打开。</p></section>}
   </main>
 }
 
