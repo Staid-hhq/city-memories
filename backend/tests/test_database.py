@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from city_memories.config import Settings, get_settings
 from city_memories.database import build_engine
-from city_memories.models import User
+from city_memories.models import Album, City, User
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
@@ -112,3 +112,57 @@ def _upgrade(tmp_path, monkeypatch) -> None:
         command.upgrade(config, "head")
     finally:
         get_settings.cache_clear()
+
+
+def test_city_seed_upgrade_preserves_t01_data_and_stable_mapping(tmp_path, monkeypatch):
+    monkeypatch.setenv("CITY_MEMORIES_DATA_DIR", str(tmp_path))
+    get_settings.cache_clear()
+    config = Config(BACKEND_ROOT / "alembic.ini")
+    command.upgrade(config, "4a097ff7fccb")
+    engine = build_engine(Settings(data_dir=tmp_path))
+    with Session(engine) as db, db.begin():
+        db.add(
+            User(
+                id="old-user",
+                username="Existing",
+                username_key="existing",
+                password_hash="test-only-hash",
+                created_at=1,
+            )
+        )
+        db.add(
+            City(
+                id="existing-city",
+                provider="test",
+                provider_code="fixture",
+                name="测试城市",
+                parent_name="测试地区",
+                unit_kind="prefecture",
+                mapping_status="verified",
+                is_active=1,
+            )
+        )
+        db.flush()
+        db.add(
+            Album(
+                id="old-album",
+                owner_id="old-user",
+                city_id="existing-city",
+                year=2020,
+                created_at=1,
+                updated_at=1,
+            )
+        )
+    command.upgrade(config, "head")
+    with Session(engine) as db, db.begin():
+        assert db.get(Album, "old-album").year == 2020
+        assert db.get(User, "old-user").password_hash == "test-only-hash"
+        seeded = db.scalar(select(City).where(City.provider_code == "156440300"))
+        city_id = seeded.id
+        seeded.is_active = 0
+    command.upgrade(config, "head")
+    with Session(engine) as db:
+        assert db.get(City, city_id).is_active == 0
+        assert len(db.scalars(select(City)).all()) == 4
+    engine.dispose()
+    get_settings.cache_clear()

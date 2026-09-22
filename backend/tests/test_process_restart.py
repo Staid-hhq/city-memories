@@ -92,13 +92,27 @@ def test_real_process_restart_preserves_login_and_revocation(tmp_path, monkeypat
                 client.post("/api/v1/auth/login", headers=headers(), json=credentials).status_code
                 == 200
             )
+            city_id = client.get("/api/v1/cities", params={"q": "深圳"}).json()["data"]["items"][0][
+                "id"
+            ]
+            album_response = client.post(
+                f"/api/v1/cities/{city_id}/albums", headers=headers(), json={"year": 2026}
+            )
+            assert album_response.status_code == 201
+            album_id = album_response.json()["data"]["id"]
         with running_server(port, environment):
             assert client.get("/api/v1/auth/me").json()["data"]["id"] == user_id
+            assert client.get(f"/api/v1/albums/{album_id}").json()["data"]["year"] == 2026
+            duplicate = client.post(
+                f"/api/v1/cities/{city_id}/albums", headers=headers(), json={"year": 2026}
+            )
+            assert duplicate.status_code == 200 and duplicate.json()["data"]["id"] == album_id
             old_cookie = client.cookies.get("city_memories_session")
             assert client.post("/api/v1/auth/logout", headers=headers()).status_code == 204
         with running_server(port, environment):
             client.cookies.set("city_memories_session", old_cookie, domain="127.0.0.1", path="/")
             assert client.get("/api/v1/auth/me").status_code == 401
+            assert client.get(f"/api/v1/albums/{album_id}").status_code == 401
             assert (
                 client.post("/api/v1/auth/login", headers=headers(), json=credentials).status_code
                 == 200

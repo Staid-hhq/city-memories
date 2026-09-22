@@ -33,7 +33,10 @@ class ApiBoundary:
         try:
             if request.method not in {"GET", "HEAD", "OPTIONS"}:
                 await run_in_threadpool(request.app.state.auth.check_csrf, request)
-            if scope["path"].startswith("/api/v1/auth/") and request.method == "POST":
+            json_write = scope["path"].startswith("/api/v1/auth/") or (
+                scope["path"].startswith("/api/v1/cities/") and scope["path"].endswith("/albums")
+            )
+            if json_write and request.method == "POST":
                 # 在 JSON 解析之前计实际字节，不信任 Content-Length。
                 body = bytearray()
                 while True:

@@ -1,6 +1,6 @@
 # 城影记数据与接口设计
 
-基线日期：2026-09-21，状态更新：2026-09-22。依据 [需求](requirements.md) 和 [技术方案](tech-stack.md)。T01 已建立正式迁移，T02 已实现本文第 4 节的认证接口，其余业务接口仍是后续实现契约；[SQL 设计样例](data-model.sql) 继续保留为设计依据。
+基线日期：2026-09-21，状态更新：2026-09-22。依据 [需求](requirements.md) 和 [技术方案](tech-stack.md)。T01 已建立正式迁移，T02 已实现第 4 节认证，T03 已实现第 5 节城市与年份影集接口；照片、导入和整理接口仍是后续契约。[SQL 设计样例](data-model.sql) 保留为设计依据。
 
 本轮复查补齐数据关系图、请求/响应示例及城市入口的跨年份导入衔接。结构与接口设计完成不代表真实接口测试通过，整体状态见 [项目总览](../README.md)。
 
@@ -106,7 +106,7 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 | --- | --- | --- |
 | GET /cities | q、cursor、limit | 可选城市的稳定 ID、名称、行政类型；不返回其他账号资料 |
 | GET /me/atlas | 无 | 本人的城市、有效照片数、影集数及点亮状态，空影集城市也在列表中 |
-| GET /cities/{city_id}/albums | 无 | 本人年份影集、数量、revision 及首张有效照片的 cover_photo_id/original_url；无有效照片时封面字段为 null，年份倒序、未标年份最后 |
+| GET /cities/{city_id}/albums | cursor、limit（可省略） | 本人年份影集、数量、revision 及首张有效照片的 cover_photo_id/original_url；无有效照片时封面字段为 null，年份倒序、未标年份最后 |
 | POST /cities/{city_id}/albums | year，允许 null | 新建返回 201；已有则 200 返回原影集及 created=false，不覆盖内容 |
 | GET /albums/{album_id} | 无 | 城市、年份、有效照片数、影集 revision |
 | GET /albums/{album_id}/photos | cursor、limit | 有效照片的 ID、文件名、尺寸、position、revision、has_note、同源 original_url |
@@ -116,6 +116,14 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 | PATCH /photos/{photo_id}/note | note、expected_photo_revision | 保存纯文本，最多 2000 字符，允许空字符串；不改原图 |
 
 原图地址不含 token、源盘符或存储标识；同源 Cookie 负责鉴权。重名照片保持各自 ID。用户选择保留重复照片时无需额外写入或去重标记，选择删除则使用回收站接口；移动、恢复带来重复时也仅提示，不拦截用户决定。
+
+### T03 已实现的响应格式
+
+城市目录为 `data: {items, next_cursor}`；城市字段为 id、name、parent_name、unit_kind、can_create。名称或所属地区按 q 子串匹配（最多 80 字符），只列出已核对且启用的城市。首批范围见 [三城映射](t03-city-mappings.md)。
+
+城市年份列表为 `data: {city, items, next_cursor}`，城市与年份列表默认 24 条、最多 100 条；签名游标绑定查询范围，私人年份游标绑定账号和城市。年份按 year 降序（null 最后）加 ID 排序，新插入已读页之前的年份需刷新列表查看。`GET /albums/{id}` 的 data 为 id、city、year、revision、photo_count、cover_photo_id、original_url、created_at、updated_at；POST 创建在这些字段上增加 created。year 必填，严格整数 1–9999 或 null，不接受字符串、布尔值和客户端 owner_id。并发重复创建不覆盖原有记录。
+
+城市统计为 `data: {items, album_count, photo_count}`；每项包含 city、album_count、photo_count、lit，只统计本账号。空影集城市仍在列表中，lit=false。停用城市只能由已有影集的本人读取历史，POST 返回 409/CITY_UNAVAILABLE。T03 尚无照片写入，元数据统计测试不代表原图接口已实现。响应通过 Pydantic 白名单模型输出并生成 OpenAPI schema，验证见 [T03 记录](t03-albums-verification.md)。
 
 ## 6. 导入协议与失败恢复
 
@@ -224,4 +232,4 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 
 正式实现还须验证：越权原图及上传拒绝、CSRF/会话到期、并发分页与版本冲突、响应丢失后的幂等重放、并发上传顺序、部分失败显式提交、清理与恢复竞争、文件系统故障、原图哈希及 Edge 关键操作。此前地图和小范围原图检查不重复执行；真实规模与地图未完成项继续跟踪。
 
-阶段 7 [开发任务拆分](development-plan.md) 已明确任务依赖和完成标准。上文第 9 节为准备阶段验证记录；当前正式开发已完成 T01/T02，从 T03 继续，后续照片与恢复的验收条件仍保留。
+阶段 7 [开发任务拆分](development-plan.md) 已明确任务依赖和完成标准。上文第 9 节为准备阶段验证记录；当前正式开发已完成 T01–T03，从 T04 继续，后续照片与恢复的验收条件仍保留。

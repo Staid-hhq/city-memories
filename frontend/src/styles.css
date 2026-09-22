@@ -65,3 +65,61 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .empty-journal h1 { font-size: 36px; overflow-wrap: anywhere; }
 .empty-journal p { color: #8b7867; font-size: 15px; line-height: 1.9; }
 .journal-icon { display: inline-block; border: 1px solid #c3a78b; color: #a97955; font-size: 40px; padding: 18px 24px; border-radius: 6px 16px 16px 6px; margin-bottom: 28px; }
+.journal-main { max-width: 1320px; margin: auto; padding: 40px 54px 70px; }
+.brand-link { color: inherit; }
+.brand-link:hover { text-decoration: none; }
+.page-heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin: 18px 0 42px; }
+.page-heading h1 { margin: 0; font-size: 36px; overflow-wrap: anywhere; }
+.page-heading .eyebrow { margin-bottom: 14px; }
+.muted { color: #887767; font-size: 14px; line-height: 1.8; }
+.chapter-mark { color: #9a8068; font-size: 12px; letter-spacing: .14em; white-space: nowrap; }
+.journal-section { margin-top: 38px; }
+.section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; margin-bottom: 20px; }
+.section-heading h2 { font-size: 22px; margin: 0; }
+.section-heading > span { color: #8d7e6c; font-size: 12px; }
+.empty-note { padding: 30px; border: 1px dashed #d8c8b0; border-radius: 10px; background: #fffaf266; font-size: 14px; line-height: 1.8; }
+.empty-note p { color: #8d7e6c; margin: 8px 0 0; }
+.saved-cities, .city-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.saved-city { display: flex; flex-direction: column; gap: 12px; padding: 24px; border: 1px solid #d8c8b0; border-left: 4px solid #99a18d; border-radius: 7px 16px 16px 7px; background: #fffcf5; color: #544339; }
+.saved-city span { font-size: 13px; color: #8c7661; }
+.saved-city small { color: #7c8673; font-size: 11px; }
+.search-form { display: flex; gap: 12px; max-width: 750px; margin: 0 0 24px; }
+.search-form input { flex: 1; min-width: 0; }
+.search-form button { flex-shrink: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.city-card { display: flex; align-items: center; gap: 16px; padding: 24px 18px; background: #fffcf6; border: 1px solid #e1d2bc; border-radius: 12px; color: #5f4b3b; }
+.city-card:hover, .album-card:hover, .saved-city:hover { text-decoration: none; border-color: #b38a62; box-shadow: 0 6px 18px #8669440a; }
+.city-initial { width: 48px; height: 48px; display: grid; place-items: center; background: #ede7d7; border-radius: 50%; color: #8b7051; font-family: 'SimSun', serif; font-size: 24px; }
+.city-card strong { font-size: 18px; display: block; margin-bottom: 8px; }
+.city-card small { font-size: 11px; color: #8d7e6c; }
+.card-arrow { margin-left: auto; color: #a88b6b; }
+.scope-note { color: #8b7b69; font-size: 12px; line-height: 1.8; margin-top: 20px; }
+.back-link { display: inline-block; color: #89705a; font-size: 13px; margin-bottom: 14px; }
+.years-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; align-items: start; }
+.create-panel { background: #fffcf5; padding: 28px; border: 1px solid #dfcfb9; border-radius: 12px; }
+.create-panel h2 { font-size: 22px; margin: 0 0 12px; }
+.create-panel .eyebrow { font-size: 10px; }
+.create-panel .muted { font-size: 12px; }
+.checkbox-label { display: flex; align-items: center; gap: 9px; font-weight: 400; }
+.checkbox-label input { width: 16px; height: 16px; accent-color: #ac704a; }
+.album-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.album-card { display: block; color: #574739; background: #fffcf6; padding: 10px; border: 1px solid #e1d2bc; border-radius: 5px 12px 12px 5px; }
+.album-cover { min-height: 156px; background: #e9e6d9; border-left: 5px solid #b6b49c; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+.album-cover span { font-size: 38px; font-family: Georgia, 'SimSun', serif; color: #7d806b; }
+.album-cover i { font-size: 7px; font-style: normal; color: #939581; letter-spacing: .16em; }
+.album-caption { padding: 16px 2px 6px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.album-caption strong { font-size: 14px; }
+.album-caption span { font-size: 10px; color: #94816c; }
+.album-empty { text-align: center; background: #fffcf580; border: 1px dashed #d6c7af; border-radius: 14px; padding: 56px 24px; }
+.album-empty .journal-icon { margin-bottom: 8px; }
+.album-empty h2 { font-size: 24px; }
+.album-empty > p { color: #8c7965; font-size: 14px; line-height: 1.8; }
+.album-empty .scope-note { font-size: 12px; }
+.album-empty button:disabled { cursor: not-allowed; }
+.more-button { display: block; margin: 24px auto 0; }
+.load-error { padding: 24px; background: #faeee5; border-radius: 10px; font-size: 14px; line-height: 1.8; }
+@media (max-width: 1150px) {
+  .journal-main { padding-inline: 36px; }
+  .album-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .years-layout { gap: 28px; }
+}

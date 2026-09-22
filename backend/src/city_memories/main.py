@@ -9,6 +9,7 @@ from sqlalchemy.exc import OperationalError
 from starlette.exceptions import HTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from city_memories.albums import router as albums_router
 from city_memories.auth import AuthService, router
 from city_memories.boundary import ApiBoundary
 from city_memories.config import Settings
@@ -32,7 +33,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             engine.dispose()
 
-    app = FastAPI(title="城影记 API", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="城影记 API", version="0.3.0", lifespan=lifespan)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=list({urlsplit(origin).hostname for origin in settings.allowed_origins}),
@@ -51,7 +52,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ApiError(
                 422,
                 "VALIDATION_FAILED",
-                "请检查用户名、密码长度及两次密码是否一致",
+                "请检查用户名、密码长度及两次密码是否一致"
+                if request.url.path.startswith("/api/v1/auth/")
+                else "请检查输入：年份须为 1–9999 的整数或未标年份，分页参数须有效",
             ),
         )
 
@@ -81,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"data": {"status": "ok"}}
 
     app.include_router(router)
+    app.include_router(albums_router)
     return app
 
 

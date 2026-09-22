@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { api, ApiError, clearSessionState, errorMessage, isAbort, setCsrfToken } from './api'
 import type { LoginResult, User } from './api'
+import { Journal } from './Journal'
 
 type SessionState =
   | { phase: 'loading' | 'guest' | 'error' | 'logging-out' | 'logout-error'; message?: string }
@@ -195,17 +196,7 @@ export function App() {
     </section></main>
   }
   if (session.phase === 'user') {
-    return <Routes><Route path="/" element={
-      <div className="home-page" key={session.user.id}>
-        <header className="home-header"><div><span className="wordmark">城影记</span><small>CITY MEMORIES</small></div>
-          <div className="account-menu"><span>{session.user.username}</span>
-            <button className="quiet-button" onClick={() => void logout()}>退出登录</button></div></header>
-        <main className="empty-journal"><span className="journal-icon" aria-hidden="true">册</span>
-          <p className="eyebrow">属于你的旅行记忆</p><h1>你好，{session.user.username}</h1>
-          <p>你的账号已准备好。<br />城市与年份影集正在准备中，期待从下一段旅程开始。</p>
-        </main>
-      </div>
-    } /><Route path="*" element={<Navigate to="/" replace />} /></Routes>
+    return <Journal key={session.user.id} user={session.user} onLogout={() => void logout()} />
   }
   return <>
     {session.message && <p className="global-notice" role="status">{session.message}</p>}
