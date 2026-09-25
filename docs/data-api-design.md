@@ -1,6 +1,6 @@
 # 城影记数据与接口设计
 
-基线日期：2026-09-21，状态更新：2026-09-22。依据 [需求](requirements.md) 和 [技术方案](tech-stack.md)。T01 已建立正式迁移，T02 已实现第 4 节认证，T03 已实现城市与年份影集，T04 已实现第 6 节导入协议及鉴权原图读取；照片列表、详情、整理及完整清理仍按后续任务实现。[SQL 设计样例](data-model.sql) 保留为设计依据。
+基线日期：2026-09-21，状态更新：2026-09-25。依据 [需求](requirements.md) 和 [技术方案](tech-stack.md)。T01 已建立正式迁移，T02 已实现认证，T03 已实现城市与年份影集，T04 已实现导入协议及鉴权原图读取，T05 已实现照片列表和详情；整理及完整清理仍按后续任务实现。[SQL 设计样例](data-model.sql) 保留为设计依据。
 
 本轮复查补齐数据关系图、请求/响应示例及城市入口的跨年份导入衔接。结构与接口设计完成不代表真实接口测试通过，整体状态见 [项目总览](../README.md)。
 
@@ -110,7 +110,7 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 | POST /cities/{city_id}/albums | year，允许 null | 新建返回 201；已有则 200 返回原影集及 created=false，不覆盖内容 |
 | GET /albums/{album_id} | 无 | 城市、年份、有效照片数、影集 revision |
 | GET /albums/{album_id}/photos | cursor、limit | 有效照片的 ID、文件名、尺寸、position、revision、has_note、同源 original_url |
-| GET /photos/{photo_id} | 无 | 本人有效照片详情、文字及同一影集前后照片 ID |
+| GET /photos/{photo_id} | 可选 album_id、expected_album_revision | 本人有效照片详情、只读文字、序号及同一影集前后照片 ID；浏览上下文改变返回 409 |
 | GET /photos/{photo_id}/original | 无 | 鉴权后返回有效照片原字节；MIME 来自服务端校验结果 |
 | GET /albums/{album_id}/duplicates | cursor、limit | 本影集内容完全相同的有效照片分组及 ID，供本人查看选择 |
 | PATCH /photos/{photo_id}/note | note、expected_photo_revision | 保存纯文本，最多 2000 字符，允许空字符串；不改原图 |
@@ -123,7 +123,17 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 
 城市年份列表为 `data: {city, items, next_cursor}`，城市与年份列表默认 24 条、最多 100 条；签名游标绑定查询范围，私人年份游标绑定账号和城市。年份按 year 降序（null 最后）加 ID 排序，新插入已读页之前的年份需刷新列表查看。`GET /albums/{id}` 的 data 为 id、city、year、revision、photo_count、cover_photo_id、original_url、created_at、updated_at；POST 创建在这些字段上增加 created。year 必填，严格整数 1–9999 或 null，不接受字符串、布尔值和客户端 owner_id。并发重复创建不覆盖原有记录。
 
-城市统计为 `data: {items, album_count, photo_count}`；每项包含 city、album_count、photo_count、lit，只统计本账号。空影集城市仍在列表中，lit=false。停用城市只能由已有影集的本人读取历史，POST 返回 409/CITY_UNAVAILABLE。响应通过 Pydantic 白名单模型输出并生成 OpenAPI schema，验证见 [T03 记录](t03-albums-verification.md)。T04 已追加真实导入后的数量和 lit 验证，并接入 `GET /photos/{photo_id}/original`：仅本人有效照片可读，不暴露私有路径，返回校验所得 MIME 和原始字节；照片列表、详情、重复分组及文字接口尚未实现。
+城市统计为 `data: {items, album_count, photo_count}`；每项包含 city、album_count、photo_count、lit，只统计本账号。空影集城市仍在列表中，lit=false。停用城市只能由已有影集的本人读取历史，POST 返回 409/CITY_UNAVAILABLE。响应通过 Pydantic 白名单模型输出并生成 OpenAPI schema，验证见 [T03 记录](t03-albums-verification.md)。T04 已追加真实导入后的数量和 lit 验证，并接入 `GET /photos/{photo_id}/original`：仅本人有效照片可读，不暴露私有路径，返回校验所得 MIME 和原始字节。重复分组和文字修改接口仍待实现。
+
+### T05 已实现的照片格式
+
+`GET /albums/{id}/photos` 的 `data` 为 `{items, next_cursor, album_revision, photo_count}`，默认 24 条、最多 100 条。每项白名单为 `id, album_id, original_filename, mime_type, byte_size, width, height, position, revision, has_note, original_url`；列表不输出 note 全文。只列本人 active 照片，按 position/id 升序，空影集返回空列表，错误不冒充空列表。
+
+游标签名范围为账号和影集，位置包含影集 revision、上一项 position/id；篡改、跨账号/跨影集使用返回 422，资源不属于本人时先返回 404。版本不一致返回 409/ALBUM_CHANGED。归属、版本、数量和列表在同一读取快照中取得，避免并发写入时拼接不一致的数据。T05 页面在此冲突下保留已读项并禁止追加，用户明确重新加载后从首批建立新快照；普通网络失败只重试续页，不清空已读项。
+
+`GET /photos/{id}` 在上述白名单上增加 `note, album_revision, previous_photo_id, next_photo_id, ordinal, photo_count`。前后 ID 和 1 起始序号来自完整影集，不受客户端已加载分页限制；首张 previous、末张 next 为 null，回收站和其他账号照片不进入邻接关系。可选 album_id 检查归属上下文，expected_album_revision 为正整数，顺序版本不符返回 409。当前 UI 仅以纯文本显示已有文字，不实现 T07 编辑。
+
+列表和详情均 no-store；原图读取复用 T04 鉴权接口。浏览器 `?photo=<照片 UUID>` 只是定位标识，不能越权；其余列表资料只在页面内存中保存。按视野加载、Blob 地址释放、返回位置与 Edge 回归见 [T05 记录](t05-browsing-verification.md)。
 
 ## 6. 导入协议与失败恢复
 
@@ -242,4 +252,4 @@ Idempotency-Key 为 1–128 位英文字母、数字、下划线或连字符；s
 
 正式实现还须验证：越权原图及上传拒绝、CSRF/会话到期、并发分页与版本冲突、响应丢失后的幂等重放、并发上传顺序、部分失败显式提交、清理与恢复竞争、文件系统故障、原图哈希及 Edge 关键操作。此前地图和小范围原图检查不重复执行；真实规模与地图未完成项继续跟踪。
 
-阶段 7 [开发任务拆分](development-plan.md) 已明确任务依赖和完成标准。上文第 9 节为准备阶段验证记录；当前正式开发已完成 T01–T04，从 T05 继续，完整照片浏览、批量、清理与恢复的验收条件仍保留。
+阶段 7 [开发任务拆分](development-plan.md) 已明确任务依赖和完成标准。上文第 9 节为准备阶段验证记录；当前正式开发已完成 T01–T05，从 T06 继续，批量、整理、清理与恢复的验收条件仍保留。

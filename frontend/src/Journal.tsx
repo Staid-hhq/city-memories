@@ -4,6 +4,8 @@ import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-rou
 import { api, ApiError, errorMessage, isAbort } from './api'
 import type { User } from './api'
 import { UploadPanel } from './UploadPanel'
+import { PhotoGallery } from './PhotoGallery'
+import { OriginalImage } from './OriginalImage'
 
 type City = { id: string; name: string; parent_name: string; unit_kind: string; can_create: boolean }
 type Album = {
@@ -158,7 +160,7 @@ function CityPage({ cityId }: { cityId: string }) {
       <div className="page-heading"><div><p className="eyebrow">{result.data.city.parent_name} · 城市手帐</p><h1>{result.data.city.name}</h1><p className="muted">按年份翻开回忆，未标年份收在最后。</p></div><span className="chapter-mark">第二章 / 年份</span></div>
       <div className="years-layout"><section aria-labelledby="years-title"><div className="section-heading"><h2 id="years-title">我的年份影集</h2><span>从新到旧</span></div>
         <Paged initial={result.data} path={path}>{(items) => items.length ? <div className="album-grid">{items.map((album) => <Link className="album-card" key={album.id} to={`/albums/${album.id}`}>
-          <div className="album-cover" aria-hidden="true"><span>{album.year ?? '…'}</span><i>TRAVEL MEMORIES</i></div>
+          <div className="album-cover" aria-hidden="true">{album.cover_photo_id ? <OriginalImage photoId={album.cover_photo_id} alt="" /> : <><span>{album.year ?? '…'}</span><i>TRAVEL MEMORIES</i></>}</div>
           <div className="album-caption"><strong>{album.year === null ? '未标年份' : `${album.year} 年`}</strong><span>{album.photo_count} 张照片</span></div>
         </Link>)}</div> : <div className="empty-note"><strong>这座城市，还没有你的年份影集。</strong><p>在右侧选一个年份，或留下“未标年份”的位置。</p></div>}</Paged>
       </section><NewAlbum city={result.data.city} /></div>
@@ -175,14 +177,16 @@ function AlbumPage({ albumId }: { albumId: string }) {
 
 function AlbumContent({ initial }: { initial: Album }) {
   const [album, setAlbum] = useState(initial)
-  const [photoId, setPhotoId] = useState<string | null>(initial.cover_photo_id)
-  const [imageError, setImageError] = useState(false)
-  const [imageAttempt, setImageAttempt] = useState(0)
+  const [savedPhotoId, setSavedPhotoId] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const readPhotos = useCallback((count: number, revision: number) => {
+    setAlbum((value) => ({ ...value, photo_count: count, revision }))
+  }, [])
   const [error, setError] = useState('')
   const refreshRequest = useRef<AbortController | null>(null)
   useEffect(() => () => refreshRequest.current?.abort(), [])
   const saved = useCallback((id: string) => {
-    setPhotoId(id); setImageError(false); setError('')
+    setSavedPhotoId(id); setRefreshKey((value) => value + 1); setError('')
     refreshRequest.current?.abort()
     const controller = new AbortController()
     refreshRequest.current = controller
@@ -194,12 +198,7 @@ function AlbumContent({ initial }: { initial: Album }) {
     <div className="page-heading"><div><p className="eyebrow">{album.city.name} · 私人影集</p><h1>{album.year === null ? '未标年份' : `${album.year} 年`}</h1><p className="muted">{album.photo_count} 张照片 · 已保存的年份影集</p></div><span className="chapter-mark">第三章 / 影集</span></div>
     {error && <p className="form-error" role="alert">{error}</p>}
     <UploadPanel albumId={album.id} cityName={album.city.name} year={album.year} onSaved={saved} />
-    {photoId ? <section className="original-preview" aria-labelledby="original-title">
-      <div className="section-heading"><h2 id="original-title">已保存的原图</h2><span>直接读取私有副本</span></div>
-      {imageError ? <div role="alert"><p>原图暂时无法读取，影集记录仍然保留。</p><button className="quiet-button" onClick={() => { setImageError(false); setImageAttempt((value) => value + 1) }}>重试读取原图</button></div> :
-        <img key={`${photoId}:${imageAttempt}`} src={`/api/v1/photos/${photoId}/original`} alt="已独立保存的原图" onError={() => setImageError(true)} />}
-      <p className="scope-note">当前显示本次保存或影集首张原图。完整分页列表、前后张浏览将在 T05 接入。</p>
-    </section> : <section className="album-empty compact-empty"><span className="journal-icon" aria-hidden="true">册</span><h2>位置已经留好，故事慢慢填满。</h2><p>选好一张照片，确认保存后就能在这里重新打开。</p></section>}
+    <PhotoGallery key={refreshKey} albumId={album.id} savedPhotoId={savedPhotoId} onRead={readPhotos} />
   </main>
 }
 

@@ -140,6 +140,10 @@ def test_real_process_restart_preserves_login_and_revocation(tmp_path, monkeypat
         with running_server(port, environment):
             assert client.get("/api/v1/auth/me").json()["data"]["id"] == user_id
             assert client.get(f"/api/v1/albums/{album_id}").json()["data"]["year"] == 2026
+            listed = client.get(f"/api/v1/albums/{album_id}/photos").json()["data"]
+            assert [photo["id"] for photo in listed["items"]] == [photo_id]
+            detail = client.get(f"/api/v1/photos/{photo_id}").json()["data"]
+            assert detail["ordinal"] == 1 and detail["next_photo_id"] is None
             assert client.get(f"/api/v1/photos/{photo_id}/original").content == image_bytes
             duplicate = client.post(
                 f"/api/v1/cities/{city_id}/albums", headers=headers(), json={"year": 2026}
@@ -152,6 +156,8 @@ def test_real_process_restart_preserves_login_and_revocation(tmp_path, monkeypat
             assert client.get("/api/v1/auth/me").status_code == 401
             assert client.get(f"/api/v1/albums/{album_id}").status_code == 401
             assert client.get(f"/api/v1/photos/{photo_id}/original").status_code == 401
+            assert client.get(f"/api/v1/albums/{album_id}/photos").status_code == 401
+            assert client.get(f"/api/v1/photos/{photo_id}").status_code == 401
             assert (
                 client.post("/api/v1/auth/login", headers=headers(), json=credentials).status_code
                 == 200

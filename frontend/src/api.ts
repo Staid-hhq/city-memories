@@ -40,6 +40,57 @@ export function errorMessage(error: unknown) {
   return '暂时连接不上服务，请检查网络后重试。'
 }
 
+// Original bytes share logout cancellation/generation protection with JSON.
+// At most two transfers run; queued off-screen images can be canceled before fetching.
+let originalTransfers = 0
+const originalQueue: (() => void)[] = []
+function originalPermit(signal: AbortSignal): Promise<() => void> {
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      const index = originalQueue.indexOf(start)
+      if (index >= 0) originalQueue.splice(index, 1)
+      reject(new DOMException('读取已取消', 'AbortError'))
+    }
+    const start = () => {
+      signal.removeEventListener('abort', abort)
+      if (signal.aborted) { abort(); return }
+      originalTransfers += 1
+      resolve(() => { originalTransfers -= 1; originalQueue.shift()?.() })
+    }
+    if (signal.aborted) { abort(); return }
+    signal.addEventListener('abort', abort, { once: true })
+    if (originalTransfers < 2) start()
+    else originalQueue.push(start)
+  })
+}
+
+export async function originalBytes(photoId: string, signal: AbortSignal): Promise<Blob> {
+  const requestGeneration = generation
+  const controller = new AbortController()
+  pending.add(controller)
+  const combined = AbortSignal.any([controller.signal, signal])
+  let release: (() => void) | undefined
+  try {
+    release = await originalPermit(combined)
+    combined.throwIfAborted()
+    const response = await fetch(`/api/v1/photos/${encodeURIComponent(photoId)}/original`, {
+      signal: combined, credentials: 'same-origin', cache: 'no-store',
+    })
+    if (requestGeneration !== generation) throw new DOMException('会话已改变', 'AbortError')
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearSessionState()
+        window.dispatchEvent(new Event('city-memories:expired'))
+      }
+      throw new ApiError(response.status, 'ORIGINAL_UNAVAILABLE', '原图暂时无法读取，请重试；影集记录仍然保留。')
+    }
+    const blob = await response.blob()
+    combined.throwIfAborted()
+    if (requestGeneration !== generation) throw new DOMException('会话已改变', 'AbortError')
+    return blob
+  } finally { release?.(); pending.delete(controller) }
+}
+
 export async function api<T>(path: string, init: RequestInit = {}, privateRequest = true): Promise<T> {
   const requestGeneration = generation
   const controller = new AbortController()
