@@ -133,3 +133,49 @@ export async function api<T>(path: string, init: RequestInit = {}, privateReques
     pending.delete(controller)
   }
 }
+
+// XHR provides actual multipart transfer progress. 100% means bytes sent, not
+// server validation or a photo commit; it shares the JSON API's session guard.
+export async function uploadFile<T>(path: string, file: File, signal: AbortSignal, progress: (percent: number) => void): Promise<T> {
+  const requestGeneration = generation
+  const controller = new AbortController()
+  pending.add(controller)
+  const combined = AbortSignal.any([controller.signal, signal])
+  try {
+    if (!csrfToken) {
+      const result = await api<{ csrf_token: string }>('/auth/csrf', { signal: combined }, false)
+      csrfToken = result.csrf_token
+    }
+    combined.throwIfAborted()
+    return await new Promise<T>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      const abort = () => xhr.abort()
+      const cleanup = () => combined.removeEventListener('abort', abort)
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && !combined.aborted && requestGeneration === generation) {
+          progress(Math.round(event.loaded / event.total * 100))
+        }
+      }
+      xhr.onload = () => {
+        cleanup()
+        if (combined.aborted || requestGeneration !== generation) { reject(new DOMException('会话已改变', 'AbortError')); return }
+        const result = xhr.response
+        if (xhr.status >= 200 && xhr.status < 300 && result?.data) { resolve(result.data as T); return }
+        const error = new ApiError(xhr.status, result?.error?.code ?? 'UPLOAD_FAILED', result?.error?.message ?? '上传响应不完整，请查询状态后重试', Number(xhr.getResponseHeader('Retry-After')) || null)
+        if (xhr.status === 403) csrfToken = null
+        if (xhr.status === 401) { clearSessionState(); window.dispatchEvent(new Event('city-memories:expired')) }
+        reject(error)
+      }
+      xhr.onerror = xhr.ontimeout = () => { cleanup(); reject(new TypeError('Network error')) }
+      xhr.onabort = () => { cleanup(); reject(new DOMException('传输已停止', 'AbortError')) }
+      xhr.open('PUT', `/api/v1${path}`)
+      xhr.responseType = 'json'
+      xhr.timeout = 15 * 60 * 1000
+      xhr.setRequestHeader('X-CSRF-Token', csrfToken!)
+      combined.addEventListener('abort', abort, { once: true })
+      const body = new FormData()
+      body.append('file', file)
+      xhr.send(body)
+    })
+  } finally { pending.delete(controller) }
+}

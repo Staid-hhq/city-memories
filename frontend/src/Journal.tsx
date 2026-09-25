@@ -4,6 +4,7 @@ import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-rou
 import { api, ApiError, errorMessage, isAbort } from './api'
 import type { User } from './api'
 import { UploadPanel } from './UploadPanel'
+import { BatchImport } from './BatchImport'
 import { PhotoGallery } from './PhotoGallery'
 import { OriginalImage } from './OriginalImage'
 
@@ -158,6 +159,7 @@ function CityPage({ cityId }: { cityId: string }) {
     <Link className="back-link" to="/">← 返回城市入口</Link>
     {result.loading ? <p role="status">正在翻开城市手帐…</p> : !result.data ? <LoadError error={result.error} retry={result.retry} /> : <>
       <div className="page-heading"><div><p className="eyebrow">{result.data.city.parent_name} · 城市手帐</p><h1>{result.data.city.name}</h1><p className="muted">按年份翻开回忆，未标年份收在最后。</p></div><span className="chapter-mark">第二章 / 年份</span></div>
+      {result.data.city.can_create && <Link className="batch-entry" to={`/cities/${cityId}/import`}>批量导入原图 <span>核对年份，分组放入影集 →</span></Link>}
       <div className="years-layout"><section aria-labelledby="years-title"><div className="section-heading"><h2 id="years-title">我的年份影集</h2><span>从新到旧</span></div>
         <Paged initial={result.data} path={path}>{(items) => items.length ? <div className="album-grid">{items.map((album) => <Link className="album-card" key={album.id} to={`/albums/${album.id}`}>
           <div className="album-cover" aria-hidden="true">{album.cover_photo_id ? <OriginalImage photoId={album.cover_photo_id} alt="" /> : <><span>{album.year ?? '…'}</span><i>TRAVEL MEMORIES</i></>}</div>
@@ -197,6 +199,7 @@ function AlbumContent({ initial }: { initial: Album }) {
     <Link className="back-link" to={`/cities/${album.city.id}`}>← 返回{album.city.name}年份影集</Link>
     <div className="page-heading"><div><p className="eyebrow">{album.city.name} · 私人影集</p><h1>{album.year === null ? '未标年份' : `${album.year} 年`}</h1><p className="muted">{album.photo_count} 张照片 · 已保存的年份影集</p></div><span className="chapter-mark">第三章 / 影集</span></div>
     {error && <p className="form-error" role="alert">{error}</p>}
+    <Link className="batch-entry" to={`/albums/${album.id}/import`}>批量导入原图 <span>全部加入当前影集 →</span></Link>
     <UploadPanel albumId={album.id} cityName={album.city.name} year={album.year} onSaved={saved} />
     <PhotoGallery key={refreshKey} albumId={album.id} savedPhotoId={savedPhotoId} onRead={readPhotos} />
   </main>
@@ -205,8 +208,19 @@ function AlbumContent({ initial }: { initial: Album }) {
 function CityRoute() { const { cityId = '' } = useParams(); return <CityPage key={cityId} cityId={cityId} /> }
 function AlbumRoute() { const { albumId = '' } = useParams(); return <AlbumPage key={albumId} albumId={albumId} /> }
 
+function ImportPage({ cityId, albumId }: { cityId?: string; albumId?: string }) {
+  const result = useResource<Album | CityAlbums>(albumId ? `/albums/${albumId}` : `/cities/${cityId}/albums`)
+  if (result.loading) return <main className="journal-main"><p role="status">正在打开批量导入…</p></main>
+  if (!result.data) return <main className="journal-main"><LoadError error={result.error} retry={result.retry} /></main>
+  const data = result.data
+  return <main className="journal-main"><Link className="back-link" to={albumId ? `/albums/${albumId}` : `/cities/${cityId}`}>← 返回{albumId ? '年份影集' : '城市手帐'}</Link>
+    <BatchImport cityId={data.city.id} cityName={data.city.name} albumId={albumId} year={'year' in data ? data.year : undefined} />
+  </main>
+}
+function ImportRoute() { const { cityId, albumId } = useParams(); return <ImportPage key={cityId ?? albumId} cityId={cityId} albumId={albumId} /> }
+
 export function Journal({ user, onLogout }: { user: User; onLogout: () => void }) {
   return <div className="home-page"><header className="home-header"><Link to="/" className="brand-link"><span className="wordmark">城影记</span><small>CITY MEMORIES</small></Link>
     <div className="account-menu"><span>{user.username}</span><button className="quiet-button" onClick={onLogout}>退出登录</button></div>
-  </header><Routes><Route path="/" element={<Home user={user} />} /><Route path="/cities/:cityId" element={<CityRoute />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
+  </header><Routes><Route path="/" element={<Home user={user} />} /><Route path="/cities/:cityId" element={<CityRoute />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="/cities/:cityId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/import" element={<ImportRoute />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
 }

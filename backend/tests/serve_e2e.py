@@ -29,7 +29,9 @@ if __name__ == "__main__":
         engine = build_engine(Settings(data_dir=Path(directory), _env_file=None))
         with Session(engine) as db, db.begin():
             password_hash = PasswordHash.recommended().hash("Only for T03 browser tests!")
-            for username in ("Albums_One", "Albums_Two", "Photos_One", "Photos_Two"):
+            for username in (
+                "Albums_One", "Albums_Two", "Photos_One", "Photos_Two", "Batch_One", "Batch_Two"
+            ):
                 db.add(
                     User(
                         id=str(uuid4()),

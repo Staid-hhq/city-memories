@@ -161,6 +161,38 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .photo-viewer .scope-note { text-align: center; margin: 12px 0 0; }
 .compact-empty { padding: 28px; }
 .compact-empty .journal-icon { font-size: 26px; padding: 12px 18px; }
+.batch-entry { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px 28px; margin: 0 0 28px; border: 1px solid #c3b594; border-left: 4px solid #87977d; border-radius: 10px; background: #eef0e4; color: #4f624a; font-weight: 600; }
+.batch-entry span { font-weight: 400; font-size: 13px; }
+.batch-import > .primary-button { width: auto; min-width: 220px; justify-content: center; }
+.queue-table-wrap { overflow-x: auto; border: 1px solid #dfcfb9; border-radius: 10px; }
+.queue-table { width: 100%; border-collapse: collapse; text-align: left; background: #fffcf5; font-size: 13px; }
+.queue-table th { background: #ede7d9; color: #78634d; padding: 15px; font-weight: 600; }
+.queue-table td { border-top: 1px solid #e6ddce; padding: 14px 15px; }
+.queue-table th:first-child { width: 65px; }
+.queue-table th:nth-child(3) { width: 170px; }
+.queue-table th:last-child { width: 186px; }
+.queue-table strong, .upload-list strong { overflow-wrap: anywhere; font-weight: 500; }
+.queue-table small, .upload-list small { display: block; color: #887b68; font-size: 11px; line-height: 1.6; margin-top: 7px; }
+.queue-table input:not([type=checkbox]), .batch-year-tools input { width: 110px; padding: 8px; border: 1px solid #d2c1a9; border-radius: 5px; background: #fffdf9; }
+.queue-table .checkbox-label { font-size: 11px; margin-top: 9px; }
+.queue-row-actions, .batch-year-tools { display: flex; gap: 8px; align-items: center; }
+.queue-row-actions button { padding: 6px 9px; }
+.batch-year-tools { margin: 22px 0; font-size: 13px; gap: 14px; }
+.import-warning { border-left: 3px solid #be8c45; padding: 12px 16px; background: #f3e8d2; color: #8a633b; font-size: 13px; line-height: 1.8; }
+.confirm-import { padding: 24px 0 0; font-size: 14px; }
+.queue-summary { display: flex; justify-content: space-between; gap: 20px; align-items: center; padding: 22px; background: #e9eddf; border-radius: 10px; margin-top: 25px; }
+.queue-summary span { font-size: 12px; color: #778168; }
+.import-job { border: 1px solid #dfcfb9; background: #fffcf5; border-radius: 12px; padding: 26px; margin-top: 24px; }
+.import-job > a { font-size: 12px; }
+.import-job summary { cursor: pointer; margin: 18px 0; font-size: 13px; color: #897058; }
+.upload-list { list-style: none; padding: 0; max-height: 480px; overflow-y: auto; }
+.upload-list li { display: flex; justify-content: space-between; gap: 24px; border-top: 1px solid #e4d8c7; padding: 16px 2px; font-size: 13px; }
+.upload-list li > div:first-child { min-width: 0; flex: 1; }
+.upload-list progress { width: min(360px, 100%); accent-color: #7a906e; margin-top: 10px; height: 9px; }
+.entry-retry { width: 295px; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.entry-retry input { width: 100%; font-size: 11px; }
+.entry-retry button { font-size: 12px; }
+.cancel-batch { margin-top: 20px; font-size: 12px; }
 @media (max-width: 1150px) {
   .journal-main { padding-inline: 36px; }
   .album-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

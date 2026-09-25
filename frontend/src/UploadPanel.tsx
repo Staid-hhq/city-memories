@@ -161,6 +161,6 @@ export function UploadPanel({ albumId, cityName, year, onSaved }: Props) {
     {working && <p role="status">{working}</p>}
     {error && <p className="form-error" role="alert">{error}</p>}
     {notice && !receipt && <p role="status">{notice}</p>}
-    <p className="scope-note">重新打开本页可查询此次导入；未传完的文件需重新选择。当前每次添加一张，批量队列将在后续开放。</p>
+    <p className="scope-note">重新打开本页可查询此次导入；未传完的文件需重新选择。一次添加多张时可使用上方“批量导入原图”。</p>
   </section>
 }

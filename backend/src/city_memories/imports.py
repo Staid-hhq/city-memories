@@ -6,9 +6,9 @@ import os
 import threading
 from datetime import UTC, datetime
 from typing import Annotated
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Header, Request, Response
+from fastapi import APIRouter, Header, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from python_multipart.exceptions import MultipartParseError
 from sqlalchemy import func, select, update
@@ -108,6 +108,17 @@ class BatchView(BaseModel):
     result: Receipt | None
 
 
+class QueueBatchView(BatchView):
+    queue_index: int
+    city_id: str
+    year: int | None
+
+
+class QueueView(BaseModel):
+    items: list[QueueBatchView]
+    next_index: int | None
+
+
 def request_digest(value: dict) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
@@ -167,8 +178,9 @@ class ImportService:
         )
         return self.batch(db, batch_id, owner)
 
-    def view(self, db, batch: ImportBatch) -> dict:
-        if batch.state == "open" and batch.expires_at <= self.auth.clock():
+    def view(self, db, batch: ImportBatch, *, include_expired: bool = False) -> dict:
+        expired = batch.state == "open" and batch.expires_at <= self.auth.clock()
+        if expired and not include_expired:
             raise ApiError(410, "IMPORT_EXPIRED", "这次导入已过期，请重新选择文件")
         album = db.get(Album, batch.album_id)
         items = db.scalars(
@@ -180,11 +192,41 @@ class ImportService:
             "id": batch.id,
             "album_id": batch.album_id,
             "album_revision": album.revision,
-            "state": batch.state,
+            "state": "expired" if expired else batch.state,
             "expires_at": datetime.fromtimestamp(batch.expires_at / 1000, UTC),
             "items": [item_view(item) for item in items],
             "result": json.loads(batch.commit_result_json) if batch.commit_result_json else None,
         }
+
+    def queue(self, queue_id: UUID, owner: str, after: int) -> dict:
+        # Opaque locator, never an authorization token. Only the signed-in owner's
+        # keys are queried; the existing idempotency key is also the recovery key.
+        prefix = f"{queue_id}_"
+        with self.sessions() as db:
+            rows = db.execute(
+                select(ImportBatch, Album)
+                .join(Album, ImportBatch.album_id == Album.id)
+                .where(
+                    ImportBatch.owner_id == owner,
+                    Album.owner_id == owner,
+                    ImportBatch.request_key.startswith(prefix, autoescape=True),
+                    ImportBatch.request_key.op("GLOB")(prefix + "[0-9]" * 6),
+                    ImportBatch.request_key > f"{prefix}{after:06d}",
+                )
+                .order_by(ImportBatch.request_key)
+                .limit(26)
+            ).all()
+            items = []
+            for batch, album in rows[:25]:
+                suffix = batch.request_key[len(prefix):]
+                items.append({
+                    **self.view(db, batch, include_expired=True),
+                    "queue_index": int(suffix), "city_id": album.city_id, "year": album.year,
+                })
+            # The continuation follows the last scanned key, not the last item.
+            # Queue keys written by the client always have a six-digit suffix.
+            next_index = int(rows[24][0].request_key[-6:]) if len(rows) > 25 else None
+            return {"items": items, "next_index": next_index}
 
     def create(self, album_id: str, owner: str, key: str, data: ImportInput):
         digest = request_digest({"album_id": album_id, **data.model_dump()})
@@ -493,6 +535,16 @@ def create_import(
     result, created = request.app.state.imports.create(album_id, user.id, idempotency_key, data)
     response.status_code = 201 if created else 200
     return {"data": result}
+
+
+@router.get("/imports/queue/{queue_id}", response_model=Envelope[QueueView])
+def import_queue(
+    queue_id: UUID,
+    request: Request,
+    user: CurrentUser,
+    after: Annotated[int, Query(ge=-1, le=999999)] = -1,
+):
+    return {"data": request.app.state.imports.queue(queue_id, user.id, after)}
 
 
 @router.get("/imports/{batch_id}", response_model=Envelope[BatchView])
