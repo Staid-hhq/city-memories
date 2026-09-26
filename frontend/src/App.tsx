@@ -124,13 +124,17 @@ export function App() {
   const navigate = useNavigate()
   const [session, setSession] = useState<SessionState>({ phase: 'loading' })
   const channel = useRef<BroadcastChannel | null>(null)
+  const activeUser = useRef<string | null>(null)
+  const [sessionNotice, setSessionNotice] = useState('')
 
   const loadSession = useCallback(() => {
     clearSessionState()
     void api<User>('/auth/me', {}, false).then((user) => {
+      activeUser.current = user.id
       setSession({ phase: 'user', user })
     }).catch((error: unknown) => {
       if (isAbort(error)) return
+      activeUser.current = null
       setSession(error instanceof ApiError && error.status === 401
         ? { phase: 'guest' } : { phase: 'error', message: errorMessage(error) })
     })
@@ -146,9 +150,24 @@ export function App() {
     const bus = new BroadcastChannel('city-memories-auth')
     channel.current = bus
     bus.onmessage = refresh
-    const expired = () => setSession({ phase: 'guest', message: '登录已过期，请重新登录。' })
+    const expired = () => { activeUser.current = null; setSession({ phase: 'guest', message: '登录已过期，请重新登录。' }) }
     const restored = (event: PageTransitionEvent) => { if (event.persisted) refresh() }
-    const visible = () => { if (document.visibilityState === 'visible') refresh() }
+    const visible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (!activeUser.current) { refresh(); return }
+      // Returning to the same account must not unmount an unsaved note or queue.
+      // Broadcast logout still hides everything immediately through refresh().
+      void api<User>('/auth/me', {}, false).then((user) => {
+        setSessionNotice('')
+        if (user.id === activeUser.current) return
+        clearSessionState(); activeUser.current = user.id
+        setSession({ phase: 'user', user })
+      }).catch((error: unknown) => {
+        if (isAbort(error)) return
+        if (error instanceof ApiError && error.status === 401) { clearSessionState(); expired() }
+        else setSessionNotice('会话核对暂时失败，未保存内容仍在本页；请检查连接后再保存。')
+      })
+    }
     window.addEventListener('city-memories:expired', expired)
     window.addEventListener('pageshow', restored)
     document.addEventListener('visibilitychange', visible)
@@ -162,12 +181,14 @@ export function App() {
   }, [refresh, loadSession])
 
   function loggedIn(user: User) {
+    activeUser.current = user.id; setSessionNotice('')
     setSession({ phase: 'user', user })
     channel.current?.postMessage('changed')
     navigate('/', { replace: true })
   }
 
   async function logout() {
+    activeUser.current = null; setSessionNotice('')
     clearSessionState()
     setSession({ phase: 'logging-out' })
     try {
@@ -196,7 +217,7 @@ export function App() {
     </section></main>
   }
   if (session.phase === 'user') {
-    return <Journal key={session.user.id} user={session.user} onLogout={() => void logout()} />
+    return <>{sessionNotice && <p className="global-notice" role="alert">{sessionNotice}</p>}<Journal key={session.user.id} user={session.user} onLogout={() => void logout()} /></>
   }
   return <>
     {session.message && <p className="global-notice" role="status">{session.message}</p>}

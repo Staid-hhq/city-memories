@@ -148,7 +148,7 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .gallery-end { text-align: center; margin: 32px 0; color: #9a8873; font-size: 13px; }
 .photo-viewer { width: min(1180px, 94vw); max-width: 94vw; max-height: 94vh; padding: 24px 32px; color: #584939; border: 1px solid #d9c8b1; border-radius: 14px; background: #fffcf5; }
 .photo-viewer::backdrop { background: #302c27bd; }
-.viewer-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 16px; }
+.viewer-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 16px; position: sticky; top: 0; z-index: 2; padding-block: 10px; background: #fffcf6; }
 .viewer-header > div { min-width: 0; }
 .viewer-header .eyebrow { margin: 0 0 7px; }
 .viewer-header h2 { margin: 0; font-size: 21px; overflow-wrap: anywhere; }
@@ -193,6 +193,22 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .entry-retry input { width: 100%; font-size: 11px; }
 .entry-retry button { font-size: 12px; }
 .cancel-batch { margin-top: 20px; font-size: 12px; }
+.gallery-buttons { display: flex; gap: 10px; }
+.photo-order-controls { display: flex; flex-wrap: wrap; gap: 7px; border-top: 1px solid #e2d4bd; padding: 12px 4px 4px; }
+.photo-order-controls button { font-size: 11px; padding: 7px 9px; }
+.drag-handle { cursor: grab; }
+.drag-handle:active { cursor: grabbing; }
+.photo-card.drop-target { border-top: 4px solid #7e9670; background: #eef2e4; }
+.order-status { padding: 16px 20px; background: #edf0e3; border-left: 3px solid #879873; margin-bottom: 18px; font-size: 13px; line-height: 1.8; }
+.order-status p { margin: 0 0 8px; overflow-wrap: anywhere; }
+.note-editor { margin-top: 22px; border-top: 1px solid #ded0b9; padding-top: 18px; }
+.note-editor .section-heading { margin-bottom: 12px; }
+.note-editor h3 { margin: 0; font-size: 17px; font-weight: 500; }
+.note-editor textarea { display: block; width: 100%; min-height: 110px; resize: vertical; padding: 14px; border: 1px solid #d1bfa6; border-radius: 7px; font-family: inherit; font-size: 14px; line-height: 1.8; color: #594b3a; background: #fffdf9; }
+.photo-viewer .note-editor .scope-note { text-align: left; }
+.note-conflict, .note-leave { padding: 18px; margin-top: 18px; border: 1px solid #cbaa7a; background: #f4ebd9; border-radius: 8px; font-size: 13px; line-height: 1.8; }
+.note-conflict h4 { margin: 0; font-size: 14px; }
+.note-conflict .photo-note { max-height: 180px; overflow: auto; }
 @media (max-width: 1150px) {
   .journal-main { padding-inline: 36px; }
   .album-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

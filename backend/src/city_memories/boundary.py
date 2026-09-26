@@ -42,9 +42,17 @@ class ApiBoundary:
             commit_import = scope["path"].startswith("/api/v1/imports/") and scope["path"].endswith(
                 "/commit"
             )
-            json_write = json_write or new_import or commit_import
-            json_limit = 1024 * 1024 if new_import else 16 * 1024
-            if json_write and request.method == "POST":
+            note_write = scope["path"].startswith("/api/v1/photos/") and scope["path"].endswith(
+                "/note"
+            )
+            reorder = scope["path"].startswith("/api/v1/albums/") and scope["path"].endswith(
+                "/reorder"
+            )
+            json_write = json_write or new_import or commit_import or note_write or reorder
+            # Allows 2000 Unicode code points even when JSON-escaped surrogate pairs
+            # are used; semantic validation still limits note length independently.
+            json_limit = 1024 * 1024 if new_import else 64 * 1024 if note_write else 16 * 1024
+            if json_write and request.method in {"POST", "PATCH"}:
                 # 在 JSON 解析之前计实际字节，不信任 Content-Length。
                 body = bytearray()
                 while True:

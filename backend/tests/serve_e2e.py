@@ -30,7 +30,8 @@ if __name__ == "__main__":
         with Session(engine) as db, db.begin():
             password_hash = PasswordHash.recommended().hash("Only for T03 browser tests!")
             for username in (
-                "Albums_One", "Albums_Two", "Photos_One", "Photos_Two", "Batch_One", "Batch_Two"
+                "Albums_One", "Albums_Two", "Photos_One", "Photos_Two", "Batch_One", "Batch_Two",
+                "Editing_One",
             ):
                 db.add(
                     User(
@@ -63,4 +64,14 @@ if __name__ == "__main__":
                     )
                 )
             seed_photos(app, owner, album_id)
+            for year in (2060, 2061, 2062):
+                with app.state.auth.sessions.begin() as db:
+                    owner = db.scalar(select(User.id).where(User.username == "Editing_One"))
+                    album_id = str(uuid4())
+                    db.add(Album(
+                        id=album_id, owner_id=owner,
+                        city_id="a03b8f10-06dd-4b56-aef1-33cfc3696301", year=year,
+                        revision=1, created_at=1_800_000_000_000, updated_at=1_800_000_000_000,
+                    ))
+                seed_photos(app, owner, album_id)
         uvicorn.run(app, host="127.0.0.1", port=8000, proxy_headers=False, access_log=False)

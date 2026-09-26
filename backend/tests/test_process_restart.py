@@ -136,14 +136,43 @@ def test_real_process_restart_preserves_login_and_revocation(tmp_path, monkeypat
             )
             assert committed.status_code == 200
             photo_id = committed.json()["data"]["photo_ids"][0]
+            assert client.patch(
+                f"/api/v1/photos/{photo_id}/note", headers=headers(),
+                json={"note": "真实进程重启保留的文字 🌅", "expected_photo_revision": 1},
+            ).status_code == 200
+            second = client.post(
+                f"/api/v1/albums/{album_id}/imports",
+                headers={**headers(), "Idempotency-Key": "restart-second-original"},
+                json={"items": [{
+                    "original_filename": "synthetic-second.png", "byte_size": len(image_bytes),
+                    "sha256": hashlib.sha256(image_bytes).hexdigest(),
+                }]},
+            ).json()["data"]
+            assert client.put(
+                f"/api/v1/imports/{second['id']}/items/{second['items'][0]['id']}/content",
+                headers=headers(),
+                files={"file": ("synthetic-second.png", image_bytes, "image/png")},
+            ).status_code == 200
+            second_photo = client.post(
+                f"/api/v1/imports/{second['id']}/commit", headers=headers(),
+                json={"expected_album_revision": 2},
+            ).json()["data"]["photo_ids"][0]
+            assert client.post(
+                f"/api/v1/albums/{album_id}/reorder", headers=headers(),
+                json={"photo_id": second_photo, "before_photo_id": photo_id,
+                      "expected_album_revision": 3},
+            ).status_code == 200
             source_path.rename(tmp_path / "synthetic-source-moved.png")
         with running_server(port, environment):
             assert client.get("/api/v1/auth/me").json()["data"]["id"] == user_id
             assert client.get(f"/api/v1/albums/{album_id}").json()["data"]["year"] == 2026
             listed = client.get(f"/api/v1/albums/{album_id}/photos").json()["data"]
-            assert [photo["id"] for photo in listed["items"]] == [photo_id]
+            assert [photo["id"] for photo in listed["items"]] == [second_photo, photo_id]
             detail = client.get(f"/api/v1/photos/{photo_id}").json()["data"]
-            assert detail["ordinal"] == 1 and detail["next_photo_id"] is None
+            assert detail["ordinal"] == 2 and detail["next_photo_id"] is None
+            assert detail["previous_photo_id"] == second_photo
+            assert detail["note"] == "真实进程重启保留的文字 🌅" and detail["revision"] == 2
+            assert detail["album_revision"] == 4
             assert client.get(f"/api/v1/photos/{photo_id}/original").content == image_bytes
             duplicate = client.post(
                 f"/api/v1/cities/{city_id}/albums", headers=headers(), json={"year": 2026}

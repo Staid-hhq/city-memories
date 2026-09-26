@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router'
+import { createBrowserRouter, RouterProvider } from 'react-router'
 import { App } from './App'
 import './styles.css'
 
@@ -10,10 +10,10 @@ if (!rootElement) {
   throw new Error('找不到应用挂载节点')
 }
 
+const router = createBrowserRouter([{ path: '*', element: <App /> }])
+
 createRoot(rootElement).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <RouterProvider router={router} />
   </StrictMode>,
 )

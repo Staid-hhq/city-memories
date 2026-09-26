@@ -14,6 +14,7 @@ from city_memories.auth import AuthService, router
 from city_memories.boundary import ApiBoundary
 from city_memories.config import Settings
 from city_memories.database import build_engine
+from city_memories.editing import router as editing_router
 from city_memories.errors import ApiError, error_response
 from city_memories.imports import ImportService
 from city_memories.imports import router as imports_router
@@ -37,7 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             engine.dispose()
 
-    app = FastAPI(title="城影记 API", version="0.6.0", lifespan=lifespan)
+    app = FastAPI(title="城影记 API", version="0.7.0", lifespan=lifespan)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=list({urlsplit(origin).hostname for origin in settings.allowed_origins}),
@@ -92,6 +93,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(albums_router)
     app.include_router(imports_router)
     app.include_router(photos_router)
+    app.include_router(editing_router)
     return app
 
 
