@@ -26,6 +26,8 @@ T06 新增 `GET /api/v1/imports/queue/{queue_id}?after=-1`：按当前账号和�
 
 T07 新增 `PATCH /api/v1/photos/{photo_id}/note` 和 `POST /api/v1/albums/{album_id}/reorder`。文字最多 2000 个 Unicode 字符、可空，JSON 实际字节上限 64 KiB；只改变照片 revision。排序 JSON 上限 16 KiB，在完整有效影集内按照片/锚点移动，两阶段位置更新和影集 revision 处于同一事务；不改照片 ID、文字、revision 或原图。均要求本人资源、CSRF 和匹配版本，冲突返回 409，相同内容/位置不增加版本。复用现有表，无新依赖或迁移；详见 [接口契约](../docs/data-api-design.md) 和 [T07 记录](../docs/t07-editing-verification.md)。
 
+T08 新增 `POST /api/v1/photos/{photo_id}/move` 和 `GET /api/v1/albums/{album_id}/duplicates`。移动要求本人有效照片与本人源/目标影集，以及照片、源影集、目标影集的三个版本；JSON 上限 16 KiB，事务内追加目标末尾并更新三者版本，原 ID、文字、原图和导入收据不变。重复查询仅按本影集有效照片的 SHA256 分组，默认 24、最多 100 **条照片**，大组可跨页，返回代表照片 UUID 而非哈希；游标绑定账号、影集、版本。原影集移空仍保留，相同内容不自动删除或合并；无新依赖或迁移。详见 [T08 记录](../docs/t08-organizing-verification.md)。
+
 ```powershell
 uv run ruff check .
 uv run python -m pytest -q

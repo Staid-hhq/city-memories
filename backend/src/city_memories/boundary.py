@@ -48,7 +48,8 @@ class ApiBoundary:
             reorder = scope["path"].startswith("/api/v1/albums/") and scope["path"].endswith(
                 "/reorder"
             )
-            json_write = json_write or new_import or commit_import or note_write or reorder
+            move = scope["path"].startswith("/api/v1/photos/") and scope["path"].endswith("/move")
+            json_write = json_write or new_import or commit_import or note_write or reorder or move
             # Allows 2000 Unicode code points even when JSON-escaped surrogate pairs
             # are used; semantic validation still limits note length independently.
             json_limit = 1024 * 1024 if new_import else 64 * 1024 if note_write else 16 * 1024

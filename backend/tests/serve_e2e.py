@@ -9,7 +9,7 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from photo_fixtures import seed_photos
+from photo_fixtures import seed_copies, seed_photos
 from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -31,7 +31,7 @@ if __name__ == "__main__":
             password_hash = PasswordHash.recommended().hash("Only for T03 browser tests!")
             for username in (
                 "Albums_One", "Albums_Two", "Photos_One", "Photos_Two", "Batch_One", "Batch_Two",
-                "Editing_One",
+                "Editing_One", "Organize_One", "Organize_Two",
             ):
                 db.add(
                     User(
@@ -74,4 +74,17 @@ if __name__ == "__main__":
                         revision=1, created_at=1_800_000_000_000, updated_at=1_800_000_000_000,
                     ))
                 seed_photos(app, owner, album_id)
+            for year in (2070, 2071, 2072, 2073, 2074, 2075, 2076):
+                with app.state.auth.sessions.begin() as db:
+                    owner = db.scalar(select(User.id).where(User.username == "Organize_One"))
+                    album_id = str(uuid4())
+                    db.add(Album(
+                        id=album_id, owner_id=owner,
+                        city_id="a03b8f10-06dd-4b56-aef1-33cfc3696301", year=year,
+                        revision=1, created_at=1_800_000_000_000, updated_at=1_800_000_000_000,
+                    ))
+                _, contents = seed_photos(app, owner, album_id, 3 if year == 2072 else 2)
+                if year == 2072:
+                    seed_copies(app, owner, album_id, [contents[0]] * 26 + [contents[1]],
+                                ["same-content.png"] * 26 + ["journey-01.png"])
         uvicorn.run(app, host="127.0.0.1", port=8000, proxy_headers=False, access_log=False)

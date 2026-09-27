@@ -7,9 +7,11 @@ import { UploadPanel } from './UploadPanel'
 import { BatchImport } from './BatchImport'
 import { PhotoGallery } from './PhotoGallery'
 import { OriginalImage } from './OriginalImage'
+import { MovePhoto } from './MovePhoto'
+import { Duplicates } from './Duplicates'
 
-type City = { id: string; name: string; parent_name: string; unit_kind: string; can_create: boolean }
-type Album = {
+export type City = { id: string; name: string; parent_name: string; unit_kind: string; can_create: boolean }
+export type Album = {
   id: string; city: City; year: number | null; revision: number; photo_count: number
   cover_photo_id: string | null; original_url: string | null
 }
@@ -207,6 +209,8 @@ function AlbumContent({ initial }: { initial: Album }) {
 
 function CityRoute() { const { cityId = '' } = useParams(); return <CityPage key={cityId} cityId={cityId} /> }
 function AlbumRoute() { const { albumId = '' } = useParams(); return <AlbumPage key={albumId} albumId={albumId} /> }
+function MoveRoute() { const { albumId = '', photoId = '' } = useParams(); return <MovePhoto key={`${albumId}:${photoId}`} albumId={albumId} photoId={photoId} /> }
+function DuplicatesRoute() { const { albumId = '' } = useParams(); return <Duplicates key={albumId} albumId={albumId} /> }
 
 function ImportPage({ cityId, albumId }: { cityId?: string; albumId?: string }) {
   const result = useResource<Album | CityAlbums>(albumId ? `/albums/${albumId}` : `/cities/${cityId}/albums`)
@@ -222,5 +226,5 @@ function ImportRoute() { const { cityId, albumId } = useParams(); return <Import
 export function Journal({ user, onLogout }: { user: User; onLogout: () => void }) {
   return <div className="home-page"><header className="home-header"><Link to="/" className="brand-link"><span className="wordmark">城影记</span><small>CITY MEMORIES</small></Link>
     <div className="account-menu"><span>{user.username}</span><button className="quiet-button" onClick={onLogout}>退出登录</button></div>
-  </header><Routes><Route path="/" element={<Home user={user} />} /><Route path="/cities/:cityId" element={<CityRoute />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="/cities/:cityId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/import" element={<ImportRoute />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
+  </header><Routes><Route path="/" element={<Home user={user} />} /><Route path="/cities/:cityId" element={<CityRoute />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="/cities/:cityId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/move/:photoId" element={<MoveRoute />} /><Route path="/albums/:albumId/duplicates" element={<DuplicatesRoute />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
 }

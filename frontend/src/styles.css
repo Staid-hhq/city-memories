@@ -193,7 +193,7 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .entry-retry input { width: 100%; font-size: 11px; }
 .entry-retry button { font-size: 12px; }
 .cancel-batch { margin-top: 20px; font-size: 12px; }
-.gallery-buttons { display: flex; gap: 10px; }
+.gallery-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
 .photo-order-controls { display: flex; flex-wrap: wrap; gap: 7px; border-top: 1px solid #e2d4bd; padding: 12px 4px 4px; }
 .photo-order-controls button { font-size: 11px; padding: 7px 9px; }
 .drag-handle { cursor: grab; }
@@ -208,6 +208,20 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .photo-viewer .note-editor .scope-note { text-align: left; }
 .note-conflict, .note-leave { padding: 18px; margin-top: 18px; border: 1px solid #cbaa7a; background: #f4ebd9; border-radius: 8px; font-size: 13px; line-height: 1.8; }
 .note-conflict h4 { margin: 0; font-size: 14px; }
+.move-link { display: inline-block; margin: 12px 6px; color: #8b603e; font-size: 13px; text-underline-offset: 4px; }
+.move-summary { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; margin: 24px 0; padding: 22px; background: #fffcf5; border: 1px solid #e2d4bd; border-radius: 10px; }
+.move-preview { height: 160px; overflow: hidden; }
+.move-preview img { width: 100%; height: 100%; object-fit: contain; }
+.move-summary h2 { overflow-wrap: anywhere; }
+.move-summary .photo-note { max-height: 160px; overflow: auto; }
+.move-picker { margin: 0; padding: 24px; min-width: 0; border: 1px solid #e2d4bd; border-radius: 10px; background: #fffcf5; }
+.move-picker:disabled { opacity: .65; }
+.move-picker select { display: block; width: min(420px, 100%); padding: 10px; margin: 12px 0; background: #fffdf9; color: #584939; border: 1px solid #d1bfa6; border-radius: 7px; }
+.target-year-list { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+.target-create { max-width: 440px; border-top: 1px solid #e2d4bd; margin-top: 22px; padding-top: 16px; }
+.move-confirm, .move-result { padding: 24px; margin: 24px 0; border-left: 3px solid #879873; background: #edf0e3; line-height: 1.8; }
+.duplicate-explanation { line-height: 1.9; max-width: 880px; color: #806f5a; }
+.duplicate-group { margin-top: 32px; }
 .note-conflict .photo-note { max-height: 180px; overflow: auto; }
 @media (max-width: 1150px) {
   .journal-main { padding-inline: 36px; }

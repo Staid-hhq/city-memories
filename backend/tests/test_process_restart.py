@@ -178,6 +178,26 @@ def test_real_process_restart_preserves_login_and_revocation(tmp_path, monkeypat
                 f"/api/v1/cities/{city_id}/albums", headers=headers(), json={"year": 2026}
             )
             assert duplicate.status_code == 200 and duplicate.json()["data"]["id"] == album_id
+            target_id = client.post(
+                f"/api/v1/cities/{city_id}/albums", headers=headers(), json={"year": None},
+            ).json()["data"]["id"]
+            assert client.post(f"/api/v1/photos/{photo_id}/move", headers=headers(), json={
+                "target_album_id": target_id, "expected_photo_revision": 2,
+                "expected_source_revision": 4, "expected_target_revision": 1,
+            }).status_code == 200
+            assert client.post(f"/api/v1/photos/{second_photo}/move", headers=headers(), json={
+                "target_album_id": target_id, "expected_photo_revision": 1,
+                "expected_source_revision": 5, "expected_target_revision": 2,
+            }).status_code == 200
+        with running_server(port, environment):
+            moved = client.get(f"/api/v1/photos/{photo_id}").json()["data"]
+            assert moved["album_id"] == target_id and moved["revision"] == 3
+            assert moved["note"] == "真实进程重启保留的文字 🌅" and moved["ordinal"] == 1
+            assert client.get(f"/api/v1/photos/{photo_id}/original").content == image_bytes
+            assert client.get(f"/api/v1/albums/{album_id}").json()["data"]["photo_count"] == 0
+            duplicates = client.get(f"/api/v1/albums/{target_id}/duplicates").json()["data"]
+            assert duplicates["group_count"] == 1 and duplicates["photo_count"] == 2
+            assert [p["id"] for p in duplicates["items"][0]["photos"]] == [photo_id, second_photo]
             old_cookie = client.cookies.get("city_memories_session")
             assert client.post("/api/v1/auth/logout", headers=headers()).status_code == 204
         with running_server(port, environment):

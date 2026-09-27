@@ -39,3 +39,19 @@ def seed_photos(app, owner: str, album_id: str, count: int = 27):
         batch["id"], owner, CommitInput(expected_album_revision=batch["album_revision"])
     )
     return result["photo_ids"], contents
+
+
+def seed_copies(app, owner: str, album_id: str, contents: list[bytes], names: list[str]):
+    """Import independent synthetic copies through the real import service."""
+    service = app.state.imports
+    metadata = [{
+        "original_filename": name, "byte_size": len(content),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    } for name, content in zip(names, contents, strict=True)]
+    batch, _ = service.create(album_id, owner, str(uuid4()), ImportInput(items=metadata))
+    for item, content in zip(batch["items"], contents, strict=True):
+        upload, token = service.begin_upload(batch["id"], item["id"], owner)
+        service.receive(batch["id"], upload, owner, token, io.BytesIO(content))
+    return service.commit(
+        batch["id"], owner, CommitInput(expected_album_revision=batch["album_revision"])
+    )["photo_ids"]
