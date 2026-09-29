@@ -52,7 +52,7 @@ export function Duplicates({ albumId }: { albumId: string }) {
   const stale = error instanceof ApiError && error.code === 'ALBUM_CHANGED'
   return <main className="journal-main duplicates-page"><Link className="back-link" to={`/albums/${albumId}`}>← 返回影集，全部保留</Link>
     <div className="page-heading"><div><p className="eyebrow">KEEP EVERY MEMORY</p><h1>重复照片查看</h1>{album && <p className="muted">{album.city.name} · {album.year === null ? '未标年份' : `${album.year} 年`}</p>}</div></div>
-    <p className="duplicate-explanation">只比较本影集内文件内容完全相同的照片，不按文件名或相似画面判断。每份原图和文字都独立保留，查看或离开不会合并、覆盖或删除。删除入口将在 T09 接通。</p>
+    <p className="duplicate-explanation">只比较本影集内文件内容完全相同的照片，不按文件名或相似画面判断。每份原图和文字都独立保留，查看或离开不会合并、覆盖或删除。移入回收站前会再次确认，只影响你选中的这一份，30 天内可恢复。</p>
     {data && <p className="scope-note">{data.group_count} 组 · {data.photo_count} 张相同内容的照片；已读取 {data.items.reduce((sum, group) => sum + group.photos.length, 0)} 张。每次最多读取 24 条照片资料，原图按需加载。</p>}
     {error !== undefined && <div className="load-error" role="alert"><p>{errorMessage(error)}</p><button className="quiet-button" disabled={busy} onClick={() => { setBusy(true); setData(null); setError(undefined); setAttempt((n) => n + 1) }}>重新核对重复列表</button></div>}
     {busy && <p role="status">正在读取重复照片…</p>}
@@ -62,7 +62,8 @@ export function Duplicates({ albumId }: { albumId: string }) {
       <div className="photo-grid">{group.photos.map((photo) => <article className="photo-card" key={photo.id} data-photo-id={photo.id}><button className="photo-open" onClick={() => open(photo.id)} aria-label={`查看重复原图：${photo.original_filename}`}>
         <OriginalImage photoId={photo.id} alt={`重复原图：${photo.original_filename}`} suspended={!!photoId} />
         <span className="photo-caption"><strong>{photo.original_filename}</strong><small>{photo.width} × {photo.height}{photo.has_note ? ' · 有文字记录' : ''}</small></span>
-      </button><Link className="move-link" to={`/albums/${albumId}/move/${photo.id}`} aria-label={`移动照片：${photo.original_filename}`}>移动到其他影集 →</Link></article>)}</div>
+      </button><Link className="move-link" to={`/albums/${albumId}/move/${photo.id}`} aria-label={`移动照片：${photo.original_filename}`}>移动到其他影集 →</Link>
+        <Link className="trash-link" to={`/albums/${albumId}/trash/${photo.id}`} aria-label={`删除照片：${photo.original_filename}`}>移入回收站</Link></article>)}</div>
     </section>)}
     {data?.next_cursor && <button className="quiet-button more-button" disabled={busy || stale} onClick={() => void more()}>{error ? '重试加载更多重复照片' : '加载更多重复照片'}</button>}
     {photoId && <PhotoViewer photoId={photoId} albumId={albumId} initialRevision={data?.album_revision} close={() => open(null, true)} navigate={(id) => open(id, true)} onNoteSaved={noteSaved} />}

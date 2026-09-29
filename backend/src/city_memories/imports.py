@@ -631,7 +631,12 @@ def original(photo_id: str, request: Request, user: CurrentUser):
         )
         if photo is None:
             raise not_found()
-    path = private_path(service.settings.originals_dir, photo.storage_key)
+    return original_response(photo, request)
+
+
+def original_response(photo: Photo, request: Request):
+    """Callers must first authorize the photo and its lifecycle/retention state."""
+    path = private_path(request.app.state.imports.settings.originals_dir, photo.storage_key)
     if not path.is_file() or path.stat().st_size != photo.byte_size:
         raise ApiError(503, "ORIGINAL_UNAVAILABLE", "原图暂时无法读取，请检查本机数据存储")
     return FileResponse(

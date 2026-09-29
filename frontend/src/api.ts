@@ -64,7 +64,7 @@ function originalPermit(signal: AbortSignal): Promise<() => void> {
   })
 }
 
-export async function originalBytes(photoId: string, signal: AbortSignal): Promise<Blob> {
+export async function originalBytes(photoId: string, signal: AbortSignal, scope: 'active' | 'trash' = 'active'): Promise<Blob> {
   const requestGeneration = generation
   const controller = new AbortController()
   pending.add(controller)
@@ -73,7 +73,7 @@ export async function originalBytes(photoId: string, signal: AbortSignal): Promi
   try {
     release = await originalPermit(combined)
     combined.throwIfAborted()
-    const response = await fetch(`/api/v1/photos/${encodeURIComponent(photoId)}/original`, {
+    const response = await fetch(`/api/v1/${scope === 'trash' ? 'trash/' : ''}photos/${encodeURIComponent(photoId)}/original`, {
       signal: combined, credentials: 'same-origin', cache: 'no-store',
     })
     if (requestGeneration !== generation) throw new DOMException('会话已改变', 'AbortError')
@@ -82,7 +82,7 @@ export async function originalBytes(photoId: string, signal: AbortSignal): Promi
         clearSessionState()
         window.dispatchEvent(new Event('city-memories:expired'))
       }
-      throw new ApiError(response.status, 'ORIGINAL_UNAVAILABLE', '原图暂时无法读取，请重试；影集记录仍然保留。')
+      throw new ApiError(response.status, 'ORIGINAL_UNAVAILABLE', response.status === 410 ? '保留期限已到，原图不能再查看或恢复。' : '原图暂时无法读取，请核对状态后重试。')
     }
     const blob = await response.blob()
     combined.throwIfAborted()

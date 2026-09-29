@@ -32,6 +32,7 @@ if __name__ == "__main__":
             for username in (
                 "Albums_One", "Albums_Two", "Photos_One", "Photos_Two", "Batch_One", "Batch_Two",
                 "Editing_One", "Organize_One", "Organize_Two",
+                "Trash_One", "Trash_Two", "Trash_Pages",
             ):
                 db.add(
                     User(
@@ -87,4 +88,17 @@ if __name__ == "__main__":
                 if year == 2072:
                     seed_copies(app, owner, album_id, [contents[0]] * 26 + [contents[1]],
                                 ["same-content.png"] * 26 + ["journey-01.png"])
+            for year in range(2090, 2099):
+                with app.state.auth.sessions.begin() as db:
+                    owner = db.scalar(select(User.id).where(
+                        User.username == ("Trash_Pages" if year == 2095 else "Trash_One")))
+                    album_id = str(uuid4())
+                    db.add(Album(
+                        id=album_id, owner_id=owner,
+                        city_id="a03b8f10-06dd-4b56-aef1-33cfc3696301", year=year,
+                        revision=1, created_at=1_800_000_000_000, updated_at=1_800_000_000_000,
+                    ))
+                _, contents = seed_photos(app, owner, album_id, 27 if year == 2095 else 3)
+                if year == 2090:
+                    seed_copies(app, owner, album_id, [contents[0]], ["another-copy.png"])
         uvicorn.run(app, host="127.0.0.1", port=8000, proxy_headers=False, access_log=False)

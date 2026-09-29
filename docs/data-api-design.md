@@ -1,6 +1,6 @@
 # 城影记数据与接口设计
 
-基线日期：2026-09-21，状态更新：2026-09-27。依据 [需求](requirements.md) 和 [技术方案](tech-stack.md)。T01 已建立正式迁移，T02 已实现认证，T03 已实现城市与年份影集，T04 已实现导入协议及鉴权原图读取，T05 已实现照片列表和详情，T06 已接入批量核对、分组和队列恢复，T07 已实现纯文本保存与完整影集排序，T08 已实现跨影集移动与重复照片分组；回收站及完整清理仍按后续任务实现。[SQL 设计样例](data-model.sql) 保留为设计依据。
+基线日期：2026-09-21，状态更新：2026-09-29。依据 [需求](requirements.md) 和 [技术方案](tech-stack.md)。T01–T08 已实现工程、认证、影集、导入、浏览、批量、文字排序、跨影集移动和重复分组；T09 已实现删除、回收站查看与恢复，到期物理清理仍归 T10。[SQL 设计样例](data-model.sql) 保留为设计依据。
 
 本轮复查补齐数据关系图、请求/响应示例及城市入口的跨年份导入衔接。结构与接口设计完成不代表真实接口测试通过，整体状态见 [项目总览](../README.md)。
 
@@ -151,7 +151,7 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 
 limit 限制的是**照片条数**，默认 24、最多 100，不是组数；大组可以跨页，前端按 group_id 合并连续页，避免单个大组返回无限资料。按 group_id、position、id 排序，签名游标绑定账号、影集及影集版本，位置保存代表 UUID 和上次照片位置/ID，游标与响应均不泄露完整文件哈希。越权 404；无效/篡改/跨范围游标 422；成员或顺序改变返回 409/ALBUM_CHANGED。授权、分组总数和成员列表处于同一读取快照。
 
-页面地址 `/albums/{id}/duplicates`，原图按需读取，逐份查看和文字独立保存沿用原接口。关闭默认全部保留，移动可使分组变化；删除留到 T09。失败不冒充无重复，续页失败保留已读资料，版本冲突须明确重新核对。
+页面地址 `/albums/{id}/duplicates`，原图按需读取，逐份查看和文字独立保存沿用原接口。关闭默认全部保留，移动可使分组变化；T09 已接入单份删除确认，不影响其他份。失败不冒充无重复，续页失败保留已读资料，版本冲突须明确重新核对。
 
 ## 6. 导入协议与失败恢复
 
@@ -210,6 +210,7 @@ T04 单张 UI 保留，地址 `?import=<批次 UUID>` 支持刷新恢复，不�
 | POST /photos/{photo_id}/move | target_album_id、expected_photo_revision、expected_source_revision、expected_target_revision | 移到本人目标影集末尾；返回照片及两影集新版本 |
 | POST /photos/{photo_id}/trash | expected_photo_revision、expected_album_revision | 返回 deleted_at、purge_after、新版本；从正常列表移除 |
 | GET /trash/photos | cursor、limit | 本人的未到期回收站条目、原城市年份与剩余保留时间 |
+| GET /trash/photos/{photo_id} | 无 | T09 补充：本人未到期回收站详情与文字，供确认恢复和异常后核对状态 |
 | GET /trash/photos/{photo_id}/original | 无 | 仅本人可读取未到期回收站原图，便于决定恢复 |
 | POST /trash/photos/{photo_id}/restore | expected_photo_revision、expected_album_revision | 放回原影集末尾、文字保留，返回新版本 |
 
@@ -228,6 +229,22 @@ T08 的 `POST /photos/{id}/move` 严格要求上述四个字段，不接受 owne
 前端移动页为 `/albums/{source_id}/move/{photo_id}`。目标城市使用可选目录与本人的历史城市，现有年份分页读取；可先显式创建新年份或未标年份，再确认移动，取消移动不会撤销已创建的空影集。源影集移空后仍保留，城市统计按剩余有效照片计算。成功可留在原影集或打开目标；冲突或响应不明时保留目标选择、禁止自动重试，先用不带旧 album_id 的详情查询当前位置。仍在源影集时读取最新目标版本、展示最新已保存文字，再由用户确认；已到其他影集则提供当前位置入口，不把旧意图再次执行。离开页面会取消客户端等待，但不保证撤销服务端已提交的移动。详见 [T08 记录](t08-organizing-verification.md)。
 
 删除是软删除：`active → trashed`，position 清空，purge_after 为删除时间加 30×24 小时。恢复只允许 `trashed` 且当前时间严格早于 purge_after；恢复后清空删除时间，再次删除重新计算保留期。恢复、移动及删除均需版本校验；版本冲突不自动重试破坏用户刚做的新操作。
+
+### T09 已实现的删除、查看与恢复
+
+删除与恢复输入均为 `{expected_photo_revision, expected_album_revision}`，正的严格整数，不接受额外字段，实际 JSON 上限 16 KiB。取得 SQLite 写锁后读取本人资源、状态、版本和服务器时间；照片与影集 revision 各加一，同事务提交。恢复到删除时所在影集（trashed 不可移动），位置为最大有效位置加一、空影集为 0；恢复前检查原图存在且字节数符合记录。原图、文字、文件名、ID、存储键、上传关联和原导入收据不变，重放导入不会复活已删除照片。
+
+回收站条目白名单为 `id, album_id, city, year, original_filename, mime_type, byte_size, width, height, revision, album_revision, has_note, deleted_at, purge_after, remaining_ms, original_url`，不返回 position、owner_id 或内容哈希/私有路径。删除成功与详情在条目上增加 note；列表不含文字全文。这里的 `deleted_at, purge_after, server_time` **使用 Unix 毫秒整数**，remaining_ms 为服务器计算的剩余毫秒；页面显示本地绝对时间，剩余计时按请求发出时的单调时钟起算，不因墙钟误差或网络延迟延长展示期限。
+
+`GET /trash/photos` 的 data 为 `{items, next_cursor, photo_count, server_time}`。仅本人 trashed 且 purge_after 严格大于当前时间，按 deleted_at 降序、ID 升序；默认 24、最多 100 条。签名游标绑定账号、未到期成员 ID/版本摘要与末条删除时间/ID；摘要不是文件哈希。删除、恢复、再次删除或到期改变成员使旧游标返回 409/TRASH_CHANGED；篡改或跨账号游标 422。数量与分页在同一数据库快照内取得。生成摘要需读取本人的未到期 ID/版本，其规模成本待 T15 实测，不读取原图内容。
+
+恢复成功 data 为 `{photo, album_revision, duplicate_count}`，photo 沿用有效照片白名单；无重复为 0，有重复为恢复后该内容全部份数，仅提示不合并。删除/恢复后列表、封面、城市统计及重复组只统计 active，空影集与城市入口保留。
+
+错误：不存在/非本人 404；删除非 active 或照片版本变化 409/PHOTO_CHANGED；影集版本变化 409/ALBUM_CHANGED；回收站详情、原图或恢复请求遇到本人 active 为 409/PHOTO_NOT_TRASHED；本人过期 trashed 或 purging 为 410/TRASH_EXPIRED（包含到期相等）；恢复原图不可用为 503，不改变状态。沿用会话鉴权、CSRF 和 private,no-store。有效与回收站原图地址严格分离，旧地址不能跨状态读取。
+
+前端 `/albums/{album_id}/trash/{photo_id}` 为删除确认，`/trash` 为列表，`/trash/photos/{photo_id}` 为查看与恢复。冲突或网络结果不明停止操作，必须“核对当前状态”；已在回收站不会重复删除/延长期限，已恢复则给当前位置入口。仍可操作时展示最新文字与版本，再由用户确认；已移动到其他影集时不直接重试删除。离开只取消客户端等待，不保证撤销已提交请求。未保存文字沿用离开保护，到期卸载原图和恢复入口，退出清理图片地址与晚到响应。验证见 [T09 记录](t09-trash-verification.md)。
+
+### T10 待实现的物理清理
 
 过期清理先在短事务中把到期照片置为 purging，再删除该照片独有的存储副本，文件删除成功或已不存在后才删除 photos 行。删除失败保留 purging 状态重试，不能先删数据库行而失去待清理文件位置。清理与恢复通过条件更新竞争，避免一边恢复一边删文件；purging 不可恢复。
 
@@ -293,4 +310,4 @@ T08 的 `POST /photos/{id}/move` 严格要求上述四个字段，不接受 owne
 
 正式实现还须验证：越权原图及上传拒绝、CSRF/会话到期、并发分页与版本冲突、响应丢失后的幂等重放、并发上传顺序、部分失败显式提交、清理与恢复竞争、文件系统故障、原图哈希及 Edge 关键操作。此前地图和小范围原图检查不重复执行；真实规模与地图未完成项继续跟踪。
 
-阶段 7 [开发任务拆分](development-plan.md) 已明确任务依赖和完成标准。上文第 9 节为准备阶段验证记录；当前正式开发已完成 T01–T08，从 T09 继续，回收站、清理、恢复与真实规模的验收条件仍保留。
+阶段 7 [开发任务拆分](development-plan.md) 已明确任务依赖和完成标准。上文第 9 节为准备阶段验证记录；当前正式开发已完成 T01–T09，从 T10 继续，到期清理、独立备份恢复与真实规模的验收条件仍保留。

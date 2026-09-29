@@ -229,3 +229,23 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
   .photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .years-layout { gap: 28px; }
 }
+.trash-link { display: inline-block; padding: .55rem 1rem; color: #985341; font-size: .85rem; text-underline-offset: 4px; }
+.trash-deadline { display: flex; flex-direction: column; gap: .5rem; padding: 0 1rem 1rem; font-size: .85rem; color: #735846; line-height: 1.7; }
+.trash-card .photo-open { display: block; text-decoration: none; }
+.lifecycle-content { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 2rem; margin: 2rem 0; align-items: start; }
+.lifecycle-image { background: #ede8df; border-radius: 12px; overflow: hidden; min-height: 240px; }
+.lifecycle-image .original-frame { height: 480px; }
+.lifecycle-image img { object-fit: contain; }
+.lifecycle-details { min-width: 0; overflow-wrap: anywhere; line-height: 1.8; }
+.lifecycle-details h2 { font-size: 1.35rem; }
+.lifecycle-details .trash-deadline { padding: 1rem 0; }
+.preserved-note { white-space: pre-wrap; padding: 1rem; background: #f3eee5; border-radius: 8px; }
+.lifecycle-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: 2rem 0; }
+.danger-button { background: #914b3e; color: #fff; padding: .85rem 1.3rem; border: 0; border-radius: 7px; cursor: pointer; font: inherit; }
+.danger-button:disabled { cursor: wait; opacity: .55; }
+.danger-button:focus-visible { outline: 3px solid #583123; outline-offset: 3px; }
+@media (max-width: 760px) {
+  .lifecycle-content { grid-template-columns: 1fr; gap: 1rem; }
+  .lifecycle-image .original-frame { height: 300px; }
+  .account-menu { flex-wrap: wrap; }
+}

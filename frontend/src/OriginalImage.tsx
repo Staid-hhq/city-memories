@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage, isAbort, originalBytes } from './api'
 
-function ImageBytes({ photoId, alt, retryable }: { photoId: string; alt: string; retryable: boolean }) {
+function ImageBytes({ photoId, alt, retryable, scope }: { photoId: string; alt: string; retryable: boolean; scope: 'active' | 'trash' }) {
   const [url, setUrl] = useState('')
   const [ready, setReady] = useState(false)
   const [error, setError] = useState('')
@@ -9,13 +9,13 @@ function ImageBytes({ photoId, alt, retryable }: { photoId: string; alt: string;
   useEffect(() => {
     const controller = new AbortController()
     let objectUrl = ''
-    void originalBytes(photoId, controller.signal).then((blob) => {
+    void originalBytes(photoId, controller.signal, scope).then((blob) => {
       if (controller.signal.aborted) return
       objectUrl = URL.createObjectURL(blob)
       setUrl(objectUrl)
     }).catch((reason) => { if (!isAbort(reason)) setError(errorMessage(reason)) })
     return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl) }
-  }, [photoId, attempt])
+  }, [photoId, attempt, scope])
   return <>
     {!error && !ready && <span className="image-placeholder" role="status">正在读取原图…</span>}
     {error ? <span className="image-placeholder"><span role={retryable ? 'alert' : undefined}>{error}</span>
@@ -24,8 +24,8 @@ function ImageBytes({ photoId, alt, retryable }: { photoId: string; alt: string;
   </>
 }
 
-export function OriginalImage({ photoId, alt, suspended = false, immediate = false, retryable = false }: {
-  photoId: string; alt: string; suspended?: boolean; immediate?: boolean; retryable?: boolean
+export function OriginalImage({ photoId, alt, suspended = false, immediate = false, retryable = false, scope = 'active' }: {
+  photoId: string; alt: string; suspended?: boolean; immediate?: boolean; retryable?: boolean; scope?: 'active' | 'trash'
 }) {
   const frame = useRef<HTMLSpanElement | null>(null)
   const [near, setNear] = useState(immediate)
@@ -36,7 +36,7 @@ export function OriginalImage({ photoId, alt, suspended = false, immediate = fal
     return () => observer.disconnect()
   }, [immediate])
   return <span className="original-frame" ref={frame}>
-    {!suspended && (immediate || near) ? <ImageBytes key={photoId} photoId={photoId} alt={alt} retryable={retryable} /> :
+    {!suspended && (immediate || near) ? <ImageBytes key={`${scope}:${photoId}`} photoId={photoId} alt={alt} retryable={retryable} scope={scope} /> :
       <span className="image-placeholder" aria-hidden="true">原图 · 按需读取</span>}
   </span>
 }

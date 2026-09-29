@@ -198,6 +198,24 @@ def test_real_process_restart_preserves_login_and_revocation(tmp_path, monkeypat
             duplicates = client.get(f"/api/v1/albums/{target_id}/duplicates").json()["data"]
             assert duplicates["group_count"] == 1 and duplicates["photo_count"] == 2
             assert [p["id"] for p in duplicates["items"][0]["photos"]] == [photo_id, second_photo]
+            trashed = client.post(f"/api/v1/photos/{photo_id}/trash", headers=headers(), json={
+                "expected_photo_revision": 3, "expected_album_revision": 3,
+            }).json()["data"]
+        with running_server(port, environment):
+            saved = client.get(f"/api/v1/trash/photos/{photo_id}").json()["data"]
+            assert saved["purge_after"] == trashed["purge_after"]
+            assert saved["note"] == "真实进程重启保留的文字 🌅"
+            assert client.get(saved["original_url"]).content == image_bytes
+            assert client.get(f"/api/v1/photos/{photo_id}").status_code == 404
+            assert client.post(f"/api/v1/trash/photos/{photo_id}/restore", headers=headers(), json={
+                "expected_photo_revision": 4, "expected_album_revision": 4,
+            }).status_code == 200
+        with running_server(port, environment):
+            restored = client.get(f"/api/v1/photos/{photo_id}").json()["data"]
+            assert restored["ordinal"] == 2 and restored["previous_photo_id"] == second_photo
+            assert restored["revision"] == 5 and restored["note"] == "真实进程重启保留的文字 🌅"
+            assert client.get(restored["original_url"]).content == image_bytes
+            assert client.get("/api/v1/trash/photos").json()["data"]["items"] == []
             old_cookie = client.cookies.get("city_memories_session")
             assert client.post("/api/v1/auth/logout", headers=headers()).status_code == 204
         with running_server(port, environment):

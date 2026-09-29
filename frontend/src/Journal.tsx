@@ -9,6 +9,7 @@ import { PhotoGallery } from './PhotoGallery'
 import { OriginalImage } from './OriginalImage'
 import { MovePhoto } from './MovePhoto'
 import { Duplicates } from './Duplicates'
+import { PhotoLifecycle, Trash } from './Trash'
 
 export type City = { id: string; name: string; parent_name: string; unit_kind: string; can_create: boolean }
 export type Album = {
@@ -211,6 +212,7 @@ function CityRoute() { const { cityId = '' } = useParams(); return <CityPage key
 function AlbumRoute() { const { albumId = '' } = useParams(); return <AlbumPage key={albumId} albumId={albumId} /> }
 function MoveRoute() { const { albumId = '', photoId = '' } = useParams(); return <MovePhoto key={`${albumId}:${photoId}`} albumId={albumId} photoId={photoId} /> }
 function DuplicatesRoute() { const { albumId = '' } = useParams(); return <Duplicates key={albumId} albumId={albumId} /> }
+function TrashPhotoRoute({ action }: { action: 'trash' | 'restore' }) { const { albumId, photoId = '' } = useParams(); return <PhotoLifecycle key={`${action}:${albumId}:${photoId}`} photoId={photoId} albumId={albumId} action={action} /> }
 
 function ImportPage({ cityId, albumId }: { cityId?: string; albumId?: string }) {
   const result = useResource<Album | CityAlbums>(albumId ? `/albums/${albumId}` : `/cities/${cityId}/albums`)
@@ -225,6 +227,6 @@ function ImportRoute() { const { cityId, albumId } = useParams(); return <Import
 
 export function Journal({ user, onLogout }: { user: User; onLogout: () => void }) {
   return <div className="home-page"><header className="home-header"><Link to="/" className="brand-link"><span className="wordmark">城影记</span><small>CITY MEMORIES</small></Link>
-    <div className="account-menu"><span>{user.username}</span><button className="quiet-button" onClick={onLogout}>退出登录</button></div>
-  </header><Routes><Route path="/" element={<Home user={user} />} /><Route path="/cities/:cityId" element={<CityRoute />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="/cities/:cityId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/move/:photoId" element={<MoveRoute />} /><Route path="/albums/:albumId/duplicates" element={<DuplicatesRoute />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
+    <div className="account-menu"><Link className="quiet-button" to="/trash">回收站</Link><span>{user.username}</span><button className="quiet-button" onClick={onLogout}>退出登录</button></div>
+  </header><Routes><Route path="/" element={<Home user={user} />} /><Route path="/cities/:cityId" element={<CityRoute />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="/cities/:cityId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/move/:photoId" element={<MoveRoute />} /><Route path="/albums/:albumId/duplicates" element={<DuplicatesRoute />} /><Route path="/albums/:albumId/trash/:photoId" element={<TrashPhotoRoute action="trash" />} /><Route path="/trash" element={<Trash />} /><Route path="/trash/photos/:photoId" element={<TrashPhotoRoute action="restore" />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
 }

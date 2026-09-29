@@ -71,6 +71,7 @@ export function PhotoViewer({ photoId, albumId, initialRevision, close, navigate
       <p className="viewer-metadata">{data.width} × {data.height} 像素 · {(data.byte_size / 1024 / 1024).toFixed(2)} MiB · 原始文件，未压缩</p>
       <NoteEditor key={data.id} initial={data} onSaved={(note) => { setRead({ id: data.id, data: { ...data, ...note } }); onNoteSaved(note) }} />
       <Link className="move-link" to={`/albums/${albumId}/move/${data.id}`}>移动到其他影集</Link>
+      <Link className="trash-link" to={`/albums/${albumId}/trash/${data.id}`}>移入回收站</Link>
     </>}
     <p className="scope-note">编辑框外可用左右方向键切换，Esc 关闭；未保存文字离开前需要确认。</p>
   </dialog>
@@ -195,6 +196,7 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead }: {
         <span className="photo-caption"><strong>{photo.original_filename}</strong><small>{photo.width} × {photo.height}{photo.has_note ? ' · 有文字记录' : ''}</small></span>
       </button>
       <Link className="move-link" to={`/albums/${albumId}/move/${photo.id}`} aria-label={`移动照片：${photo.original_filename}`}>移动到其他影集 →</Link>
+      <Link className="trash-link" to={`/albums/${albumId}/trash/${photo.id}`} aria-label={`删除照片：${photo.original_filename}`}>移入回收站</Link>
       {sorting && <div className="photo-order-controls">
         <button className="drag-handle quiet-button" draggable={!busy && !orderBlocked} disabled={busy || orderBlocked} aria-label={`拖动排序：${photo.original_filename}`} title="拖到目标照片上方"
           onDragStart={(event) => { dragged.current = photo; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('application/x-city-memories-photo', photo.id) }}

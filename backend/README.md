@@ -36,3 +36,7 @@ uv run python -m pytest -q
 测试只用临时数据库。`test_process_restart.py` 会在临时端口启动并停止真实 Uvicorn；前端 `npm run test:e2e` 调用 `tests/serve_e2e.py`，在临时数据目录验证实际 Edge。
 
 若本机应用程序控制阻止 `pytest.exe` 启动器，使用上述模块入口或 `.\.venv\Scripts\python.exe -m pytest -q`；不需要重装依赖或更改系统策略。
+
+## T09 回收站与恢复
+
+新增 `POST /api/v1/photos/{id}/trash`、`GET /api/v1/trash/photos`、`GET /api/v1/trash/photos/{id}`、`GET /api/v1/trash/photos/{id}/original`、`POST /api/v1/trash/photos/{id}/restore`。修改需照片/影集版本与 CSRF，JSON 16 KiB；写锁后检查归属、状态、版本与时间，两者同事务更新。30×24 小时内可查看并恢复到删除时所在影集末尾，保留原字节/文字/ID，空影集保留；期限相等或 purging 返回 410。分页默认 24、最多 100，游标绑定账号和未到期成员 ID/版本摘要；日期用 Unix 毫秒整数，剩余时长用毫秒。无新依赖/迁移，API 版本 0.9.0。**本次不物理删除原图，到期清理由 T10 实现**。见 [T09 记录](../docs/t09-trash-verification.md)。
