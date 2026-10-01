@@ -1,5 +1,6 @@
 """Single-instance import protocol; short DB transactions, independent original bytes."""
 
+import asyncio
 import hashlib
 import json
 import os
@@ -179,7 +180,9 @@ class ImportService:
         return self.batch(db, batch_id, owner)
 
     def view(self, db, batch: ImportBatch, *, include_expired: bool = False) -> dict:
-        expired = batch.state == "open" and batch.expires_at <= self.auth.clock()
+        expired = batch.state == "expired" or (
+            batch.state == "open" and batch.expires_at <= self.auth.clock()
+        )
         if expired and not include_expired:
             raise ApiError(410, "IMPORT_EXPIRED", "这次导入已过期，请重新选择文件")
         album = db.get(Album, batch.album_id)
@@ -585,7 +588,13 @@ async def upload_content(batch_id: str, item_id: str, request: Request, user: Cu
             max_fields=0,
             max_part_size=MULTIPART_OVERHEAD,
         )
-        form = await parser.parse()
+        try:
+            # A stalled multipart request must relinquish its global upload slot.
+            remaining = max(0, (item.lease_until - service.auth.clock()) / 1000)
+            async with asyncio.timeout(remaining):
+                form = await parser.parse()
+        except TimeoutError as exc:
+            raise ApiError(409, "UPLOAD_ATTEMPT_EXPIRED", "这次传输已超时，请重新上传") from exc
         try:
             file = form.get("file")
             if len(form.multi_items()) != 1 or not isinstance(file, UploadFile):

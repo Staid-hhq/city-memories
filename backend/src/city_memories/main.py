@@ -6,12 +6,14 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from city_memories.albums import router as albums_router
 from city_memories.auth import AuthService, router
 from city_memories.boundary import ApiBoundary
+from city_memories.cleanup import CleanupService, InstanceLock
 from city_memories.config import Settings
 from city_memories.database import build_engine
 from city_memories.editing import router as editing_router
@@ -30,17 +32,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = build_engine(settings)
         try:
-            with engine.connect() as connection:
-                # 缺失迁移时拒绝启动，避免登录时才报缺表。
-                connection.execute(text("SELECT token_hash FROM sessions LIMIT 1"))
-            app.state.engine = engine
-            app.state.auth = AuthService(engine, settings)
-            app.state.imports = ImportService(app.state.auth)
-            yield
+            # Pausing maintenance must not permit a second writer/cleaner process.
+            with InstanceLock(settings.data_dir):
+                with engine.connect() as connection:
+                    # 缺失迁移时拒绝启动，避免登录时才报缺表。
+                    connection.execute(text("SELECT token_hash FROM sessions LIMIT 1"))
+                app.state.engine = engine
+                app.state.auth = AuthService(engine, settings)
+                app.state.imports = ImportService(app.state.auth)
+                app.state.cleanup = CleanupService(app.state.imports)
+                try:
+                    if settings.cleanup_enabled:
+                        await run_in_threadpool(app.state.cleanup.start)
+                    yield
+                finally:
+                    await run_in_threadpool(app.state.cleanup.stop)
         finally:
             engine.dispose()
 
-    app = FastAPI(title="城影记 API", version="0.9.0", lifespan=lifespan)
+    app = FastAPI(title="城影记 API", version="0.10.0", lifespan=lifespan)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=list({urlsplit(origin).hostname for origin in settings.allowed_origins}),

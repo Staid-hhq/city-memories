@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     ]
     cookie_secure: bool = False
     auth_secret: SecretStr | None = None
+    cleanup_enabled: bool = True
+    cleanup_interval_seconds: int = Field(default=60, ge=1, le=3600)
 
     @field_validator("allowed_origins")
     @classmethod

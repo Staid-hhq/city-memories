@@ -1,5 +1,6 @@
 import hashlib
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -30,8 +31,12 @@ def environment(tmp_path, monkeypatch):
         allowed_origins=[ORIGIN],
         auth_secret=None,
         cookie_secure=False,
+        cleanup_enabled=False,  # T10 has separate controlled-clock lifecycle tests.
         _env_file=None,
     )
+    # Legacy tests simulate overlapping app restarts with one controlled clock.
+    # T10 separately verifies the real OS guard, including actual child processes.
+    monkeypatch.setattr("city_memories.main.InstanceLock", lambda directory: nullcontext())
     app = create_app(settings)
     now = [1_800_000_000_000]
     with TestClient(app) as client:
