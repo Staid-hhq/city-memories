@@ -128,8 +128,10 @@
   }
 
   function centerOf(node) {
-    const longitude = Number(node.center?.lng);
-    const latitude = Number(node.center?.lat);
+    const coordinate = value => (typeof value === 'number'
+      || (typeof value === 'string' && value.trim() !== '')) ? Number(value) : NaN;
+    const longitude = coordinate(node.center?.lng);
+    const latitude = coordinate(node.center?.lat);
     return Number.isFinite(longitude) && Number.isFinite(latitude)
       && Math.abs(longitude) <= 180 && Math.abs(latitude) <= 90 ? [longitude, latitude] : null;
   }
@@ -162,6 +164,7 @@
     const levels = {};
     const notices = [];
     const excludedNonCityUnits = [];
+    const rejectedDestinations = [];
     const inspect = node => {
       const level = String(node.level);
       levels[level] = (levels[level] || 0) + 1;
@@ -170,7 +173,13 @@
     districts.forEach(inspect);
     const add = (node, parentName, kind) => {
       const feature = featureOf(node, parentName, kind);
-      if (!feature.properties.id || seen.has(feature.properties.id) || !feature.properties.center) return;
+      const reason = !/^156\d{6}$/.test(feature.properties.id) ? '行政编码格式无效'
+        : seen.has(feature.properties.id) ? '行政编码重复，需人工核对'
+        : !feature.properties.center ? '中心点缺失或无效' : null;
+      if (reason) {
+        rejectedDestinations.push({ adcode: feature.properties.id, name: feature.properties.name, parentName, reason });
+        return;
+      }
       seen.add(feature.properties.id);
       features.push(feature);
     };
@@ -205,6 +214,7 @@
       notices.push('目录中的城市通常只有中心点；边界仅在城市有照片或被实际选中时按需查询。');
     }
     if (excludedNonCityUnits.length) notices.push(`已排除 ${excludedNonCityUnits.length} 个不符合城市单位名称规则的官方目录节点，例如马场、保护区。`);
+    if (rejectedDestinations.length) notices.push(`${rejectedDestinations.length} 个候选入口因编码或坐标问题未显示，需核对后使用。`);
     return {
       type: 'FeatureCollection',
       features,
@@ -218,6 +228,7 @@
         sourceLevelCounts: levels,
         destinationCount: features.length,
         excludedNonCityUnits,
+        rejectedDestinations,
         destinationKinds: features.reduce((counts, feature) => {
           const kind = feature.properties.kind;
           counts[kind] = (counts[kind] || 0) + 1;
@@ -368,7 +379,7 @@
         countryBoundaryAvailable: false,
         persistence: '只在当前页面内存缓存，不持久下载或打包。',
         notices: [
-          '国家级查询未返回轮廓；这里组合当次省级边界用于同色、无省界、无省级点击的中国背景。',
+          '国家级查询未返回轮廓；这里组合当次省级边界用于同色、细省界、无省级点击的原型背景。',
           '保留接口返回的全部面和岛屿，不另画国界、海域线或裁去南方几何。',
           '省级几何齐全不等于已证明所有海域线和国家版图要素齐全；需结合实际返回与地图呈现继续核查。',
           '接口返回不构成离线打包、再分发或对外上线数据授权。',
@@ -446,16 +457,16 @@
     if (!properties || typeof properties !== 'object') return Promise.resolve(null);
     const code = String(properties.adcode ?? properties.gb ?? '').trim();
     const name = String(properties.name ?? '').trim();
-    const keyword = /^\d{6,12}$/.test(code) ? code : name;
-    if (!keyword || keyword.length > 60) return Promise.resolve(null);
-    const cacheId = code || `${properties.parentName || ''}/${name}`;
+    // A name (including a single fuzzy result) is not a stable mapping identity.
+    if (!/^156\d{6}$/.test(code)) return Promise.resolve(null);
+    const cacheId = JSON.stringify([code, name, properties.id ?? code, properties.parentName ?? null, properties.kind ?? 'prefecture']);
     if (boundaryCache.has(cacheId)) return boundaryCache.get(cacheId);
-    const promise = requestDistrict(keyword, 0, true).then(payload => {
+    const promise = requestDistrict(code, 0, true).then(payload => {
       const nodes = Array.isArray(payload.data?.district) ? payload.data.district : [];
-      const exact = nodes.find(node => String(node.gb) === code)
-        || nodes.find(node => node.name === name)
-        || (nodes.length === 1 ? nodes[0] : null);
-      if (!exact) return null;
+      const matches = nodes.filter(node => String(node.gb) === code);
+      if (matches.length !== 1) return null;
+      const exact = matches[0];
+      if (name && String(exact.name) !== name) return null;
       const feature = featureOf(exact, properties.parentName ?? null, properties.kind ?? 'prefecture');
       if (!feature.geometry) return null;
       feature.properties.id = properties.id ?? feature.properties.id;

@@ -54,4 +54,6 @@ http://lbs.tianditu.gov.cn/server/administrative2.html
 
 ## 使用范围
 
+2026-10-03 T12 补充：目录候选的坏/重复编码、无效中心点记录到 `metadata.rejectedDestinations`，不将空值转成 0 坐标。边界查询要求唯一匹配天地图代码，已有名称也须一致；不匹配就不画，不再回退到名称或唯一模糊结果。分类仍是原型候选规则，不代表全国逐项审核完成。测试及官方底图替代背景的推荐方案见 [T12 核对报告](../../../docs/t12-map-data-loading.md)，本次没有重新取得全国真实响应。
+
 来源应注明天地图。参阅 [服务条款](https://www.tianditu.gov.cn/about/service)、[版权声明](https://www.tianditu.gov.cn/about/copyright) 与 [配额说明](https://cloudcenter.tianditu.gov.cn/center/development/quotaDesc)。接口正常返回不等于获得批量爬取、永久打包或再分发地图数据的授权；本轮仅作本机原型的正常在线查询与页内缓存。
