@@ -20,6 +20,14 @@ ROW_LIMIT = 100
 SCAN_LIMIT = 200
 AUTH_LIMIT = 500
 MANAGED_NAME = re.compile(r"([a-f0-9]{32})(?:\.([a-f0-9]{32})\.part)?\Z")
+INCOMPLETE_MARKER = ".maintenance-incomplete"
+BACKUP_MANIFEST = "backup-manifest.json"
+
+
+def assert_data_ready(directory: Path) -> None:
+    # Check before creating directories, and again after acquiring the instance lock.
+    if (directory / INCOMPLETE_MARKER).exists() or (directory / BACKUP_MANIFEST).exists():
+        raise RuntimeError("不能启动未完成的维护目录或备份目录，请先恢复到新的数据目录")
 
 
 class ManagedDirectory:

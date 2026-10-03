@@ -2,6 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
+from city_memories.cleanup import InstanceLock, assert_data_ready
 from city_memories.config import get_settings
 from city_memories.database import build_engine
 from city_memories.models import Base
@@ -12,6 +13,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 settings = get_settings()
+assert_data_ready(settings.data_dir)
 settings.ensure_data_directories()
 config.set_main_option("sqlalchemy.url", settings.database_url)
 target_metadata = Base.metadata
@@ -31,14 +33,18 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = build_engine(settings)
-
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
-
-        with context.begin_transaction():
-            context.run_migrations()
-    connectable.dispose()
+    with InstanceLock(settings.data_dir):
+        assert_data_ready(settings.data_dir)
+        connectable = build_engine(settings)
+        try:
+            with connectable.connect() as connection:
+                context.configure(
+                    connection=connection, target_metadata=target_metadata, compare_type=True
+                )
+                with context.begin_transaction():
+                    context.run_migrations()
+        finally:
+            connectable.dispose()
 
 
 if context.is_offline_mode():

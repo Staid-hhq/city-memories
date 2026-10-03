@@ -20,6 +20,9 @@ backend/.uv-cache/
 !.env.example
 *.key
 *.pem
+# Offline backup / restore artifacts are private, never source deliverables.
+*.cmbackup/
+*.cmrestore/
 
 # Editor and operating-system files
 .idea/
