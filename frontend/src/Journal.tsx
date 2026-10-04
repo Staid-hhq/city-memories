@@ -10,15 +10,18 @@ import { OriginalImage } from './OriginalImage'
 import { MovePhoto } from './MovePhoto'
 import { Duplicates } from './Duplicates'
 import { PhotoLifecycle, Trash } from './Trash'
+import { CityMap } from './CityMap'
+import type { MapMemory } from './CityMap'
+import { MapService } from './mapService'
 
-export type City = { id: string; name: string; parent_name: string; unit_kind: string; can_create: boolean }
+export type City = { id: string; name: string; parent_name: string | null; unit_kind: string; can_create: boolean }
 export type Album = {
   id: string; city: City; year: number | null; revision: number; photo_count: number
   cover_photo_id: string | null; original_url: string | null
 }
 type PageData<T> = { items: T[]; next_cursor: string | null }
 type CityAlbums = PageData<Album> & { city: City }
-type Atlas = { items: { city: City; album_count: number; photo_count: number; lit: boolean }[]; album_count: number; photo_count: number }
+export type Atlas = { items: { city: City; album_count: number; photo_count: number; lit: boolean }[]; album_count: number; photo_count: number }
 type Load<T> = { data?: T; error?: unknown; loading: boolean }
 
 // Components are keyed by route/query and account. Unmount cancels requests;
@@ -35,7 +38,8 @@ function useResource<T>(path: string) {
     })
     return () => controller.abort()
   }, [path, attempt])
-  return { ...state, retry: () => { setState({ loading: true }); setAttempt((value) => value + 1) } }
+  const retry = useCallback(() => { setState({ loading: true }); setAttempt((value) => value + 1) }, [])
+  return { ...state, retry }
 }
 
 function LoadError({ error, retry }: { error: unknown; retry: () => void }) {
@@ -81,20 +85,31 @@ function CitySearch({ query }: { query: string }) {
   return <Paged initial={result.data} path={path}>{(items) => items.length ?
     <div className="city-grid">{items.map((city) => <Link className="city-card" key={city.id} to={`/cities/${city.id}`}>
       <span className="city-initial" aria-hidden="true">{city.name[0]}</span>
-      <span><strong>{city.name}</strong><small>{city.parent_name} · 地级城市</small></span>
+      <span><strong>{city.name}</strong><small>{city.parent_name ?? city.name} · {{ prefecture: '地级城市', municipality: '直辖市', 'special-region': '特别行政区', 'direct-admin-unit': '省直辖县级单位', 'taiwan-destination': '台湾地区市县' }[city.unit_kind] ?? '已审核目的地'}</small></span>
       <span className="card-arrow" aria-hidden="true">↗</span>
-    </Link>)}</div> : <div className="empty-note" role="status">当前开放的城市中没有“{query}”。试试深圳、广州或贺州。</div>
+    </Link>)}</div> : <div className="empty-note" role="status">当前开放的城市中没有“{query}”。试试城市全称或所属地区；待映射城市暂未开放。</div>
   }</Paged>
 }
 
-function Home({ user }: { user: User }) {
+function Home({ user, service, memory }: { user: User; service: MapService; memory: MapMemory }) {
   const atlas = useResource<Atlas>('/me/atlas')
+  const refreshAtlas = atlas.retry
+  useEffect(() => {
+    const channel = new BroadcastChannel('city-memories-data')
+    const visible = () => { if (document.visibilityState === 'visible') refreshAtlas() }
+    channel.onmessage = refreshAtlas
+    window.addEventListener('city-memories:data-changed', refreshAtlas)
+    window.addEventListener('focus', visible)
+    document.addEventListener('visibilitychange', visible)
+    return () => { channel.close(); window.removeEventListener('city-memories:data-changed', refreshAtlas); window.removeEventListener('focus', visible); document.removeEventListener('visibilitychange', visible) }
+  }, [refreshAtlas])
   const [input, setInput] = useState('')
   const [query, setQuery] = useState('')
   function search(event: FormEvent) { event.preventDefault(); setQuery(input.trim()) }
-  return <main className="journal-main">
+  return <main className="journal-main map-home">
     <div className="page-heading"><div><p className="eyebrow">YOUR TRAVEL JOURNAL</p><h1>你好，{user.username}</h1>
       <p className="muted">从一座城市开始，给每一年的回忆留个位置。</p></div><span className="chapter-mark">第一章 / 城市</span></div>
+    <CityMap service={service} memory={memory} atlas={atlas.data} />
     <section className="journal-section" aria-labelledby="my-cities-title">
       <div className="section-heading"><h2 id="my-cities-title">我的城市手帐</h2>{atlas.data && <span>{atlas.data.items.length} 座城市 · {atlas.data.album_count} 本影集 · {atlas.data.photo_count} 张照片</span>}</div>
       {atlas.loading ? <p role="status">正在读取你的手帐…</p> : !atlas.data ? <LoadError error={atlas.error} retry={atlas.retry} /> :
@@ -104,7 +119,7 @@ function Home({ user }: { user: User }) {
         </Link>)}</div> : <div className="empty-note"><strong>你的第一本手帐，还在等一个目的地。</strong><p>先选一座城市，再创建年份影集。没有照片也可以先留好位置。</p></div>}
     </section>
     <section className="journal-section" aria-labelledby="choose-city-title">
-      <div className="section-heading"><h2 id="choose-city-title">选择一座城市</h2><span>已核对的首批城市</span></div>
+      <div className="section-heading"><h2 id="choose-city-title">选择一座城市</h2><span>已审核的全国城市及同级目的地</span></div>
       <form className="search-form" onSubmit={search}>
         <label className="sr-only" htmlFor="city-search">搜索城市</label>
         <input id="city-search" type="search" maxLength={80} placeholder="搜索城市或所属地区，例如 深圳" value={input} onChange={(event) => setInput(event.target.value)} />
@@ -112,7 +127,7 @@ function Home({ user }: { user: User }) {
         {query && <button className="quiet-button" type="button" onClick={() => { setInput(''); setQuery('') }}>查看全部</button>}
       </form>
       <CitySearch key={query} query={query} />
-      <p className="scope-note">目前开放深圳、广州、贺州三个城市，尚非全国目录。全国地图将在后续接入；空影集不会点亮城市。</p>
+      <p className="scope-note">城市搜索独立于地图服务；仅开放已审核映射，空影集不会点亮城市。草湖市等待地图供应商映射，暂未开放。</p>
     </section>
   </main>
 }
@@ -226,7 +241,12 @@ function ImportPage({ cityId, albumId }: { cityId?: string; albumId?: string }) 
 function ImportRoute() { const { cityId, albumId } = useParams(); return <ImportPage key={cityId ?? albumId} cityId={cityId} albumId={albumId} /> }
 
 export function Journal({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const [service] = useState(() => new MapService())
+  const [memory] = useState<MapMemory>(() => {
+    let view: ReturnType<MapMemory['read']>
+    return { read: () => view, write: next => { view = next } }
+  })
   return <div className="home-page"><header className="home-header"><Link to="/" className="brand-link"><span className="wordmark">城影记</span><small>CITY MEMORIES</small></Link>
     <div className="account-menu"><Link className="quiet-button" to="/trash">回收站</Link><span>{user.username}</span><button className="quiet-button" onClick={onLogout}>退出登录</button></div>
-  </header><Routes><Route path="/" element={<Home user={user} />} /><Route path="/cities/:cityId" element={<CityRoute />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="/cities/:cityId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/move/:photoId" element={<MoveRoute />} /><Route path="/albums/:albumId/duplicates" element={<DuplicatesRoute />} /><Route path="/albums/:albumId/trash/:photoId" element={<TrashPhotoRoute action="trash" />} /><Route path="/trash" element={<Trash />} /><Route path="/trash/photos/:photoId" element={<TrashPhotoRoute action="restore" />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
+  </header><Routes><Route path="/" element={<Home user={user} service={service} memory={memory} />} /><Route path="/cities/:cityId" element={<CityRoute />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="/cities/:cityId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/move/:photoId" element={<MoveRoute />} /><Route path="/albums/:albumId/duplicates" element={<DuplicatesRoute />} /><Route path="/albums/:albumId/trash/:photoId" element={<TrashPhotoRoute action="trash" />} /><Route path="/trash" element={<Trash />} /><Route path="/trash/photos/:photoId" element={<TrashPhotoRoute action="restore" />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
 }

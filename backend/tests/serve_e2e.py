@@ -33,6 +33,7 @@ if __name__ == "__main__":
                 "Albums_One", "Albums_Two", "Photos_One", "Photos_Two", "Batch_One", "Batch_Two",
                 "Editing_One", "Organize_One", "Organize_Two",
                 "Trash_One", "Trash_Two", "Trash_Pages",
+                "Map_One", "Map_Two", "Map_Empty", "Map_Return", "Map_Failure",
             ):
                 db.add(
                     User(
@@ -46,10 +47,26 @@ if __name__ == "__main__":
         engine.dispose()
         app = create_app(
             Settings(
-                data_dir=Path(directory), _env_file=None, auth_secret=None, cookie_secure=False
+                data_dir=Path(directory), _env_file=None, auth_secret=None, cookie_secure=False,
+                map_key_file=(Path(__file__).resolve().parents[2]
+                              / "validation/map-probe/.env.local")
+                if os.environ.get("CITY_MEMORIES_LIVE_MAP") == "1" else None,
+                map_review_number="GS (2026) 4921号"
+                if os.environ.get("CITY_MEMORIES_LIVE_MAP") == "1" else "",
+                map_review_date="2026-10-04"
+                if os.environ.get("CITY_MEMORIES_LIVE_MAP") == "1" else "",
             )
         )
         with TestClient(app):
+            for name in ("Map_One", "Map_Return", "Map_Failure"):
+                with app.state.auth.sessions.begin() as db:
+                    owner = db.scalar(select(User.id).where(User.username == name))
+                    album_id = str(uuid4())
+                    db.add(Album(id=album_id, owner_id=owner,
+                                 city_id="a03b8f10-06dd-4b56-aef1-33cfc3696301", year=2050,
+                                 revision=1, created_at=1_800_000_000_000,
+                                 updated_at=1_800_000_000_000))
+                seed_photos(app, owner, album_id, 1)
             with app.state.auth.sessions.begin() as db:
                 owner = db.scalar(select(User.id).where(User.username == "Photos_One"))
                 album_id = str(uuid4())

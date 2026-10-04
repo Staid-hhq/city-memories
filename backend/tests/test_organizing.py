@@ -22,7 +22,7 @@ def organized(environment):
     signed_in(client)
     owner = client.get("/api/v1/auth/me").json()["data"]["id"]
     source = create(client, 2026).json()["data"]["id"]
-    city = next(c for c in client.get("/api/v1/cities").json()["data"]["items"]
+    city = next(c for c in client.get("/api/v1/cities?q=广州").json()["data"]["items"]
                 if c["name"] == "广州市")
     target = client.post(f"/api/v1/cities/{city['id']}/albums", headers=csrf(client),
                          json={"year": None}).json()["data"]["id"]

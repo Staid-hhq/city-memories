@@ -31,17 +31,19 @@ def test_reviewed_catalog_search_pagination_and_literal_wildcards(environment):
     _, client, _, _ = environment
     signed_in(client)
     all_cities = client.get("/api/v1/cities").json()["data"]["items"]
-    assert {city["name"] for city in all_cities} == {"深圳市", "广州市", "贺州市"}
-    assert all(city["can_create"] and city["unit_kind"] == "prefecture" for city in all_cities)
-    first = client.get("/api/v1/cities?limit=1").json()["data"]
+    assert len(all_cities) == 24
+    assert all(city["can_create"] for city in all_cities)
+    first = client.get("/api/v1/cities?limit=100").json()["data"]
     collected = first["items"]
     while first["next_cursor"]:
         first = client.get(
-            "/api/v1/cities", params={"limit": 1, "cursor": first["next_cursor"]}
+            "/api/v1/cities", params={"limit": 100, "cursor": first["next_cursor"]}
         ).json()["data"]
         collected += first["items"]
-    assert collected == all_cities
-    assert len(client.get("/api/v1/cities?q=广东").json()["data"]["items"]) == 2
+    assert collected[:24] == all_cities
+    assert len(collected) == len({c["id"] for c in collected}) == 391
+    assert {"深圳市", "广州市", "贺州市"} <= {c["name"] for c in collected}
+    assert len(client.get("/api/v1/cities?q=广东").json()["data"]["items"]) == 21
     assert client.get("/api/v1/cities?q= 深圳 ").json()["data"]["items"][0]["id"] == SHENZHEN
     for q in ("不存在", "%", "_", "' OR 1=1 --"):
         assert client.get("/api/v1/cities", params={"q": q}).json()["data"]["items"] == []
@@ -189,9 +191,9 @@ def test_retired_and_pending_cities_keep_owned_history_but_block_new_albums(envi
     with app.state.auth.sessions.begin() as db:
         db.execute(update(City).where(City.id == SHENZHEN).values(is_active=0))
         db.execute(update(City).where(City.id == GUANGZHOU).values(mapping_status="pending"))
-    assert [city["name"] for city in client.get("/api/v1/cities").json()["data"]["items"]] == [
-        "贺州市"
-    ]
+    assert client.get("/api/v1/cities?q=深圳").json()["data"]["items"] == []
+    assert client.get("/api/v1/cities?q=广州").json()["data"]["items"] == []
+    assert client.get("/api/v1/cities?q=贺州").json()["data"]["items"][0]["name"] == "贺州市"
     assert create(client, 2027).status_code == 409
     assert create(client, 2026, GUANGZHOU).status_code == 409
     assert client.get(f"/api/v1/albums/{album_id}").status_code == 200

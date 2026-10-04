@@ -27,7 +27,7 @@ test('城市搜索、空年份、重复进入、未标年份唯一和重载保�
   page.on('pageerror', (error) => errors.push(error.message))
   await login(page)
   await expect(page.getByText('你的第一本手帐，还在等一个目的地。')).toBeVisible()
-  await expect(page.getByText('目前开放深圳、广州、贺州三个城市', { exact: false })).toBeVisible()
+  await expect(page.getByText('城市搜索独立于地图服务', { exact: false })).toBeVisible()
   await page.getByLabel('搜索城市', { exact: true }).fill('不存在')
   await page.getByRole('button', { name: '搜索', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('当前开放的城市中没有')

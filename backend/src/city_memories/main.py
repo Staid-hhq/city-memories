@@ -20,6 +20,8 @@ from city_memories.editing import router as editing_router
 from city_memories.errors import ApiError, error_response
 from city_memories.imports import ImportService
 from city_memories.imports import router as imports_router
+from city_memories.maps import router as maps_router
+from city_memories.maps import seed_reviewed_cities
 from city_memories.organizing import router as organizing_router
 from city_memories.photos import router as photos_router
 from city_memories.trash import router as trash_router
@@ -39,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 with engine.connect() as connection:
                     # 缺失迁移时拒绝启动，避免登录时才报缺表。
                     connection.execute(text("SELECT token_hash FROM sessions LIMIT 1"))
+                seed_reviewed_cities(engine)
                 app.state.engine = engine
                 app.state.auth = AuthService(engine, settings)
                 app.state.imports = ImportService(app.state.auth)
@@ -52,7 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             engine.dispose()
 
-    app = FastAPI(title="城影记 API", version="0.11.0", lifespan=lifespan)
+    app = FastAPI(title="城影记 API", version="0.13.0", lifespan=lifespan)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=list({urlsplit(origin).hostname for origin in settings.allowed_origins}),
@@ -105,6 +108,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(router)
     app.include_router(albums_router)
+    app.include_router(maps_router)
     app.include_router(imports_router)
     app.include_router(photos_router)
     app.include_router(editing_router)

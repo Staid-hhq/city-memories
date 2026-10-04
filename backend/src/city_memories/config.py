@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     auth_secret: SecretStr | None = None
     cleanup_enabled: bool = True
     cleanup_interval_seconds: int = Field(default=60, ge=1, le=3600)
+    map_key: SecretStr | None = None
+    map_key_file: Path | None = None
+    map_review_number: str = Field(default="", max_length=80)
+    map_review_date: str = Field(default="", max_length=10)
 
     @field_validator("allowed_origins")
     @classmethod

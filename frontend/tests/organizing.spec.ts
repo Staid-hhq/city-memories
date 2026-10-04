@@ -28,12 +28,12 @@ async function startMove(page: Page, id: string) {
   await expect(page.getByLabel('目标城市', { exact: true })).toBeVisible()
 }
 async function chooseExisting(page: Page, city: string, year: string) {
-  await page.getByLabel('目标城市', { exact: true }).selectOption(city)
+  await chooseCity(page, city)
   await page.locator('.target-year-list').getByRole('button', { name: new RegExp(`^${year}`) }).click()
   await expect(page.getByRole('button', { name: '确认移动到目标影集末尾', exact: true })).toBeEnabled()
 }
 async function createTarget(page: Page, city: string, year: number | null) {
-  await page.getByLabel('目标城市', { exact: true }).selectOption(city)
+  await chooseCity(page, city)
   if (year === null) await page.getByLabel('目标未标年份', { exact: true }).check()
   else await page.getByLabel('目标年份', { exact: true }).fill(String(year))
   await page.getByRole('button', { name: '创建并选择目标影集', exact: true }).click()
@@ -41,6 +41,16 @@ async function createTarget(page: Page, city: string, year: number | null) {
 }
 async function photo(page: Page, id: string) {
   return (await (await page.request.get(`/api/v1/photos/${id}`)).json()).data
+}
+async function chooseCity(page: Page, city: string) {
+  const select = page.getByLabel('目标城市', { exact: true })
+  await expect(select).toBeVisible()
+  for (let index = 0; index < 4 && !await select.locator(`option[value="${city}"]`).count(); index++) {
+    const count = await select.locator('option').count()
+    await page.getByRole('button', { name: '加载更多目标城市', exact: true }).click()
+    await expect.poll(() => select.locator('option').count()).toBeGreaterThan(count)
+  }
+  await select.selectOption(city)
 }
 
 test('跨城新建年份后确认移动，原图文字和 ID 不变，返回两边数量正确', async ({ page }, info) => {
@@ -178,7 +188,7 @@ test('未保存文字阻止进入移动页，目标年份超过一页仍可选�
   await expect(page.getByLabel('照片文字', { exact: true })).toHaveValue('尚未保存的移动前草稿')
   await page.getByRole('dialog').getByRole('link', { name: '移动到其他影集', exact: true }).click()
   await page.getByRole('button', { name: '放弃草稿并离开', exact: true }).click()
-  await page.getByLabel('目标城市', { exact: true }).selectOption(guangzhou)
+  await chooseCity(page, guangzhou)
   await page.getByRole('button', { name: '加载更多目标年份', exact: true }).click()
   await page.locator('.target-year-list').getByRole('button', { name: /^2100 年/ }).click()
   await expect(page.locator('.move-confirm')).toContainText('2100 年')

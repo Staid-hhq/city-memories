@@ -128,6 +128,11 @@ export async function api<T>(path: string, init: RequestInit = {}, privateReques
       }
       throw error
     }
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !path.startsWith('/auth/')) {
+      window.dispatchEvent(new Event('city-memories:data-changed'))
+      const channel = new BroadcastChannel('city-memories-data')
+      channel.postMessage('changed'); channel.close()
+    }
     return result?.data as T
   } finally {
     pending.delete(controller)
