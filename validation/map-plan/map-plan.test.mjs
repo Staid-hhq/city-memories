@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
+import { directoryChecks } from './audit-checks.mjs';
 
 // Synthetic data only. No .env, browser profile, user database or network access.
 const source = await readFile(new URL('../../prototype/travel-journal/china-map-data.js', import.meta.url), 'utf8');
@@ -11,6 +12,52 @@ const node = (gb, name, level, children = []) => ({
 });
 const payload = children => ({ data: { district: [node('156000000', '中华人民共和国', 5, children)] } });
 const plain = value => JSON.parse(JSON.stringify(value));
+
+function syntheticAudit() {
+  return {
+    httpStatus: 200, businessStatus: '200', country: { code: '156000000' },
+    provinces: Array.from({ length: 34 }, (_, i) => ({ code: '156' + (110000 + i * 10000), destinations: 1 })),
+    sourceNodeCount: 35, sourceLevelCounts: { 4: 34, 5: 1 },
+    destinationCount: 35, kinds: { municipality: 4, 'special-region': 2,
+      'taiwan-destination': 1, 'direct-admin-unit': 11, prefecture: 17 },
+    special: ['156429021', ...Array.from({ length: 10 }, (_, i) => '1564690' + (21 + i))]
+      .map(adcode => ({ adcode, kind: 'direct-admin-unit' })),
+    seeded: ['156440300', '156440100', '156451100'].map(code => ({ code, matched: true })),
+    conflicts: [], rejected: [],
+  };
+}
+
+test('live structural gates accept complete synthetic evidence without pinning a nationwide count', () => {
+  assert.ok(Object.values(directoryChecks(syntheticAudit())).every(Boolean));
+});
+
+test('live structural gates reject missing responses, source conflicts and rejected candidates', () => {
+  assert.ok(Object.values(directoryChecks(null)).some(value => !value));
+  for (const field of ['conflicts', 'rejected']) {
+    const summary = syntheticAudit();
+    summary[field].push({ reason: 'synthetic-conflict' });
+    assert.ok(Object.values(directoryChecks(summary)).some(value => !value));
+  }
+});
+
+test('live structural gates reject incomplete provinces and broken business seed matches', () => {
+  const summary = syntheticAudit();
+  summary.provinces[0].destinations = 0;
+  summary.seeded[0].matched = false;
+  const checks = directoryChecks(summary);
+  assert.equal(checks.provinces, false);
+  assert.equal(checks.seededMappings, false);
+});
+
+test('live structural gates detect restored county omissions and wrong Taiwan categories', () => {
+  const summary = syntheticAudit();
+  summary.special.pop();
+  summary.kinds['taiwan-destination'] = 0;
+  const checks = directoryChecks(summary);
+  assert.equal(checks.restoredCountyUnits, false);
+  assert.equal(checks.specialCategories, false);
+  assert.equal(checks.destinationsConsistent, false);
+});
 
 function harness(respond = () => { throw new Error('Unexpected mock API request'); }) {
   let now = 0;
@@ -94,6 +141,47 @@ test('non-city level-three nodes are explicitly recorded, not silently approved'
   ])]));
   assert.equal(result.features.length, 0);
   assert.equal(result.metadata.excludedNonCityUnits.length, 2);
+});
+
+test('province-direct level-three cities are not mistaken for prefectures', () => {
+  const provinces = [
+    node('156410000', '河南省', 4, [node('156419001', '济源市', 3)]),
+    node('156420000', '湖北省', 4, [node('156429004', '仙桃市', 3)]),
+    node('156460000', '海南省', 4, [node('156469001', '五指山市', 3)]),
+    node('156650000', '新疆维吾尔自治区', 4, [node('156659012', '白杨市', 3)]),
+  ];
+  const result = harness().api.directoryFromPayload(payload(provinces));
+  assert.equal(result.features.length, 4);
+  assert.ok(result.features.every(f => f.properties.kind === 'direct-admin-unit'));
+});
+
+test('Shennongjia and Hainan county units are not lost to the city-name suffix filter', () => {
+  const result = harness().api.directoryFromPayload(payload([
+    node('156420000', '湖北省', 4, [node('156429021', '神农架林区', 3)]),
+    node('156460000', '海南省', 4, Array.from({ length: 10 }, (_, i) =>
+      node('1564690' + (21 + i), '合成县', 3))),
+  ]));
+  assert.equal(result.features.length, 11);
+  assert.equal(result.metadata.excludedNonCityUnits.length, 0);
+  assert.ok(result.features.every(f => f.properties.kind === 'direct-admin-unit'));
+});
+
+test('Taiwan county-level provider nodes use the Taiwan destination category', () => {
+  const result = harness().api.directoryFromPayload(payload([node('156710000', '台湾省', 4, [
+    node('156710009', '台北市', 2), node('156710003', '花莲县', 2),
+  ])]));
+  assert.equal(result.features.length, 2);
+  assert.ok(result.features.every(f => f.properties.kind === 'taiwan-destination'));
+});
+
+test('ordinary prefectures and non-administrative 97/98/99 units do not match direct-county codes', () => {
+  const result = harness().api.directoryFromPayload(payload([
+    node('156460000', '海南省', 4, [node('156460400', '儋州市', 3)]),
+    node('156620000', '甘肃省', 4, [node('156629700', '合成马场', 3)]),
+  ]));
+  assert.equal(result.features.length, 1);
+  assert.equal(result.features[0].properties.kind, 'prefecture');
+  assert.equal(result.metadata.excludedNonCityUnits.length, 1);
 });
 
 test('missing province children never create a whole-province city', () => {

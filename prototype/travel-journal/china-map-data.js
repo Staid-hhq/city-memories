@@ -198,13 +198,24 @@
         notices.push(`${province.name}本次未返回城市子目录；未将整省伪装为地级城市。`);
       }
       for (const city of children) {
-        if (Number(city.level) === 3) {
-          const isTaiwan = code === '710000';
-          const isCityUnit = isTaiwan ? /(?:市|县)$/.test(String(city.name)) : /(?:市|自治州|地区|盟)$/.test(String(city.name));
-          if (isCityUnit) add(city, province.name, isTaiwan ? 'taiwan-destination' : 'prefecture');
+        const level = Number(city.level);
+        const cityCode = String(city.gb ?? '');
+        const name = String(city.name ?? '');
+        const isTaiwan = code === '710000';
+        // Provider level=3 includes province-direct county-level units. It is not
+        // the business administrative tier. Classify their codes before suffixes.
+        const directCounty = /^156(?:41|42|46|65)90\d{2}$/.test(cityCode)
+          && cityCode.slice(3, 5) === code.slice(0, 2) && !cityCode.endsWith('00');
+        if (isTaiwan && [2, 3].includes(level) && /(?:市|县)$/.test(name)) {
+          add(city, province.name, 'taiwan-destination');
+        } else if (!isTaiwan && directCounty && [2, 3].includes(level) && /(?:市|县|林区)$/.test(name)) {
+          add(city, province.name, 'direct-admin-unit');
+        } else if (level === 3) {
+          const isCityUnit = !isTaiwan && /(?:市|自治州|地区|盟)$/.test(name);
+          if (isCityUnit) add(city, province.name, 'prefecture');
           else excludedNonCityUnits.push({ adcode: String(city.gb), name: String(city.name), parentName: String(province.name), reason: '官方目录层级为 3，但名称不是本原型采用的行政城市单位。' });
         }
-        else if (Number(city.level) === 2) add(city, province.name, 'direct-admin-unit');
+        else if (!isTaiwan && level === 2) add(city, province.name, 'direct-admin-unit');
       }
     }
     const outlineFeature = featureOf(country, null, 'country');
