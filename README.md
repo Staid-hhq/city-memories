@@ -1,6 +1,6 @@
 # 城影记（City Memories）
 
-更新：2026-10-08。**T01–T14 已完成，下一项为 T15「原图规模与并发验证」。** 实际 Edge 已走通注册、导入、整理、移动、删除恢复和退出重登，修复 1024 宽页面横向溢出；见 [T14 回归记录](docs/t14-edge-verification.md)。正式地图已接入当前账号资料，开放 391 个已审核城市及同级目的地；导入、移动、删除和恢复后同步点亮，空影集不点亮。草湖市等待供应商映射，暂不开放。账号、原图、批量整理、回收站、到期清理及一致备份工具已实现；不自动去重。尚未上线，真实备份介质与策略、规模和部署继续按计划推进；见 [T13 交付记录](docs/t13-map-verification.md) 与 [目录审核](docs/t13-city-catalog.md)。
+更新：2026-10-08。**T01–T15 已完成，下一项为 T16「本地第一版交付」。** 实际 Edge 已通过单影集 400 张、单账号 3000 张、两账号并发及 40 轮浏览检查，使用 3400 张不同合成原图（约 7.89 GiB），不是私人照片；修复排序写锁占用、开发代理连接复用及原图卸载释放，见 [T15 规模记录](docs/t15-scale-verification.md)。注册、导入、整理、移动、删除恢复和退出重登流程见 [T14 回归记录](docs/t14-edge-verification.md)。正式地图已接入当前账号资料，开放 391 个已审核城市及同级目的地；导入、移动、删除和恢复后同步点亮，空影集不点亮。草湖市等待供应商映射，暂不开放。账号、原图、批量整理、回收站、到期清理及一致备份工具已实现；不自动去重。尚未上线，真实备份介质与策略、部署继续按计划推进；见 [T13 交付记录](docs/t13-map-verification.md) 与 [目录审核](docs/t13-city-catalog.md)。
 
 ## 正式工程快速开始
 
@@ -9,7 +9,7 @@
 - `frontend/`：React 19、TypeScript、Vite 与 React Router；开发服务器把 `/api` 代理到本机 FastAPI。
 - `backend/`：FastAPI、SQLAlchemy、Alembic 与 pytest；`uv.lock` 固定 Python 依赖。
 - `.local-data/`：默认的私有本地运行目录，包含 SQLite、原图和暂存目录；已被 Git 忽略，不属于源码。
-- `prototype/`、`validation/`：准备阶段的原型与验证证据，未改成正式产品代码。
+- `prototype/`、`validation/`：既有原型、验证证据与独立专项测试工具，未改成正式产品代码；规模工具在 `validation/scale/`。
 
 首次准备后端，在 `backend` 目录运行：
 
@@ -52,7 +52,9 @@ T10 默认无需额外准备：升级后下次启动会补做清理，运行期�
 
 两个终端分别按 `Ctrl+C` 停止，重启后账号、影集和有效照片的原图、文字、顺序及移动归属仍在；请勿删除或提交 `.local-data/`。本地副本不是独立备份；T11 已提供离线创建、校验和新目录恢复命令，见 [备份与恢复操作说明](docs/backup-restore.md)。先正常停止后端以暂停写入和清理，备份到 Git 工作区外的新目录；真正的备份需选择独立、受保护的介质。恢复不覆盖原数据，旧登录会话失效，回收站仍按原期限处理。此次只用合成资料验收，未为用户真实资料创建备份。生产构建使用 `npm run build`。
 
-验证命令：`backend` 目录运行 `uv run python -m pytest -q`、`uv run ruff check .`；`frontend` 目录运行 `npm run lint`、`npm run build`、`npm run test:e2e`。Edge 回归使用临时数据库和合成图片，按业务、地图和连续流程三组启动/停止测试服务，需要本机 Microsoft Edge 及空闲的 8000、5173 端口，不使用现有私人资料。当前 257 项后端测试、57 项默认前端检查（52 组 Edge 流程与 5 项纯规则/调度）通过；T14 使用可见窗口，可在当前 PowerShell 设置 `$env:CITY_MEMORIES_EDGE_HEADED = '1'` 复现。真实地图在线用例默认跳过，T14 沿用 T13 已完成证据、不重复调用；见 [T14 记录](docs/t14-edge-verification.md)、[T13 记录](docs/t13-map-verification.md)、[T02 认证记录](docs/t02-auth-verification.md)、[T03 影集记录](docs/t03-albums-verification.md)、[T04 原图记录](docs/t04-originals-verification.md)、[T05 浏览记录](docs/t05-browsing-verification.md)、[T06 批量记录](docs/t06-batch-import-verification.md)、[T07 文字与排序记录](docs/t07-editing-verification.md)、[T08 移动与重复查看记录](docs/t08-organizing-verification.md)、[T09 回收站记录](docs/t09-trash-verification.md)、[T10 清理记录](docs/t10-cleanup-verification.md)、[T11 备份记录](docs/t11-backup-verification.md)。旧环境需要执行上述迁移；迁移头仍为 `b61e24f803a7`，T13 启动只补齐缺失城市，不改已有归属。
+验证命令：`backend` 目录运行 `uv run python -m pytest -q`、`uv run ruff check .`；`frontend` 目录运行 `npm run lint`、`npm run build`、`npm run test:e2e`。Edge 回归使用临时数据库和合成图片，按业务、地图和连续流程三组启动/停止测试服务，需要本机 Microsoft Edge 及空闲的 8000、5173 端口，不使用现有私人资料。当前 259 项后端测试、57 项默认前端检查（52 组 Edge 流程与 5 项纯规则/调度）通过；可在当前 PowerShell 设置 `$env:CITY_MEMORIES_EDGE_HEADED = '1'` 复现可见窗口。真实地图在线用例默认跳过，T14/T15 沿用 T13 已完成证据、不重复调用；见 [T14 记录](docs/t14-edge-verification.md)、[T13 记录](docs/t13-map-verification.md)、[T02 认证记录](docs/t02-auth-verification.md)、[T03 影集记录](docs/t03-albums-verification.md)、[T04 原图记录](docs/t04-originals-verification.md)、[T05 浏览记录](docs/t05-browsing-verification.md)、[T06 批量记录](docs/t06-batch-import-verification.md)、[T07 文字与排序记录](docs/t07-editing-verification.md)、[T08 移动与重复查看记录](docs/t08-organizing-verification.md)、[T09 回收站记录](docs/t09-trash-verification.md)、[T10 清理记录](docs/t10-cleanup-verification.md)、[T11 备份记录](docs/t11-backup-verification.md)。旧环境需要执行上述迁移；迁移头仍为 `b61e24f803a7`，T13 启动只补齐缺失城市，不改已有归属。
+
+重量级规模检查独立执行 `npm run test:scale`，不包含在默认套件中；先按 [规模工具说明](validation/scale/README.md) 生成合成原图并预留至少 40 GiB 磁盘空间。T15 最终从零测试、5 项工具安全检查、3400 份原图双重审计及 30 轮维护均通过；[报告](docs/t15-scale-verification.md) 区分接口响应、页面等待、内存采样与未测边界。本机两账号结果不等于十人并发、长期运行或公网体验承诺。
 
 ## 七阶段逐项核对
 
@@ -60,11 +62,11 @@ T10 默认无需额外准备：升级后下次启动会补做清理，运行期�
 | --- | --- | --- |
 | 1. 项目定位 | [项目定位](docs/project-brief.md) | 已明确对象、价值、范围和不做的事；已删除重复问答与旧阶段安排 |
 | 2. 明确需求 | [需求与验收](docs/requirements.md) | 已将 24 条需求逐项对应验收条件和开发任务，保留用户确认与助手选定规则的区别 |
-| 3. 关键可行性验证 | [验证记录](docs/feasibility.md)；[地图方案](docs/map-plan.md)；[存储依据](docs/account-storage-plan.md) | 历史首轮证据保留；正式地图与存储专项由 T01–T13 补齐，真实规模及上线仍待验收 |
+| 3. 关键可行性验证 | [验证记录](docs/feasibility.md)；[地图方案](docs/map-plan.md)；[存储依据](docs/account-storage-plan.md) | 历史首轮证据保留；正式地图与存储专项由 T01–T13 补齐，T15 不同合成原图规模通过；上线仍待验收 |
 | 4. 页面与流程设计 | [页面与流程](docs/page-flow.md)；[可点击原型启动说明](prototype/travel-journal/README.md)；[Edge 复查](docs/edge-review-2026-09-21.md) | 核心原型和新版 Edge 关键操作通过；移动、重复处理、回收站及跨年份导入的补充设计已有，尚未在原型实测 |
 | 5. 技术方案 | [技术方案与架构图](docs/tech-stack.md) | 组件、职责、数据保存、运行方式及约束已明确；T01 已锁定首组兼容依赖，后续升级继续经锁文件和检查控制 |
 | 6. 数据与接口设计 | [数据关系与接口](docs/data-api-design.md)；[SQL 设计样例](docs/data-model.sql) | 认证、影集、导入、照片浏览、文字排序、移动、重复分组、回收站恢复、到期清理与离线一致备份工具已实现；使用边界与校验协议有独立说明 |
-| 7. 开发任务拆分 | [开发计划](docs/development-plan.md) | T01–T14 已完成；T15 原图规模与并发验证待开展，其余状态逐项列出 |
+| 7. 开发任务拆分 | [开发计划](docs/development-plan.md) | T01–T15 已完成；下一项 T16 本地第一版交付，其余状态逐项列出 |
 
 截图中的文件名是建议形式；这里沿用已有文件名，通过本页统一导航，不另建内容重复的 `architecture.md`、`tasks.md` 等文件。第一版已确定电脑/Edge 优先，因此通用阶段表中的手机适配不算本项目缺项。接口契约先维护在阶段 6，正式实现时由 FastAPI 生成 OpenAPI，不再并行维护一份容易不一致的手写清单。
 
@@ -73,7 +75,6 @@ T10 默认无需额外准备：升级后下次启动会补做清理，运行期�
 | 事项 | 当前证据与差距 | 处理任务 |
 | --- | --- | --- |
 | 地图后续使用边界 | T13 正式目录门禁、地图布局、交互与点亮通过；草湖市待供应商映射，正式域名、来源信息适用性及控制台真实扣减仍需复核，不把本次测试称为公开审图通过 | T17 / 后续目录维护 |
-| 格式与规模 | JPEG/PNG/静态 WebP 合成样本、50 MiB 字节边界、跨页浏览及 401 项微型 PNG 拆批上传通过；400 张不同原图、3000 张账号及真实大图性能未验收 | T15 |
 | 部署与长期运行 | 主机、域名、费用、独立备份介质及保留策略、正式地图使用条件和跨电脑访问未落实；备份工具已交付，但真实备份介质/频率/保留策略尚未配置 | T17 |
 
 这些项目保留为开发/上线验收条件。T13 已验证正式 WMTS 页面、本人点亮及多轮加载：禁用 HTTP 缓存刷新 5 次中位数 2.021 秒，同账号返回 0.245 秒；这是本机单个合成照片城市的可见地图，不是全国所有几何或长期网络承诺。离线检查可在根目录运行 `node --test validation/map-plan/map-plan.test.mjs`；可选在线核验消耗真实调用，详见 [T13 记录](docs/t13-map-verification.md)。Key、真实响应和截图不入库，未接管用户浏览器。当前自动清理只处理在线系统副本，不代替独立备份；工具交付不代表已备份真实资料。

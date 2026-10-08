@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import select, update
+from sqlalchemy import bindparam, select, update
 
 from city_memories.albums import Envelope, not_found
 from city_memories.auth import CurrentUser
@@ -116,10 +116,23 @@ def reorder(album_id: str, data: ReorderInput, request: Request, user: CurrentUs
             # compact positions. Both passes and the revision are one transaction.
             # Photo revisions/notes/bytes do not change for a pure reorder.
             base = max(row.position for row in rows) + 1
-            for offset, photo in enumerate(old_ids):
-                db.execute(update(Photo).where(Photo.id == photo).values(position=base + offset))
-            for position, photo in enumerate(new_ids):
-                db.execute(update(Photo).where(Photo.id == photo).values(position=position))
+            # One range shift + one prepared executemany avoids compiling and
+            # dispatching 2*N ORM statements while holding SQLite's writer lock.
+            # Adding base preserves even sparse positions and cannot collide
+            # with any old position. Final positions are all below base.
+            table = Photo.__table__
+            connection = db.connection()  # The same Session transaction, not a new writer.
+            scope = (table.c.album_id == album_id, table.c.owner_id == user.id,
+                     table.c.state == "active")
+            connection.execute(
+                update(table).where(*scope).values(position=table.c.position + base)
+            )
+            connection.execute(
+                update(table).where(*scope, table.c.id == bindparam("ordered_id"))
+                .values(position=bindparam("ordered_position")),
+                [{"ordered_id": photo, "ordered_position": position}
+                 for position, photo in enumerate(new_ids)],
+            )
             album.revision += 1
             album.updated_at = request.app.state.auth.clock()
         return {"data": {

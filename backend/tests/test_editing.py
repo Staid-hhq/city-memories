@@ -185,6 +185,7 @@ def test_concurrent_note_writers_and_order_writers_each_have_one_winner(editing_
     assert order(client, album["id"])["album_revision"] == 3
 
 
+@pytest.mark.parametrize("editing_environment", [4, 400], indirect=True)
 def test_mid_reorder_failure_rolls_back_positions_and_revision(editing_environment):
     app, client, _, _, album, ids, _ = editing_environment
     writes = 0
@@ -192,7 +193,11 @@ def test_mid_reorder_failure_rolls_back_positions_and_revision(editing_environme
         nonlocal writes
         if statement.startswith("UPDATE photos SET position"):
             writes += 1
-            if writes == len(ids) + 2:
+            if writes == 2:
+                assert many
+                # Actually apply one assignment before the injected failure:
+                # both the range shift and a partial second pass must roll back.
+                cursor.execute(statement, parameters[0])
                 raise OperationalError(statement, parameters, Exception("injected failure"))
     event.listen(app.state.engine, "before_cursor_execute", fail_after_temporary_positions)
     try:
@@ -201,9 +206,53 @@ def test_mid_reorder_failure_rolls_back_positions_and_revision(editing_environme
         event.remove(app.state.engine, "before_cursor_execute", fail_after_temporary_positions)
     result = order(client, album["id"])
     assert result["album_revision"] == 2
-    assert [p["id"] for p in result["items"]] == ids
-    assert [p["position"] for p in result["items"]] == list(range(len(ids)))
+    items, cursor = result["items"], result["next_cursor"]
+    while cursor:
+        page = client.get(f"/api/v1/albums/{album['id']}/photos",
+                          params={"limit": 100, "cursor": cursor}).json()["data"]
+        items.extend(page["items"])
+        cursor = page["next_cursor"]
+    assert [p["id"] for p in items] == ids
+    assert [p["position"] for p in items] == list(range(len(ids)))
     assert move(client, album["id"], ids[0]).status_code == 200
+
+
+@pytest.mark.parametrize("editing_environment", [400], indirect=True)
+def test_scale_reorder_two_dispatches_sparse_positions_and_other_album_untouched(
+    editing_environment,
+):
+    app, client, _, _, album, ids, _ = editing_environment
+    owner = client.get("/api/v1/auth/me").json()["data"]["id"]
+    other = create(client, 2025).json()["data"]
+    other_ids, _ = seed_photos(app, owner, other["id"], 2)
+    assert note(client, ids[390], "400 张中仍对应原照片").status_code == 200
+    with app.state.auth.sessions.begin() as db:
+        db.execute(update(Photo).where(Photo.album_id == album["id"])
+                   .values(position=Photo.position + 1000))
+        db.execute(update(Photo).where(Photo.album_id == album["id"])
+                   .values(position=(Photo.position - 1000) * 2 + 5))
+        before = {p.id: (p.note, p.revision, p.sha256, p.storage_key)
+                  for p in db.scalars(select(Photo).where(Photo.album_id == album["id"]))}
+    dispatches = []
+
+    def capture(conn, cursor, statement, parameters, context, many):
+        if statement.startswith("UPDATE photos SET position"):
+            dispatches.append((many, len(parameters) if many else 1))
+
+    event.listen(app.state.engine, "before_cursor_execute", capture)
+    try:
+        response = move(client, album["id"], ids[0])
+        assert response.status_code == 200
+    finally:
+        event.remove(app.state.engine, "before_cursor_execute", capture)
+    assert dispatches == [(False, 1), (True, 400)]
+    with app.state.auth.sessions() as db:
+        photos = db.scalars(select(Photo).where(Photo.album_id == album["id"])
+                            .order_by(Photo.position)).all()
+        assert [p.id for p in photos] == ids[1:] + ids[:1]
+        assert [p.position for p in photos] == list(range(400))
+        assert {p.id: (p.note, p.revision, p.sha256, p.storage_key) for p in photos} == before
+        assert [db.get(Photo, photo).position for photo in other_ids] == [0, 1]
 
 
 def test_restart_persists_order_and_note_and_stale_replay_never_overwrites(editing_environment):
