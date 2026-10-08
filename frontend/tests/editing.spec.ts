@@ -176,7 +176,7 @@ test('跨未加载分页后移、置顶置底、实际拖动手柄，文字原�
   expect((await rows(page, album)).items.map((item) => item.id)).toEqual([ids[2], ids[0], ids[1], ...ids.slice(3, 23), ...ids.slice(24), source])
   await page.setViewportSize({ width: 1024, height: 900 })
   await page.locator('.photo-card').first().scrollIntoViewIfNeeded()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
   await page.screenshot({ path: testInfo.outputPath('ordering-1024.png') })
   await page.reload()
   await expect(page.locator('.photo-card').first()).toHaveAttribute('data-photo-id', ids[2])

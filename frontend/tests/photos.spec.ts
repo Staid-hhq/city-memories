@@ -72,7 +72,7 @@ test('分页、视野原图卸载、跨页前后浏览、Esc 和浏览器返回�
   await page.setViewportSize({ width: 1024, height: 900 })
   await first.scrollIntoViewIfNeeded()
   await expect(first.locator('img')).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
   await page.screenshot({ path: testInfo.outputPath('gallery-1024.png') })
   await first.click()
   await loadedViewer(page, 'journey-01.png')

@@ -113,6 +113,7 @@ test('空影集不点亮，真实导入通知另一窗口，换号不残留区�
   const photo = (await read(other, `/albums/${other.url().split('/albums/')[1].split('?')[0]}/photos`)).items[0]
   await other.close()
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
   await login(page, 'Map_Two')
   await expect(page.locator('.map-progress')).toContainText('0 座城市已有照片')
   await expect(page.locator('[data-city-region]')).toHaveCount(0)
@@ -167,7 +168,7 @@ test('密集入口选择、点击区域、拖动缩放及返回保留视角，10
   await expect(stage).toHaveAttribute('data-zoom', zoom!)
   await page.setViewportSize({ width: 1024, height: 900 })
   await expect(page.locator('[data-map-layer=main]')).toHaveAttribute('data-ready', 'true')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
 })
 
 test('目录、瓦片、边界失败分别降级和手动重试，统计失败不伪装零照片', async ({ page, context }) => {
@@ -211,6 +212,7 @@ test('退出时取消边界请求，迟到响应不能污染另一账号', async
   await login(page, 'Map_Failure')
   await expect.poll(() => calls.some(c => c.keyword === '156440300')).toBe(true)
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
   await login(page, 'Map_Two')
   state.release()
   await expect(page.locator('.map-session-note')).toHaveText('城市位置已核对。')

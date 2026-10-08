@@ -133,7 +133,7 @@ test('超过一页的年份按序加载，失败重试保留已读影集', async
   await expect(page.locator('.album-caption strong').last()).toHaveText('2000 年')
   await expect(page.getByRole('button', { name: '加载更多' })).toHaveCount(0)
   await page.setViewportSize({ width: 1024, height: 768 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({ path: testInfo.outputPath('years-1024.png') })
 })

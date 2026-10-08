@@ -9,12 +9,15 @@ const cli = fileURLToPath(new URL('../node_modules/@playwright/test/cli.js', imp
 const tests = readdirSync(new URL('../tests/', import.meta.url)).filter(name => name.endsWith('.spec.ts')).sort()
 const args = process.argv.slice(2)
 const groups = args.length ? [args] : [
-  tests.filter(name => !name.startsWith('map')).map(name => `tests/${name}`),
+  tests.filter(name => !name.startsWith('map') && !name.startsWith('journey')).map(name => `tests/${name}`),
   tests.filter(name => name.startsWith('map')).map(name => `tests/${name}`),
+  tests.filter(name => name.startsWith('journey')).map(name => `tests/${name}`),
 ]
 for (const group of groups) {
   if (!group.length) continue
-  const result = spawnSync(process.execPath, [cli, 'test', ...group], { stdio: 'inherit' })
+  // Keep screenshots from earlier groups instead of erasing them on each run.
+  const output = args.length ? [] : [`--output=test-results/group-${groups.indexOf(group) + 1}`]
+  const result = spawnSync(process.execPath, [cli, 'test', ...group, ...output], { stdio: 'inherit' })
   if (result.error) { console.error(result.error.message); process.exit(1) }
   if (result.status !== 0) process.exit(result.status ?? 1)
 }

@@ -62,7 +62,7 @@ test('跨城新建年份后确认移动，原图文字和 ID 不变，返回两�
   await createTarget(page, guangzhou, 2080)
   expect((await photo(page, id)).album_id).toBe(album.id)
   await page.setViewportSize({ width: 1024, height: 900 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
   await expect(page.locator('.target-year-list')).toContainText('2080 年')
   await page.screenshot({ path: info.outputPath('move-confirm-1024.png'), fullPage: true })
   await page.getByRole('button', { name: '确认移动到目标影集末尾', exact: true }).click()

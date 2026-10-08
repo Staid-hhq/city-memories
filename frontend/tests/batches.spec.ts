@@ -241,7 +241,7 @@ test('影集并发更新要求重新核对，过期批次仍可取消清理', as
   await expect(job(page, 0).getByRole('button', { name: '保存本批全部照片', exact: true })).toHaveCount(0)
   await job(page, 0).getByRole('button', { name: '取消本批并清理', exact: true }).click()
   await expect(job(page, 0).getByText('本批已取消。')).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
 })
 
 test('401 张小型合成 PNG 真实上传拆成两批，后批不能先保存', async ({ page }) => {

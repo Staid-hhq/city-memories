@@ -51,7 +51,7 @@ test('重复页明确选择一份删除，核对原图文字、取消及恢复�
   await page.locator(`[data-photo-id="${id}"]`).getByRole('link', { name: /删除照片/ }).click()
   await page.setViewportSize({ width: 1024, height: 900 })
   await expect(page.locator('.lifecycle-image img')).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
   await page.screenshot({ path: info.outputPath('trash-confirm-1024.png'), fullPage: true })
   await page.getByRole('button', { name: '确认移入回收站', exact: true }).click()
   await expect(page.getByText(/已移入回收站。只删除了选中的这一份/)).toBeVisible()
@@ -172,6 +172,8 @@ test('27 张回收站分页、变化使旧分页失效、换账号看不到上�
   await expect(page.getByText('已读取 24 / 26 张', { exact: false })).toBeVisible()
   const hiddenId = photos[1].id
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
+  expect((await page.request.get('/api/v1/auth/me')).status()).toBe(401)
   await login(page, 'Trash_Two')
   await page.goto('/trash')
   await expect(page.getByRole('heading', { name: '回收站是空的', exact: true })).toBeVisible()

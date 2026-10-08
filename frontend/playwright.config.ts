@@ -10,6 +10,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:5173',
     channel: 'msedge',
+    headless: process.env.CITY_MEMORIES_EDGE_HEADED !== '1',
     viewport: { width: 1360, height: 940 },
     trace: 'off', // 认证测试不记录含密码和 Cookie 的网络 trace。
   },
