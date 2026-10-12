@@ -56,7 +56,7 @@ test('T14 新账号连续流程：空影集→批量原图→文字排序→重�
   page.on('pageerror', error => pageErrors.push(error.name))
   await page.goto('/login')
   expect(await page.evaluate(() => navigator.userAgent)).toContain('Edg/')
-  console.log(`T14 Microsoft Edge ${browser.version()}; headed=${process.env.CITY_MEMORIES_EDGE_HEADED === '1'}`)
+  console.log(`T14 Microsoft Edge ${browser.version()}; headed=${info.project.use.headless === false}`)
   let albumUrl = '', targetUrl = '', id = '', duplicateId = '', secondId = ''
   const green = await syntheticImage(page, '#668875')
   const orange = await syntheticImage(page, '#ae7858')

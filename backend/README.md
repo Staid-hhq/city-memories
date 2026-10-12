@@ -2,6 +2,8 @@
 
 FastAPI、SQLAlchemy 与 Alembic 工程。开发命令统一从本目录运行，依赖由 `uv.lock` 锁定。
 
+日常本地第一版的启动/停止、构建版前端、配置、数据位置与维护说明集中在 [T16 使用手册](../docs/local-first-release.md)。下面保留开发模式命令；日常无需 `--reload`，不要与既有后端同时运行。
+
 ```powershell
 uv sync --locked --python 'D:\SDK\Python\Python3.13\python.exe'
 uv run python -m alembic upgrade head
@@ -62,7 +64,7 @@ uv run python -m pytest -q
 
 日志只给汇总计数，不输出异常文本、文件名、路径、账号或密钥。若持续出现 `Private-data cleanup incomplete; will retry`，先检查磁盘空间、目录权限和文件占用；解除故障后等待下一轮，必要时正常停止并重启服务。不要手动清空 originals、改库或延长期限；数据损坏/丢失不保证自动恢复，独立备份与恢复工具已在下述 T11 提供。
 
-每轮数据库变更和文件检查有数量上限；目录名称仍会完整枚举排序，不代表通过大目录性能验收。详见 [T10 交付记录](../docs/t10-cleanup-verification.md)，400/3000 规模留待 T15。
+每轮数据库变更和文件检查有数量上限；目录名称仍会完整枚举排序。T15 已用 3400 份有效合成原图执行 30 轮清理核对，未测数千份过期积压的删除性能。详见 [T10 交付记录](../docs/t10-cleanup-verification.md) 与 [T15 规模记录](../docs/t15-scale-verification.md)。
 
 ## T11 一致备份与恢复工具
 
