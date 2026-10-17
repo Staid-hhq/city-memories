@@ -6,7 +6,7 @@
 
 | 目录 | 内容与入口 |
 | --- | --- |
-| `guides/` | 面向使用者：[启动与维护](guides/local-first-release.md)、[功能操作](guides/user-guide.md)、[备份恢复](guides/backup-restore.md) |
+| `guides/` | 面向使用者：[PyCharm 启动](guides/ide-startup.md)、[启动与维护](guides/local-first-release.md)、[功能操作](guides/user-guide.md)、[备份恢复](guides/backup-restore.md) |
 | `product/` | 做什么：[项目定位](product/project-brief.md)、[需求与验收](product/requirements.md)、[页面流程](product/page-flow.md) |
 | `architecture/` | 怎么实现：[技术栈](architecture/tech-stack.md)、[数据/API](architecture/data-api-design.md)、[SQL 设计样例](architecture/data-model.sql)、[账号存储](architecture/account-storage-plan.md)、[地图方案](architecture/map-plan.md) |
 | `planning/` | 任务进度与逐项实施记录：[开发计划](planning/development-plan.md) |
@@ -37,6 +37,7 @@
 | [T15](reports/t15-scale-verification.md) | 原图规模、并发与内存 |
 | [T16](reports/t16-local-delivery-verification.md) | 本地构建版空库交付 |
 | [2026-10-17 目录整理](reports/2026-10-17-repository-organization.md) | 文件分类、路径迁移与回归结果 |
+| [2026-10-17 IDE 启动整理](reports/2026-10-17-ide-startup.md) | PyCharm 共享运行配置、隔离启动/停止与 Edge 验证 |
 
 T01 的实施证据在开发计划。保留原有报告文件名便于按任务编号查找；没有复制另一套架构、接口或任务清单。
 

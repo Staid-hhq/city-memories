@@ -11,6 +11,10 @@
 | [README.md](../README.md) | 项目首页、当前状态、启动入口和目录导航 |
 | [AGENTS.md](../AGENTS.md) | 协作约定、提交推送规则和隐私边界 |
 | [.gitignore](../.gitignore) | 防止密钥、私人数据、缓存、构建和测试产物入库 |
+| [.run/local.run.xml](../.run/local.run.xml) | PyCharm 日常入口，同时运行前端和后端 |
+| [.run/backend.run.xml](../.run/backend.run.xml) | 用项目虚拟环境运行后端，不复制密钥或自动迁移 |
+| [.run/frontend.run.xml](../.run/frontend.run.xml) | npm 构建预览，固定本机 5173 端口 |
+| [.run/build.run.xml](../.run/build.run.xml) | 修改前端后执行类型检查与构建 |
 | [scripts/check-repository.mjs](../scripts/check-repository.mjs) | 只读检查文档文件链接、逐文件导航覆盖和本地模块导入 |
 
 ## 前端
@@ -153,6 +157,7 @@
 | [README.md](README.md) | 按阅读目的分类的文档与交付索引 |
 | [file-guide.md](file-guide.md) | 当前逐文件职责表及私人/生成文件边界 |
 | [guides/local-first-release.md](guides/local-first-release.md) | 本地启动、停止、首次安装、升级、配置和排障 |
+| [guides/ide-startup.md](guides/ide-startup.md) | 本机开发软件选择、PyCharm 点选启动/停止与解释器排障 |
 | [guides/user-guide.md](guides/user-guide.md) | 地图、导入、浏览、文字、整理、移动、回收站的操作说明 |
 | [guides/backup-restore.md](guides/backup-restore.md) | 离线备份、校验、恢复的具体命令及安全条件 |
 | [product/project-brief.md](product/project-brief.md) | 产品定位、目标用户、价值与不做的事 |
@@ -184,6 +189,7 @@
 | [reports/t15-scale-verification.md](reports/t15-scale-verification.md) | T15 3400 份合成原图规模、双账号、内存与审计 |
 | [reports/t16-local-delivery-verification.md](reports/t16-local-delivery-verification.md) | T16 本地第一版、空库与真实构建资源验收 |
 | [reports/2026-10-17-repository-organization.md](reports/2026-10-17-repository-organization.md) | 本轮目录变更、路径说明及复测记录 |
+| [reports/2026-10-17-ide-startup.md](reports/2026-10-17-ide-startup.md) | 开发软件核对、PyCharm 运行配置和隔离验证记录 |
 
 ## 独立验证工具
 

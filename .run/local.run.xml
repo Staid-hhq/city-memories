@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="城影记－启动" type="CompoundRunConfigurationType">
+    <toRun name="城影记－后端" type="PythonConfigurationType" />
+    <toRun name="城影记－前端" type="js.build_tools.npm" />
+    <method v="2" />
+  </configuration>
+</component>

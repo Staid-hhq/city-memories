@@ -8,6 +8,7 @@
 
 | 想做什么 | 阅读入口 |
 | --- | --- |
+| 在 PyCharm 中点击按钮启动 | [开发软件启动指南](docs/guides/ide-startup.md) |
 | 日常启动、停止、安装与更新 | [本地第一版使用手册](docs/guides/local-first-release.md) |
 | 导入、浏览、整理和恢复照片 | [功能使用指南](docs/guides/user-guide.md) |
 | 备份与恢复资料 | [备份操作说明](docs/guides/backup-restore.md) |
@@ -19,6 +20,7 @@
 
 ```text
 city-memories/
+├─ .run/        PyCharm 共享运行配置：启动、前端、后端和前端构建
 ├─ frontend/    React + TypeScript 页面、前端测试和构建配置
 ├─ backend/     FastAPI 服务、数据模型、迁移和后端测试
 ├─ docs/        使用指南、需求、架构、计划、参考资料、验收记录
@@ -32,6 +34,10 @@ city-memories/
 根目录 `.env`、`.local-data/` 和工具的 `results/` 是本机私有配置/数据，不属于源码，不上传 GitHub。依赖目录和构建产物也不入库。
 
 ## 本机快速启动
+
+**推荐在 PyCharm 中启动**：打开整个项目，右上角选择“城影记－启动”，点击绿色三角，等待前后端就绪后在 Edge 打开 <http://127.0.0.1:5173>。首次无构建或前端代码更新后，先运行“城影记－前端构建”。详见[软件内启动与停止步骤](docs/guides/ide-startup.md)。
+
+以下保留 PowerShell 方式作为备用，两种方式不要同时运行。
 
 已有依赖、迁移与构建时，在两个 PowerShell 终端分别执行；首次安装或更新先看 [完整手册](docs/guides/local-first-release.md#3-新机器首次准备或更新后)，不要覆盖现有配置或数据。
 

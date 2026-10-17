@@ -9,6 +9,7 @@ validation/local-delivery/results/
 # Python environments and caches
 backend/.venv/
 backend/.uv-cache/
+.uv-cache/
 **/__pycache__/
 .pytest_cache/
 .ruff_cache/
