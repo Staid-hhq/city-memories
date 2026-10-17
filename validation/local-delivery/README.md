@@ -7,7 +7,7 @@
 两组实际 Edge 检查：
 
 1. 新的交付检查：初始空库及迁移头、浏览器版本、HTTP 实际 HTML 等于 `dist/index.html`、JS/CSS 字节匹配、无开发客户端、深链接与刷新、API 代理和未登录资源拒绝；另启动同参数预览子进程，确认端口占用返回 1 而非切换端口。该检查禁止外网请求。
-2. 直接复用 `tests/journey.spec.ts`：两个新账号注册、空影集、批量合成原图、哈希、文字、排序、重复查看、跨城移动、删除恢复、越权拒绝和退出重登。复用测试标题中的 T14 是其原始来源，这次运行目标是 **T16 构建版 + 新建空库**，不是沿用旧运行结果。
+2. 直接复用 `tests/e2e/journey.spec.ts`：两个新账号注册、空影集、批量合成原图、哈希、文字、排序、重复查看、跨城移动、删除恢复、越权拒绝和退出重登。复用测试标题中的 T14 是其原始来源，这次运行目标是 **T16 构建版 + 新建空库**，不是沿用旧运行结果。
 
 `results/startup.json`、`build-manifest.json`、Playwright 截图及小型合成数据库仅本地保留；后一次运行覆盖同名记录，但产生新的运行目录。整个 results 已忽略，不提交数据库、认证密钥、Cookie、图片或原始日志。初始空库报告不是运行后的数量；验收中会产生两个合成账号和三份照片。没有给日常产品增加默认账号或额外测试 HTTP 接口。
 
@@ -22,4 +22,4 @@ backend\.venv\Scripts\ruff.exe check --config backend/pyproject.toml validation/
 node node_modules/typescript/bin/tsc --ignoreConfig --noEmit --target es2023 --module esnext --moduleResolution bundler --skipLibCheck --strict --types node delivery/local.spec.ts playwright.delivery.config.ts
 ```
 
-日常启动说明见 [本地第一版手册](../../docs/local-first-release.md)，实测结果见 [T16 报告](../../docs/t16-local-delivery-verification.md)。需要清理测试库时先停服务，只处理核对过的 results 直接子目录及 `t16-isolated.txt` 的 `synthetic-only` 标记，不使用通配递归删除，不触碰 `.local-data`。
+日常启动说明见 [本地第一版手册](../../docs/guides/local-first-release.md)，实测结果见 [T16 报告](../../docs/reports/t16-local-delivery-verification.md)。需要清理测试库时先停服务，只处理核对过的 results 直接子目录及 `t16-isolated.txt` 的 `synthetic-only` 标记，不使用通配递归删除，不触碰 `.local-data`。

@@ -18,6 +18,6 @@
 
 结果写入 `results/<时间>/result.json`、`dom.html`、`edge-map.png` 和 `edge-stderr.log`。文本记录会替换真实密钥；独立 `edge-profile` 可能含浏览器缓存，完成后核对路径再清理。最后需目视检查截图中的底图、标识和注记；不能仅以 SDK 对象存在判断地图已加载。
 
-2026-09-20 最终通过记录为 `results/2026-09-20T10-37-39-681Z/result.json`：28 项断言，30 个地图瓦片图像全部解码，页面和调试器异常为 0，Edge 与本机服务正常关闭。6 次尝试的独立配置目录已清理。早期失败记录保留；完整过程与限制见 [可行性记录](../../docs/feasibility.md)。全国尺度下部分标记重叠，真实鼠标命中与缩放体验仍需在原型中验证。
+2026-09-20 最终通过记录为 `results/2026-09-20T10-37-39-681Z/result.json`：28 项断言，30 个地图瓦片图像全部解码，页面和调试器异常为 0，Edge 与本机服务正常关闭。6 次尝试的独立配置目录已清理。早期失败记录保留；完整过程与限制见 [可行性记录](../../docs/reports/feasibility.md)。全国尺度下部分标记重叠，真实鼠标命中与缩放体验仍需在原型中验证。
 
 参考：[官方加载示例](http://lbs.tianditu.gov.cn/api/js4.0/codeDemo/code1.html)、[地图类](http://lbs.tianditu.gov.cn/api/js4.0/pages-class/Map.html)、[标记类](http://lbs.tianditu.gov.cn/api/js4.0/pages-class/Marker.html)。

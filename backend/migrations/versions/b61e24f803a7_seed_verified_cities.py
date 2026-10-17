@@ -11,7 +11,7 @@ depends_on = None
 
 def upgrade() -> None:
     # Stable application UUIDs never depend on a provider's administrative code.
-    # Evidence and limited coverage: docs/t03-city-mappings.md.
+    # Evidence and limited coverage: docs/reference/t03-city-mappings.md.
     cities = sa.table(
         "cities",
         *[

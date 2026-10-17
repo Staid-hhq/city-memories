@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 // Explicit opt-in command; never runs against .local-data or an existing server.
 export default defineConfig({
-  testDir: './scale',
+  testDir: './tests/scale',
   workers: 1,
   retries: 0,
   timeout: 30 * 60_000,

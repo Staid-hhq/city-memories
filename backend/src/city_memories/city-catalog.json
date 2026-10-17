@@ -1,6 +1,6 @@
 {
   "version": "2026-10-04",
-  "note": "Reviewed business identifiers only; no map geometry or coordinates. See docs/t13-city-catalog.md.",
+  "note": "Reviewed business identifiers only; no map geometry or coordinates. See docs/reference/t13-city-catalog.md.",
   "cities": [
     {"id":"86584d70-97ea-42f0-9bd1-2992e4b8ad2c","provider_code":"156110000","name":"北京市","parent_name":null,"unit_kind":"municipality","mapping_status":"verified","source":"mca-2026-10-04"},
     {"id":"b6040d88-d790-44e9-8086-7bdce11db402","provider_code":"156120000","name":"天津市","parent_name":null,"unit_kind":"municipality","mapping_status":"verified","source":"mca-2026-10-04"},

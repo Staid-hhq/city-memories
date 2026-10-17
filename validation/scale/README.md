@@ -52,4 +52,4 @@ backend\.venv\Scripts\ruff.exe check --config backend/pyproject.toml validation/
 
 清理测试产物前先停止测试服务，逐个核对 `server.json` 中绝对路径、`t15-runtime-` 前缀与 `t15-isolated.txt` 的 `synthetic-only` 标记；路径必须直接位于本项目 `validation/scale/results/` 下。只删除明确核对过的测试目录，不使用模糊通配删除，不触碰 `.local-data/` 或源照片。需要保留失败证据时先另存对应的结果文件。
 
-实测结论、硬件、失败轮次与局限见 [T15 交付报告](../../docs/t15-scale-verification.md)。
+实测结论、硬件、失败轮次与局限见 [T15 交付报告](../../docs/reports/t15-scale-verification.md)。
