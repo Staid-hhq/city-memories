@@ -10,7 +10,7 @@ import type { ChinaMapData, LocatedCity, MapCity } from './mapService'
 
 export type MapMemory = { read: () => View | undefined; write: (view: View) => void }
 type Size = { width: number; height: number }
-const initialSize: Size = { width: 900, height: 590 }
+const initialSize: Size = { width: 900, height: 420 }
 const sourceUrl = '/map-data/NOTICE.md'
 
 function fitView({ width, height }: Size): View {
@@ -77,20 +77,6 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
     memory.write(bounded); setView(bounded); setHovered(null)
   }
   function zoom(delta: number) { change({ ...view, zoom: view.zoom + delta }) }
-  useEffect(() => {
-    const element = stage.current!
-    const wheel = (event: WheelEvent) => {
-      event.preventDefault()
-      if (Math.abs(event.deltaY) < 5) return
-      const zoom = Math.max(fitView(size).zoom, Math.min(10, view.zoom + (event.deltaY < 0 ? .35 : -.35)))
-      if (zoom === view.zoom) return
-      const next = { ...view, zoom }
-      interacted.current = true; memory.write(next); setView(next); setHovered(null)
-    }
-    element.addEventListener('wheel', wheel, { passive: false })
-    return () => element.removeEventListener('wheel', wheel)
-  }, [view, memory, size])
-
   function finish(event: ReactPointerEvent) {
     const current = pointer.current
     if (!current || event.pointerId !== current.id) return
@@ -114,7 +100,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
       <button type="button" className="quiet-button" onClick={() => zoom(.5)} disabled={view.zoom >= 10} aria-label="放大地图">＋</button>
       <button type="button" className="quiet-button" onClick={() => zoom(-.5)} disabled={view.zoom <= overview.zoom + .001} aria-label="缩小地图">−</button>
       <button type="button" className="quiet-button" onClick={() => change(overview)}>全国视图</button>
-    </div><span>拖动 / 滚轮缩放 · 点击城市进入相册</span></div>
+    </div><span>拖动查看 · ＋／－缩放 · 滚轮滚动页面</span></div>
     <div ref={stage} className="map-stage china-map-stage" tabIndex={0} role="region" aria-label="中国城市地图"
       data-zoom={view.zoom} data-center={view.center.join(',')}
       onKeyDown={event => {

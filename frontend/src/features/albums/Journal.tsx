@@ -14,6 +14,7 @@ import type { MapMemory } from '../map/CityMap'
 import { MapService } from '../map/mapService'
 import type { Album, Atlas, City } from './types'
 import { AlbumCard, AlbumLibrary } from './AlbumLibrary'
+import { HomeSidebar } from './HomeSidebar'
 import type { AlbumLibraryMemory } from './AlbumLibrary'
 
 type PageData<T> = { items: T[]; next_cursor: string | null }
@@ -95,23 +96,27 @@ function Home({ user, service, memory }: { user: User; service: MapService; memo
     return () => cancelAnimationFrame(frame)
   }, [location.hash])
   const atlas = useResource<Atlas>('/me/atlas')
+  const recent = useResource<PageData<Album>>('/me/albums?sort=recent&limit=3')
   const refreshAtlas = atlas.retry
+  const refreshRecent = recent.retry
   useEffect(() => {
     const channel = new BroadcastChannel('city-memories-data')
-    const visible = () => { if (document.visibilityState === 'visible') refreshAtlas() }
-    channel.onmessage = refreshAtlas
-    window.addEventListener('city-memories:data-changed', refreshAtlas)
+    const refresh = () => { refreshAtlas(); refreshRecent() }
+    const visible = () => { if (document.visibilityState === 'visible') refresh() }
+    channel.onmessage = refresh
+    window.addEventListener('city-memories:data-changed', refresh)
     window.addEventListener('focus', visible)
     document.addEventListener('visibilitychange', visible)
-    return () => { channel.close(); window.removeEventListener('city-memories:data-changed', refreshAtlas); window.removeEventListener('focus', visible); document.removeEventListener('visibilitychange', visible) }
-  }, [refreshAtlas])
+    return () => { channel.close(); window.removeEventListener('city-memories:data-changed', refresh); window.removeEventListener('focus', visible); document.removeEventListener('visibilitychange', visible) }
+  }, [refreshAtlas, refreshRecent])
   const [input, setInput] = useState('')
   const [query, setQuery] = useState('')
   function search(event: FormEvent) { event.preventDefault(); setQuery(input.trim()) }
   return <main className="journal-main map-home">
     <div className="page-heading"><div><p className="eyebrow">YOUR TRAVEL JOURNAL</p><h1>你好，{user.username}</h1>
       <p className="muted">从一座城市开始，给每一年的回忆留个位置。</p></div><span className="chapter-mark">第一章 / 城市</span></div>
-    <CityMap service={service} memory={memory} atlas={atlas.data} />
+    <div className="home-overview-grid"><CityMap service={service} memory={memory} atlas={atlas.data} />
+      <HomeSidebar atlas={atlas.data} loading={atlas.loading} retryAtlas={refreshAtlas} recent={recent} /></div>
     <section className="journal-section" aria-labelledby="my-cities-title">
       <div className="section-heading"><h2 id="my-cities-title">我的城市手帐</h2>{atlas.data && <span>{atlas.data.items.length} 座城市 · {atlas.data.album_count} 本影集 · {atlas.data.photo_count} 张照片</span>}</div>
       {atlas.loading ? <p role="status">正在读取你的手帐…</p> : !atlas.data ? <LoadError error={atlas.error} retry={atlas.retry} /> :
@@ -196,7 +201,7 @@ function AlbumPage({ albumId }: { albumId: string }) {
 
 function AlbumContent({ initial }: { initial: Album }) {
   const location = useLocation()
-  const [fromLibrary] = useState(() => location.state?.albumOrigin === '/albums')
+  const [origin] = useState<unknown>(() => location.state?.albumOrigin)
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [initial.id])
   const [album, setAlbum] = useState(initial)
   const [savedPhotoId, setSavedPhotoId] = useState<string | null>(null)
@@ -216,7 +221,7 @@ function AlbumContent({ initial }: { initial: Album }) {
       .catch((reason) => { if (!isAbort(reason)) setError('图片已保存，但影集数量刷新失败，请重新打开影集。') })
   }, [initial.id])
   return <main className="journal-main">
-    <Link className="back-link" to={fromLibrary ? '/albums' : `/cities/${album.city.id}`}>{fromLibrary ? '← 返回我的相册' : `← 返回${album.city.name}年份影集`}</Link>
+    <Link className="back-link" to={origin === '/albums' ? '/albums' : origin === '/' ? '/' : `/cities/${album.city.id}`}>{origin === '/albums' ? '← 返回我的相册' : origin === '/' ? '← 返回首页' : `← 返回${album.city.name}年份影集`}</Link>
     <div className="page-heading"><div><p className="eyebrow">{album.city.name} · 私人影集</p><h1>{album.year === null ? '未标年份' : `${album.year} 年`}</h1><p className="muted">{album.photo_count} 张照片 · 已保存的年份影集</p></div><span className="chapter-mark">第三章 / 影集</span></div>
     {error && <p className="form-error" role="alert">{error}</p>}
     <Link className="batch-entry" to={`/albums/${album.id}/import`} state={location.state}>批量导入原图 <span>全部加入当前影集 →</span></Link>

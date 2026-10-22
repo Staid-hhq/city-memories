@@ -92,7 +92,9 @@ T10 交付时沿用既有表、依赖和迁移头 `b61e24f803a7`；当前 API �
 
 ## V2-01 独立相册与封面偏好
 
-新增 `GET /api/v1/me/albums`，返回本人跨城市的 `{items, next_cursor}` 相册列表，分页默认 24、最多 100，按年份倒序、未标年份最后，同年按稳定 ID 排列；签名游标绑定当前账号。各项沿用 `AlbumView`，有效照片数量与封面按本人资源计算。
+新增 `GET /api/v1/me/albums`，返回本人跨城市的 `{items, next_cursor}` 相册列表，分页默认 24、最多 100。`sort=year` 为默认排序，按年份倒序、未标年份最后，同年按稳定 ID 排列；原有年份游标 scope 保持不变。V2-04 首页增加 `sort=recent`，按 `updated_at DESC, id ASC` 排列，签名游标同时绑定当前账号和排序，不能跨账号或排序复用。各项沿用 `AlbumView`，有效照片数量与封面按本人资源计算。
+
+首页最近整理读取 `sort=recent&limit=3`。这里的更新时间包括相册创建、照片导入、移动、排序、回收/恢复及封面改变；照片文字编辑只更新照片版本，不改变相册最近整理时间。此排序复用现有字段，不增加迁移、依赖或锁文件变更，接口与隔离验证见[首页改善记录](../docs/reports/2026-10-23-home-map-sidebar.md)。
 
 新增 `PATCH /api/v1/albums/{id}/cover`，JSON 为 `{photo_id: null|string, expected_revision: int}`，成功返回更新后的 `AlbumView`。修改需要当前会话、CSRF 和本人影集；手选照片须仍属于该影集且有效，版本不匹配返回 `409 / ALBUM_CHANGED`。`photo_id: null` 恢复自动封面；当前手选照片无效时展示会回退到影集顺序中的第一张有效照片，无有效照片时为空。封面偏好不修改照片 ID、原图字节、文字或顺序。
 

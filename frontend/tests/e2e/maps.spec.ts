@@ -183,6 +183,29 @@ test('小城定位、区域点击、拖动缩放和返回视角，窄屏没有�
   }
 })
 
+test('地图上的普通滚轮自然滚动页面且不缩放，按钮与键盘仍可缩放', async ({ page, context }) => {
+  await mockMaps(context)
+  await login(page, 'Map_Return')
+  await expect(page.locator('[data-city-region]')).toHaveCount(391)
+  const stage = page.getByRole('region', { name: '中国城市地图', exact: true })
+  await stage.scrollIntoViewIfNeeded()
+  const zoom = await stage.getAttribute('data-zoom')
+  const scroll = await page.evaluate(() => window.scrollY)
+  const box = (await stage.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + Math.min(box.height / 2, 120))
+  await page.mouse.wheel(0, 360)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scroll + 100)
+  await expect(stage).toHaveAttribute('data-zoom', zoom!)
+  await page.getByRole('button', { name: '放大地图', exact: true }).click()
+  await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeGreaterThan(Number(zoom))
+  const enlarged = Number(await stage.getAttribute('data-zoom'))
+  await page.getByRole('button', { name: '缩小地图', exact: true }).click()
+  await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeLessThan(enlarged)
+  await stage.focus()
+  await page.keyboard.press('+')
+  await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeGreaterThan(Number(zoom))
+})
+
 test('数据失败和缺失明确降级重试，统计失败不假报零照片', async ({ page, context }) => {
   const { state } = await mockMaps(context)
   state.fail = true

@@ -26,6 +26,8 @@ V2-01 在登录后的顶部提供“城市地图”和“我的相册”。`feat
 
 V2-02/V2-03 将首页改为只绘制中国的市级 SVG 地图。`public/map-data/china-cities.v1.json` 提供全部已审核入口的公共几何，`mapService.ts` 按代码、名称、上级、单位类型关联 `/api/v1/map/cities`；本人照片填色仍读取 `/api/v1/me/atlas`。页面不再请求 `/map/config`、世界瓦片或在线逐市轮廓。`CityMap.tsx` 保留拖动、缩放、键盘、搜索定位与返回视角；路径按固定尺度记忆，移动时只更新变换。数据来源、固定版本及许可见[公共地图说明](public/map-data/NOTICE.md)，可重复生成脚本位于仓库 `scripts/build-china-map-data.py`。本次地图更新不新增迁移、依赖或锁文件变更。
 
+V2-04 已完成首页改善子项：左侧地图画布桌面高度 420px，右侧为 320px 足迹栏，1100px 及以下改为上下布局。`features/albums/HomeSidebar.tsx` 展示本人已点亮城市、相册与有效照片数，以及按相册更新时间排列的最近 3 本相册和快捷入口。`Journal.tsx` 用 `/me/albums?sort=recent&limit=3` 读取最近相册，并与足迹统计一起响应同页写入、跨窗口、窗口聚焦和页面重新可见；退出或换号取消请求。失败提供重试，不冒充空列表或零统计。普通滚轮滚动页面，地图仅用加减按钮或键盘缩放，保留拖动、定位和返回视角。独立相册页仍按年份排列，详见[本轮记录](../docs/reports/2026-10-23-home-map-sidebar.md)。
+
 ## 常用命令
 
 | 命令 | 用途 |
@@ -42,12 +44,12 @@ V2-02/V2-03 将首页改为只绘制中国的市级 SVG 地图。`public/map-dat
 
 ## 测试分区
 
-- `tests/e2e/`：业务、地图、独立相册和连续流程；也保留少量纯队列/几何/调度规则测试。`maps.spec.ts` 覆盖静态市界及本人资料联动；`map-live.spec.ts` 现在默认验证随应用提供的真实公共资产，不访问在线地图服务或私有 Key。`library.spec.ts` 覆盖相册分页/返回、空态/失败/换号隔离、跨页封面选择与恢复自动。默认实际 Edge 无界面运行，PowerShell 设置 `$env:CITY_MEMORIES_EDGE_HEADED = '1'` 可显示窗口。
+- `tests/e2e/`：业务、地图、独立相册和连续流程；也保留少量纯队列/几何/调度规则测试。`maps.spec.ts` 覆盖静态市界、普通滚轮滚页及本人资料联动；`map-live.spec.ts` 现在默认验证随应用提供的真实公共资产，不访问在线地图服务或私有 Key。`library.spec.ts` 覆盖相册分页/返回、空态/失败/换号隔离、跨页封面选择与恢复自动。`home-sidebar.spec.ts` 覆盖双栏/窄屏、本人统计和最近相册、返回首页、错误/空态/换号及刷新联动。默认实际 Edge 无界面运行，PowerShell 设置 `$env:CITY_MEMORIES_EDGE_HEADED = '1'` 可显示窗口。
 - `tests/delivery/`：构建资源、深链接、同源代理和端口占用检查；交付配置同时复用 `tests/e2e/journey.spec.ts`。
 - `tests/scale/`：400/3000 张、双账号、浏览内存检查；不进入默认测试集合。
 
-筛选测试示例：`npm run test:e2e -- tests/e2e/maps.spec.ts`。默认“已有业务 / 地图 / 连续流程 / 独立相册”四组各自启动临时数据库/服务，避免共享测试账号触发累计登录限流；不要用一个服务替代全部分组。要求本机 Microsoft Edge、项目 Python 环境和空闲测试端口，不复用用户正在运行的服务。
+筛选测试示例：`npm run test:e2e -- tests/e2e/maps.spec.ts`。默认“既有业务 / 地图 / 连续流程 / 首页与相册”四组各自启动临时数据库/服务，避免共享测试账号触发累计登录限流；不要用一个服务替代全部分组。要求本机 Microsoft Edge、项目 Python 环境和空闲测试端口，不复用用户正在运行的服务。
 
 测试默认使用 5173/8000。日常项目正在运行时，在同一测试终端设置 `$env:CITY_MEMORIES_E2E_FRONTEND_PORT = '5274'`、`$env:CITY_MEMORIES_E2E_BACKEND_PORT = '8174'`，可独立运行默认回归及 `test:delivery`；页面上下文与 Origin 均跟随实际测试地址，不连接用户服务。端口覆盖仅供测试，结束后移除这两个环境变量，不放入日常启动配置。
 
-测试使用合成图片和隔离账号，结果不提交到公共仓库。旧 T13 在线瓦片核验属于历史证据，不能代替新图实际资产、覆盖和交互检查；本次结果见[中国地图记录](../docs/reports/2026-10-22-china-city-map.md)。目录整理后已迁移的旧测试路径见[整理记录](../docs/reports/2026-10-17-repository-organization.md)。
+测试使用合成图片和隔离账号，结果不提交到公共仓库。旧 T13 在线瓦片核验属于历史证据，不能代替新图实际资产、覆盖和交互检查；地图结果见[中国地图记录](../docs/reports/2026-10-22-china-city-map.md)，本次结果见[首页改善记录](../docs/reports/2026-10-23-home-map-sidebar.md)。目录整理后已迁移的旧测试路径见[整理记录](../docs/reports/2026-10-17-repository-organization.md)。

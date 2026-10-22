@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-10-22。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新：2026-10-23。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -39,7 +39,7 @@
 | [playwright.config.ts](../frontend/playwright.config.ts) | 默认 Edge 测试及隔离服务配置，可覆盖测试端口避开日常实例 |
 | [playwright.delivery.config.ts](../frontend/playwright.delivery.config.ts) | 构建版空库验收及独立测试端口，复用连续流程 |
 | [playwright.scale.config.ts](../frontend/playwright.scale.config.ts) | 显式启用的重量级规模测试配置 |
-| [scripts/test-e2e.mjs](../frontend/scripts/test-e2e.mjs) | 默认业务/地图/连续流程/独立相册四组运行，各自重建隔离服务 |
+| [scripts/test-e2e.mjs](../frontend/scripts/test-e2e.mjs) | 默认既有业务/地图/连续流程/首页与相册四组运行，各自重建隔离服务 |
 | [scripts/test-scale.mjs](../frontend/scripts/test-scale.mjs) | 先规模浏览器测试，再执行离线维护与哈希审计 |
 
 ### 公共地图资产
@@ -61,6 +61,7 @@
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、主导航、封面卡与现有功能组件的统一样式 |
 | [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、城市搜索、年份影集、相册入口与地图联动 |
 | [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 本人独立相册分页、返回位置记忆及城市页共用的大封面卡片 |
+| [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹统计、最近三本相册及相册/选城快捷入口 |
 | [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、影集和个人地图统计类型，不依赖页面组件 |
 | [src/features/imports/UploadPanel.tsx](../frontend/src/features/imports/UploadPanel.tsx) | 单张原图上传、校验、确认保存与失败状态 |
 | [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 批量导入页面、任务执行、重选、重试和恢复查询；保留独立相册的返回来源 |
@@ -83,6 +84,7 @@
 | [tests/e2e/auth.spec.ts](../frontend/tests/e2e/auth.spec.ts) | 注册、登录、退出、权限及会话行为 |
 | [tests/e2e/albums.spec.ts](../frontend/tests/e2e/albums.spec.ts) | 城市搜索、空影集、年份和账号隔离 |
 | [tests/e2e/library.spec.ts](../frontend/tests/e2e/library.spec.ts) | 独立相册分页/返回、空态/失败/换号隔离、跨页封面选择和冲突核对 |
+| [tests/e2e/home-sidebar.spec.ts](../frontend/tests/e2e/home-sidebar.spec.ts) | 首页双栏/窄屏、本人统计和最近相册、错误/空态/换号及刷新联动 |
 | [tests/e2e/uploads.spec.ts](../frontend/tests/e2e/uploads.spec.ts) | 单图校验、保存、取消、失败和原字节核对 |
 | [tests/e2e/photos.spec.ts](../frontend/tests/e2e/photos.spec.ts) | 分页、按需原图、查看层、返回位置和授权 |
 | [tests/e2e/batches.spec.ts](../frontend/tests/e2e/batches.spec.ts) | 队列纯规则与批量上传、拆批、重试、恢复流程 |
@@ -117,7 +119,7 @@
 | [src/city_memories/errors.py](../backend/src/city_memories/errors.py) | 统一业务错误及 API 响应格式 |
 | [src/city_memories/boundary.py](../backend/src/city_memories/boundary.py) | 请求边界：CSRF、请求体限制、安全缓存头和异常转换 |
 | [src/city_memories/auth.py](../backend/src/city_memories/auth.py) | 密码哈希、会话、CSRF、注册登录与限流 |
-| [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市/年份影集、独立相册分页、封面偏好、个人统计及签名游标 |
+| [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市/年份影集、年份/最近相册分页、封面偏好、个人统计及签名游标 |
 | [src/city_memories/imports.py](../backend/src/city_memories/imports.py) | 导入批次、上传租约、内容接收、幂等提交、取消及队列查询 |
 | [src/city_memories/storage.py](../backend/src/city_memories/storage.py) | 私有原图/暂存文件的校验、路径边界与文件操作 |
 | [src/city_memories/photos.py](../backend/src/city_memories/photos.py) | 照片详情、分页、前后位置与原图访问授权 |
@@ -149,7 +151,7 @@
 | [tests/serve_e2e.py](../backend/tests/serve_e2e.py) | 为默认 Edge 回归启动隔离数据库与测试服务 |
 | [tests/test_database.py](../backend/tests/test_database.py) | 迁移、约束、配置和数据库基础检查 |
 | [tests/test_auth.py](../backend/tests/test_auth.py) | 认证、CSRF、限流、授权边界 |
-| [tests/test_albums.py](../backend/tests/test_albums.py) | 城市、年份影集、游标与隔离 |
+| [tests/test_albums.py](../backend/tests/test_albums.py) | 城市、年份/最近相册、封面、游标排序及账号隔离 |
 | [tests/test_imports.py](../backend/tests/test_imports.py) | 原图导入、校验、幂等提交及失败边界 |
 | [tests/test_import_queue.py](../backend/tests/test_import_queue.py) | 批量队列状态查询与恢复协议 |
 | [tests/test_photos.py](../backend/tests/test_photos.py) | 原图/详情授权、分页和数据变化 |
@@ -205,6 +207,7 @@
 | [reports/2026-10-17-ide-startup.md](reports/2026-10-17-ide-startup.md) | 开发软件核对、PyCharm 运行配置和隔离验证记录 |
 | [reports/2026-10-21-v2-album-library.md](reports/2026-10-21-v2-album-library.md) | V2-01 白色界面、独立相册、封面偏好、迁移/备份兼容与本轮验证 |
 | [reports/2026-10-22-china-city-map.md](reports/2026-10-22-china-city-map.md) | V2-02/V2-03 中国市级地图、公开源覆盖、交互与隔离端口验证 |
+| [reports/2026-10-23-home-map-sidebar.md](reports/2026-10-23-home-map-sidebar.md) | V2-04 首页双栏、足迹/最近相册、滚轮滚页及专项验证 |
 
 ## 独立验证工具
 
@@ -281,4 +284,4 @@
 | `.git/` | 版本历史和远程信息，不手动移动内部文件 |
 | IDE 配置、系统临时文件 | 不属于产品；按 `.gitignore` 排除 |
 
-2026-10-17 目录整理只调整源码和文档，没有清理上述本地数据；当时移除的仅为已有迁移脚本目录内的 `.gitkeep` 空占位文件，可从 Git 历史恢复。V2-01 和中国地图新增文件列于上表；地图公共资产可以提交，私人资料及测试结果仍留本机。
+2026-10-17 目录整理只调整源码和文档，没有清理上述本地数据；当时移除的仅为已有迁移脚本目录内的 `.gitkeep` 空占位文件，可从 Git 历史恢复。V2-01、中国地图和首页改善新增文件列于上表；地图公共资产可以提交，私人资料及测试结果仍留本机。

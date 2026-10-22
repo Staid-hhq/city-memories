@@ -9,10 +9,10 @@ const cli = fileURLToPath(new URL('../node_modules/@playwright/test/cli.js', imp
 const tests = readdirSync(new URL('../tests/e2e/', import.meta.url)).filter(name => name.endsWith('.spec.ts')).sort()
 const args = process.argv.slice(2)
 const groups = args.length ? [args] : [
-  tests.filter(name => !name.startsWith('map') && !name.startsWith('journey') && !name.startsWith('library')).map(name => `tests/e2e/${name}`),
+  tests.filter(name => !name.startsWith('map') && !name.startsWith('journey') && !name.startsWith('library') && !name.startsWith('home-sidebar')).map(name => `tests/e2e/${name}`),
   tests.filter(name => name.startsWith('map')).map(name => `tests/e2e/${name}`),
   tests.filter(name => name.startsWith('journey')).map(name => `tests/e2e/${name}`),
-  tests.filter(name => name.startsWith('library')).map(name => `tests/e2e/${name}`),
+  tests.filter(name => name.startsWith('library') || name.startsWith('home-sidebar')).map(name => `tests/e2e/${name}`),
 ]
 for (const group of groups) {
   if (!group.length) continue

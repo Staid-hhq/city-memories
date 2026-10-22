@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import json
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Query, Request, Response
@@ -247,22 +247,29 @@ def atlas(request: Request, user: CurrentUser):
 
 @router.get("/me/albums", response_model=Envelope[PageData[AlbumView]])
 def my_albums(
-    request: Request, user: CurrentUser, cursor: Cursor = None, limit: Limit = 24
+    request: Request, user: CurrentUser, cursor: Cursor = None, limit: Limit = 24,
+    sort: Literal["year", "recent"] = "year",
 ):
-    scope = f"my-albums:{user.id}"
+    scope = f"my-albums:{user.id}" + (":recent" if sort == "recent" else "")
     keys = decode_cursor(request, cursor, scope)
-    year = func.coalesce(Album.year, 0)
+    order_key = Album.updated_at if sort == "recent" else func.coalesce(Album.year, 0)
     query = album_query(user.id)
     if keys is not None:
-        if (type(keys[0]) is not int or not 0 <= keys[0] <= 9999
+        maximum_key = (2**63 - 1) if sort == "recent" else 9999
+        if (type(keys[0]) is not int or not 0 <= keys[0] <= maximum_key
                 or not isinstance(keys[1], str) or not 1 <= len(keys[1]) <= 36):
             raise ApiError(422, "INVALID_CURSOR", "列表位置已失效，请重新加载")
-        query = query.where(or_(year < keys[0], and_(year == keys[0], Album.id > keys[1])))
+        query = query.where(or_(
+            order_key < keys[0], and_(order_key == keys[0], Album.id > keys[1])
+        ))
     with request.app.state.auth.sessions() as db:
-        rows = db.execute(query.order_by(year.desc(), Album.id).limit(limit + 1)).all()
+        rows = db.execute(query.order_by(order_key.desc(), Album.id).limit(limit + 1)).all()
         items = rows[:limit]
         next_cursor = (
-            encode_cursor(request, scope, [items[-1][0].year or 0, items[-1][0].id])
+            encode_cursor(request, scope, [
+                items[-1][0].updated_at if sort == "recent" else items[-1][0].year or 0,
+                items[-1][0].id,
+            ])
             if len(rows) > limit
             else None
         )

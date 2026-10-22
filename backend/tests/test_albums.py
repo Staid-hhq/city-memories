@@ -9,9 +9,11 @@ from fastapi.testclient import TestClient
 from photo_fixtures import seed_photos
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import OperationalError
+from starlette.requests import Request
 from test_auth import csrf, login, register
 from test_auth import environment as environment
 
+from city_memories.albums import encode_cursor
 from city_memories.auth import COOKIE_NAME
 from city_memories.config import get_settings
 from city_memories.main import create_app
@@ -158,6 +160,75 @@ def test_my_albums_cursor_account_scope_and_insert_before_page(environment):
     assert all(not a["city"]["can_create"] for a in history if a["city"]["id"] == SHENZHEN)
 
 
+def test_my_albums_recent_order_keyset_and_default_compatibility(environment):
+    app, client, _, now = environment
+    signed_in(client)
+    assert client.get("/api/v1/me/albums?sort=recent").json()["data"] == {
+        "items": [], "next_cursor": None,
+    }
+    records = []
+    for index, year in enumerate((9999, 2026, 2025, None, 1)):
+        identifier = create(client, year).json()["data"]["id"]
+        updated_at = now[0] + (30, 10, 20, 30, 10)[index]
+        records.append((identifier, year, updated_at))
+        with app.state.auth.sessions.begin() as db:
+            db.get(Album, identifier).updated_at = updated_at
+    expected = [row[0] for row in sorted(records, key=lambda row: (-row[2], row[0]))]
+    first = client.get("/api/v1/me/albums?sort=recent&limit=2").json()["data"]
+    collected = first["items"]
+    page = first
+    while page["next_cursor"]:
+        page = client.get("/api/v1/me/albums", params={
+            "sort": "recent", "limit": 2, "cursor": page["next_cursor"],
+        }).json()["data"]
+        collected += page["items"]
+    assert [album["id"] for album in collected] == expected
+    assert len(collected) == len({album["id"] for album in collected}) == 5
+    assert [album["id"] for album in client.get(
+        "/api/v1/me/albums?sort=recent&limit=3"
+    ).json()["data"]["items"]] == expected[:3]
+    default = client.get("/api/v1/me/albums?limit=2").json()["data"]
+    assert default == client.get("/api/v1/me/albums?sort=year&limit=2").json()["data"]
+    assert [album["year"] for album in default["items"]] == [9999, 2026]
+    for sort, cursor in (("year", first["next_cursor"]), ("recent", default["next_cursor"])):
+        response = client.get("/api/v1/me/albums", params={"sort": sort, "cursor": cursor})
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "INVALID_CURSOR"
+
+
+def test_my_albums_recent_cursor_is_account_scoped_and_validated(environment):
+    app, client, _, _ = environment
+    signed_in(client)
+    for year in (2026, 2025):
+        create(client, year)
+    owner = client.get("/api/v1/auth/me").json()["data"]["id"]
+    cursor = client.get("/api/v1/me/albums?sort=recent&limit=1").json()["data"]["next_cursor"]
+    assert cursor
+    with TestClient(app) as other:
+        assert other.get("/api/v1/me/albums?sort=recent").status_code == 401
+        signed_in(other, "Recent_Albums_Other")
+        own = create(other, 2024, GUANGZHOU).json()["data"]["id"]
+        assert [album["id"] for album in other.get(
+            "/api/v1/me/albums?sort=recent"
+        ).json()["data"]["items"]] == [own]
+        assert other.get("/api/v1/me/albums", params={
+            "sort": "recent", "cursor": cursor,
+        }).status_code == 422
+    request = Request({"type": "http", "app": app})
+    for keys in (
+        [-1, "album"], [True, "album"], [1.5, "album"], ["1", "album"],
+        [2**63, "album"], [1, ""], [1, "x" * 37], [1, "album", "extra"],
+    ):
+        invalid = encode_cursor(request, f"my-albums:{owner}:recent", keys)
+        response = client.get("/api/v1/me/albums", params={"sort": "recent", "cursor": invalid})
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "INVALID_CURSOR"
+    assert client.get("/api/v1/me/albums", params={
+        "sort": "recent", "cursor": cursor + "x",
+    }).status_code == 422
+    assert client.get("/api/v1/me/albums?sort=unknown").status_code == 422
+
+
 @pytest.fixture
 def cover_collection(environment):
     app, client, settings, now = environment
@@ -175,6 +246,22 @@ def set_cover(client, album, photo, revision=None):
         f"/api/v1/albums/{album}/cover", headers=csrf(client),
         json={"photo_id": photo, "expected_revision": revision},
     )
+
+
+def test_recent_albums_promote_changed_cover_but_not_same_selection(cover_collection):
+    _, client, _, now, _, album, photos = cover_collection
+    now[0] += 10
+    newer = create(client, 2025, GUANGZHOU).json()["data"]["id"]
+    path = "/api/v1/me/albums?sort=recent&limit=1"
+    assert client.get(path).json()["data"]["items"][0]["id"] == newer
+    now[0] += 10
+    assert set_cover(client, album, photos[1]).status_code == 200
+    assert client.get(path).json()["data"]["items"][0]["id"] == album
+    now[0] += 10
+    newest = create(client, 2024).json()["data"]["id"]
+    now[0] += 10
+    assert set_cover(client, album, photos[1]).status_code == 200
+    assert client.get(path).json()["data"]["items"][0]["id"] == newest
 
 
 def test_selected_cover_persists_reset_and_same_selection_is_idempotent(cover_collection):
