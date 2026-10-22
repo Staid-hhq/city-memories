@@ -62,6 +62,10 @@ class PageData[T](BaseModel):
     next_cursor: str | None
 
 
+class AlbumOptions(BaseModel):
+    years: list[int | None]
+
+
 class CityAlbums(PageData[AlbumView]):
     city: CityView
 
@@ -249,11 +253,26 @@ def atlas(request: Request, user: CurrentUser):
 def my_albums(
     request: Request, user: CurrentUser, cursor: Cursor = None, limit: Limit = 24,
     sort: Literal["year", "recent"] = "year",
+    q: Annotated[str, Query(max_length=80)] = "",
+    year: Annotated[str | None, Query(pattern=r"^(?:unmarked|[1-9][0-9]{0,3})$")] = None,
 ):
+    q = q.strip()
     scope = f"my-albums:{user.id}" + (":recent" if sort == "recent" else "")
+    if q or year is not None:
+        # Keep legacy unfiltered cursors valid; filtered scopes stay small even
+        # when the search contains 80 Unicode characters.
+        filters = json.dumps([sort, q, year], ensure_ascii=False, separators=(",", ":"))
+        scope = f"my-albums:{user.id}:filtered:{hashlib.sha256(filters.encode()).hexdigest()}"
     keys = decode_cursor(request, cursor, scope)
     order_key = Album.updated_at if sort == "recent" else func.coalesce(Album.year, 0)
     query = album_query(user.id)
+    if q:
+        query = query.where(or_(
+            City.name.contains(q, autoescape=True),
+            City.parent_name.contains(q, autoescape=True),
+        ))
+    if year is not None:
+        query = query.where(Album.year.is_(None) if year == "unmarked" else Album.year == int(year))
     if keys is not None:
         maximum_key = (2**63 - 1) if sort == "recent" else 9999
         if (type(keys[0]) is not int or not 0 <= keys[0] <= maximum_key
@@ -276,6 +295,18 @@ def my_albums(
         return {
             "data": {"items": [album_view(row) for row in items], "next_cursor": next_cursor}
         }
+
+
+@router.get("/me/albums/options", response_model=Envelope[AlbumOptions])
+def my_album_options(request: Request, user: CurrentUser):
+    # All owned albums contribute, including empty albums and retired cities.
+    # This query is independent of any list page or active search conditions.
+    with request.app.state.auth.sessions() as db:
+        years = db.scalars(
+            select(Album.year).where(Album.owner_id == user.id).distinct()
+            .order_by(Album.year.desc())
+        ).all()
+    return {"data": {"years": years}}
 
 
 @router.get("/cities/{city_id}/albums", response_model=Envelope[CityAlbums])

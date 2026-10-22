@@ -354,6 +354,26 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 .album-city-name { display: flex; justify-content: space-between; gap: 12px; margin: 7px 0 0; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .album-city-name > span { color: var(--accent); }
 .album-library .page-heading { align-items: flex-end; }
+.album-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 160px 170px auto; align-items: end; gap: 14px; padding: 20px; margin: 0 0 24px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
+.album-filters label { display: block; margin-bottom: 9px; font-size: 12px; color: var(--muted); }
+.album-filter-search, .album-filter-field { min-width: 0; }
+.album-filter-search > div { display: flex; gap: 10px; }
+.album-filters input, .album-filters select { min-width: 0; width: 100%; min-height: 42px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: #fff; font: inherit; font-size: 13px; }
+.album-filter-search input { flex: 1; }
+.album-filter-search button, .clear-album-filters { min-height: 42px; white-space: nowrap; font-size: 12px; }
+.album-options-error { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: -10px 0 20px; color: var(--muted); font-size: 12px; }
+.album-options-error button { font-size: 12px; }
+@media (max-width: 1000px) {
+  .album-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .album-filter-search { grid-column: 1 / -1; }
+  .clear-album-filters { justify-self: start; }
+}
+@media (max-width: 480px) {
+  .album-filters { padding: 16px; gap: 16px 12px; }
+  .album-filter-search > div { flex-wrap: wrap; }
+  .album-filter-search input { flex-basis: 150px; }
+  .album-filter-search button { flex: 1; }
+}
 .album-library .library-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 12px; }
 .cover-picker-note { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 14px 18px; background: var(--surface-soft); border-radius: 7px; font-size: 12px; }
 .cover-picker-note p { margin: 0; line-height: 1.8; }

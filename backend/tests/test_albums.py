@@ -229,6 +229,163 @@ def test_my_albums_recent_cursor_is_account_scoped_and_validated(environment):
     assert client.get("/api/v1/me/albums?sort=unknown").status_code == 422
 
 
+def test_my_albums_filters_cover_all_pages_and_combine_with_both_orders(environment):
+    app, client, _, now = environment
+    signed_in(client)
+    owner = client.get("/api/v1/auth/me").json()["data"]["id"]
+    records = []
+    with app.state.auth.sessions.begin() as db:
+        outside = db.scalar(select(City.id).where(City.name == "北京市"))
+        for index, (city, year) in enumerate([
+            *((SHENZHEN, year) for year in range(2000, 2028)),
+            (GUANGZHOU, 2026), (GUANGZHOU, 2025), (GUANGZHOU, None),
+            (outside, 2026), (outside, None),
+        ]):
+            identifier = str(uuid4())
+            updated_at = now[0] + index // 2
+            records.append((identifier, city, year, updated_at))
+            db.add(Album(
+                id=identifier, owner_id=owner, city_id=city, year=year,
+                revision=1, created_at=now[0], updated_at=updated_at,
+            ))
+    matching = [row for row in records if row[1] in (SHENZHEN, GUANGZHOU)]
+    for sort, order_index in (("year", 2), ("recent", 3)):
+        expected = [row[0] for row in sorted(
+            matching, key=lambda row: (-(row[order_index] or 0), row[0])
+        )]
+        params = {"q": "广东", "sort": sort, "limit": 7}
+        page = client.get("/api/v1/me/albums", params=params).json()["data"]
+        collected = page["items"]
+        while page["next_cursor"]:
+            page = client.get("/api/v1/me/albums", params={
+                **params, "cursor": page["next_cursor"],
+            }).json()["data"]
+            collected += page["items"]
+        assert len(collected) == 31
+        assert [album["id"] for album in collected] == expected
+        assert len({album["id"] for album in collected}) == len(collected)
+        assert all(album["photo_count"] == 0 for album in collected)
+    for params, expected in (
+        ({"q": "深圳", "year": "2026"}, {(SHENZHEN, 2026)}),
+        ({"q": "广东", "year": "2026"}, {(SHENZHEN, 2026), (GUANGZHOU, 2026)}),
+        ({"q": "广东", "year": "unmarked"}, {(GUANGZHOU, None)}),
+        ({"q": "深圳", "year": "unmarked"}, set()),
+        ({"year": "unmarked"}, {(GUANGZHOU, None), (outside, None)}),
+    ):
+        response = client.get("/api/v1/me/albums", params=params)
+        assert response.status_code == 200
+        assert {(a["city"]["id"], a["year"]) for a in response.json()["data"]["items"]} == expected
+
+
+def test_my_albums_filtered_cursor_binds_normalized_conditions_and_owner(environment):
+    app, client, _, _ = environment
+    signed_in(client)
+    for city in (SHENZHEN, GUANGZHOU):
+        for year in (2026, 2025, None):
+            create(client, year, city)
+    path = "/api/v1/me/albums"
+    params = {"q": " 广东 ", "year": "2026", "limit": 1}
+    first = client.get(path, params=params).json()["data"]
+    cursor = first["next_cursor"]
+    assert cursor
+    second = client.get(path, params={
+        "q": "广东", "year": "2026", "cursor": cursor,
+    }).json()["data"]
+    assert len(second["items"]) == 1 and second["next_cursor"] is None
+    assert second["items"][0]["id"] != first["items"][0]["id"]
+    for conditions in (
+        {}, {"q": "广东"}, {"year": "2026"}, {"q": "深圳", "year": "2026"},
+        {"q": "广东", "year": "2025"}, {"q": "广东", "year": "unmarked"},
+        {"q": "广东", "year": "2026", "sort": "recent"},
+    ):
+        response = client.get(path, params={**conditions, "cursor": cursor})
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "INVALID_CURSOR"
+    for sort in ("year", "recent"):
+        unfiltered = client.get(path, params={"sort": sort, "limit": 1}).json()["data"]
+        old_cursor = unfiltered["next_cursor"]
+        assert client.get(path, params={
+            "sort": sort, "q": " \t ", "cursor": old_cursor,
+        }).status_code == 200
+        assert client.get(path, params={
+            "sort": sort, "q": "广东", "cursor": old_cursor,
+        }).status_code == 422
+    with TestClient(app) as other:
+        signed_in(other, "Filtered_Albums_Other")
+        own = create(other, 2026).json()["data"]["id"]
+        assert [album["id"] for album in other.get(path, params=params).json()["data"][
+            "items"
+        ]] == [own]
+        assert other.get(path, params={**params, "cursor": cursor}).status_code == 422
+
+
+def test_my_albums_search_treats_wildcards_literally_and_long_unicode_cursor_is_usable(environment):
+    app, client, _, _ = environment
+    signed_in(client)
+    expected = {create(client, year).json()["data"]["id"] for year in (2026, 2025)}
+    create(client, 2026, GUANGZHOU)
+    path = "/api/v1/me/albums"
+    for q in ("%", "_", "' OR 1=1 --"):
+        assert client.get(path, params={"q": q}).json()["data"]["items"] == []
+    long_name = "合成" * 40
+    with app.state.auth.sessions.begin() as db:
+        city = db.get(City, SHENZHEN)
+        city.name = "合成%_城市/样本"
+        city.parent_name = long_name
+    for q in ("%", "_", "/", "%_", long_name):
+        first = client.get(path, params={"q": q, "limit": 1}).json()["data"]
+        assert first["next_cursor"] and len(first["next_cursor"]) <= 1024
+        second = client.get(path, params={
+            "q": q, "cursor": first["next_cursor"], "limit": 1,
+        }).json()["data"]
+        assert {a["id"] for a in first["items"] + second["items"]} == expected
+        assert second["next_cursor"] is None
+
+
+def test_my_album_options_include_all_owned_years_and_historical_empty_albums(environment):
+    app, client, _, _ = environment
+    path = "/api/v1/me/albums/options"
+    assert client.get(path).status_code == 401
+    signed_in(client)
+    assert client.get(path).json()["data"] == {"years": []}
+    for city, year in (
+        (SHENZHEN, None), (SHENZHEN, 2026), (GUANGZHOU, 2026),
+        (SHENZHEN, 2024), (SHENZHEN, 1), (GUANGZHOU, 9999),
+    ):
+        assert create(client, year, city).status_code == 201
+    with TestClient(app) as other:
+        signed_in(other, "Options_Albums_Other")
+        assert other.get(path).json()["data"] == {"years": []}
+        create(other, 2025)
+        assert other.get(path).json()["data"] == {"years": [2025]}
+    assert len(client.get("/api/v1/me/albums?limit=1").json()["data"]["items"]) == 1
+    assert client.get("/api/v1/me/albums?q=没有这个城市").json()["data"]["items"] == []
+    with app.state.auth.sessions.begin() as db:
+        city = db.get(City, SHENZHEN)
+        city.is_active = 0
+        city.mapping_status = "pending"
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.json()["data"] == {"years": [9999, 2026, 2024, 1, None]}
+    assert response.headers["cache-control"] == "private, no-store"
+    assert all(not a["city"]["can_create"] for a in client.get(
+        "/api/v1/me/albums?q=深圳"
+    ).json()["data"]["items"])
+
+
+def test_my_albums_reject_invalid_filter_parameters(environment):
+    _, client, _, _ = environment
+    signed_in(client)
+    for params in (
+        {"q": "城" * 81}, {"year": ""}, {"year": "0"}, {"year": "-1"},
+        {"year": "10000"}, {"year": "true"}, {"year": "2026.0"}, {"year": "1e3"},
+        {"year": "null"}, {"year": "unmarked "}, {"year": "２０２６"},
+    ):
+        response = client.get("/api/v1/me/albums", params=params)
+        assert response.status_code == 422, params
+        assert response.json()["error"]["code"] == "VALIDATION_FAILED"
+
+
 @pytest.fixture
 def cover_collection(environment):
     app, client, settings, now = environment

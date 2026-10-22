@@ -250,7 +250,10 @@ function ImportRoute() { const { cityId, albumId } = useParams(); return <Import
 
 export function Journal({ user, onLogout }: { user: User; onLogout: () => void }) {
   const location = useLocation()
-  const [libraryMemory] = useState<AlbumLibraryMemory>(() => ({ count: 0, scrollY: 0 }))
+  const [libraryMemory] = useState<AlbumLibraryMemory>(() => {
+    let saved: ReturnType<AlbumLibraryMemory['read']> = { count: 0, scrollY: 0 }
+    return { read: () => saved, write: next => { saved = next } }
+  })
   const [service] = useState(() => new MapService())
   const [memory] = useState<MapMemory>(() => {
     let view: ReturnType<MapMemory['read']>
