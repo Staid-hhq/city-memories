@@ -158,6 +158,25 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .album-empty button:disabled { cursor: not-allowed; }
 .more-button { display: block; margin: 24px auto 0; }
 .load-error { padding: 24px; background: #faeee5; border-radius: 10px; font-size: 14px; line-height: 1.8; }
+.operation-feedback { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; align-items: start; margin: 16px 0; padding: 16px 18px; border: 1px solid #d6e1d8; border-radius: 9px; color: var(--ink); background: #f5f8f5; }
+.operation-feedback-mark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #466550; background: #e5ede7; font: 600 17px/1 system-ui, sans-serif; }
+.operation-feedback-content { min-width: 0; }
+.operation-feedback-title { display: block; padding-top: 2px; font-size: 14px; line-height: 1.7; font-weight: 600; overflow-wrap: anywhere; }
+.operation-feedback-message { font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.operation-feedback-message p { margin: 6px 0 0; }
+.operation-feedback-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.operation-feedback-actions .quiet-button, .operation-feedback-actions .primary-button { width: auto; min-width: 0; margin: 0; font-size: 12px; }
+.operation-feedback.is-success { border-color: #bdd4c3; background: #f2f8f3; }
+.operation-feedback.is-success .operation-feedback-mark { background: #dcece0; color: #3c6548; }
+.operation-feedback.is-warning { border-color: #e1cda8; background: #fff9ee; }
+.operation-feedback.is-warning .operation-feedback-mark { background: #f5e7c9; color: #80602c; }
+.operation-feedback.is-error { border-color: #e2c2bd; background: #fff5f3; }
+.operation-feedback.is-error .operation-feedback-mark { background: #f5dfda; color: #93483e; }
+.operation-feedback.is-progress { border-color: #ccdcd1; background: #f4f7f5; }
+@media (max-width: 480px) {
+  .operation-feedback { padding: 14px; gap: 10px; }
+  .operation-feedback-actions > .quiet-button, .operation-feedback-actions > .primary-button { max-width: 100%; white-space: normal; }
+}
 .upload-panel { border: 1px solid #dfcfb9; background: #fffcf5; border-radius: 14px; padding: 28px 32px; margin-bottom: 32px; }
 .upload-destination { font-size: 14px; color: #80674f; }
 .file-picker { border: 1px dashed #cbb799; border-radius: 8px; padding: 20px; margin: 22px 0 14px; background: #f7f2e8; }

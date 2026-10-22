@@ -58,6 +58,7 @@
 | [src/vite-env.d.ts](../frontend/src/vite-env.d.ts) | Vite 客户端的 TypeScript 类型声明 |
 | [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、会话状态、退出清理和顶层路由 |
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
+| [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、主导航、封面卡与现有功能组件的统一样式 |
 | [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、城市搜索、年份影集、相册入口与地图联动 |
 | [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 本人相册筛选、排序分页、条件/返回位置记忆；与城市年份页共用 3:4 封面、完整城市名和对齐资料的卡片 |
@@ -211,6 +212,7 @@
 | [reports/2026-10-23-home-map-sidebar.md](reports/2026-10-23-home-map-sidebar.md) | V2-04 首页双栏、足迹/最近相册、滚轮滚页及专项验证 |
 | [reports/2026-10-23-album-library-filters.md](reports/2026-10-23-album-library-filters.md) | V2-04 相册城市/地区和年份查找、排序、接口及隔离验证 |
 | [reports/2026-10-23-album-card-layout.md](reports/2026-10-23-album-card-layout.md) | V2-04 共享相册卡片排版、空封面与窄屏视觉复查及既有行为回归 |
+| [reports/2026-10-23-operation-feedback.md](reports/2026-10-23-operation-feedback.md) | V2-04 导入、封面和回收/恢复反馈、重试核对及本轮验证 |
 
 ## 独立验证工具
 

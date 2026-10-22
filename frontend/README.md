@@ -14,7 +14,7 @@ src/
 │  ├─ photos/               原图浏览、文字、排序、移动、重复查看
 │  ├─ map/                  中国市级地图、几何计算和公共数据加载
 │  └─ trash/                回收站、删除确认和恢复
-├─ shared/api.ts            HTTP、CSRF、会话隔离与原图读取
+├─ shared/                  HTTP、会话隔离、原图读取和共享操作反馈
 └─ styles/global.css        全局及现有功能样式
 ```
 
@@ -27,6 +27,8 @@ V2-01 在登录后的顶部提供“城市地图”和“我的相册”。`feat
 封面选择沿用照片列表和原图读取，调用 `PATCH /api/v1/albums/{id}/cover`；保留版本核对、失败后显式重读和恢复自动封面入口。具体边界见 [V2-01 记录](../docs/reports/2026-10-21-v2-album-library.md)。
 
 V2-04 卡片排版子项统一相册库与城市年份页的共享封面卡：封面保持 3:4，横竖原图均以 `object-fit: cover` 展示；城市完整名称放在图下首行，允许换行并预留两行位置，年份和照片数在下方对齐。封面内不再重复叠加城市/年份，空相册明确显示“等待第一张照片”。链接的无障碍名称包含完整城市名、年份和照片数。裁切仅影响封面展示，不改原图字节或手选/自动封面规则；搜索、筛选、排序和返回记忆沿用现有行为。纯前端更新，无新增 API、依赖或迁移；已启用上一轮筛选接口时，构建后 `Ctrl+F5` 即可，无须重启后端。本轮回归与合成视觉复查见[卡片排版记录](../docs/reports/2026-10-23-album-card-layout.md)。
+
+V2-04 操作反馈子项使用 `shared/OperationFeedback.tsx` 统一页面内的说明、进行中、成功、警示和失败状态。提示包含标题、具体结果及就近操作，不自动消失；失败使用 `role="alert"`，其余使用 `role="status"`。单张/批量导入区分校验暂存与真正保存，显示保存位置、数量及部分成功；失败保留原参数重试和查询入口。封面区分写入与重读确认，删除/恢复明确当前文件及返回入口，结果未确认时先核对，沿用现有幂等和版本规则。无新后端接口、依赖、锁文件或迁移；已启用相册筛选接口时构建后 `Ctrl+F5` 即可。实际范围与本轮验证见[操作反馈记录](../docs/reports/2026-10-23-operation-feedback.md)。
 
 V2-02/V2-03 将首页改为只绘制中国的市级 SVG 地图。`public/map-data/china-cities.v1.json` 提供全部已审核入口的公共几何，`mapService.ts` 按代码、名称、上级、单位类型关联 `/api/v1/map/cities`；本人照片填色仍读取 `/api/v1/me/atlas`。页面不再请求 `/map/config`、世界瓦片或在线逐市轮廓。`CityMap.tsx` 保留拖动、缩放、键盘、搜索定位与返回视角；路径按固定尺度记忆，移动时只更新变换。数据来源、固定版本及许可见[公共地图说明](public/map-data/NOTICE.md)，可重复生成脚本位于仓库 `scripts/build-china-map-data.py`。本次地图更新不新增迁移、依赖或锁文件变更。
 
@@ -56,4 +58,4 @@ V2-04 已完成首页改善子项：左侧地图画布桌面高度 540px（按�
 
 测试默认使用 5173/8000。日常项目正在运行时，在同一测试终端设置 `$env:CITY_MEMORIES_E2E_FRONTEND_PORT = '5274'`、`$env:CITY_MEMORIES_E2E_BACKEND_PORT = '8174'`，可独立运行默认回归及 `test:delivery`；页面上下文与 Origin 均跟随实际测试地址，不连接用户服务。端口覆盖仅供测试，结束后移除这两个环境变量，不放入日常启动配置。
 
-测试使用合成图片和隔离账号，结果不提交到公共仓库。旧 T13 在线瓦片核验属于历史证据，不能代替新图实际资产、覆盖和交互检查；地图结果见[中国地图记录](../docs/reports/2026-10-22-china-city-map.md)，首页结果见[首页改善记录](../docs/reports/2026-10-23-home-map-sidebar.md)，筛选结果见[相册查找记录](../docs/reports/2026-10-23-album-library-filters.md)，本次结果见[卡片排版记录](../docs/reports/2026-10-23-album-card-layout.md)。目录整理后已迁移的旧测试路径见[整理记录](../docs/reports/2026-10-17-repository-organization.md)。
+测试使用合成图片和隔离账号，结果不提交到公共仓库。旧 T13 在线瓦片核验属于历史证据，不能代替新图实际资产、覆盖和交互检查；地图结果见[中国地图记录](../docs/reports/2026-10-22-china-city-map.md)，首页结果见[首页改善记录](../docs/reports/2026-10-23-home-map-sidebar.md)，筛选结果见[相册查找记录](../docs/reports/2026-10-23-album-library-filters.md)，卡片结果见[排版记录](../docs/reports/2026-10-23-album-card-layout.md)，本次结果见[操作反馈记录](../docs/reports/2026-10-23-operation-feedback.md)。目录整理后已迁移的旧测试路径见[整理记录](../docs/reports/2026-10-17-repository-organization.md)。

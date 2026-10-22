@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { api, ApiError, errorMessage, isAbort } from '../../shared/api'
+import { OperationFeedback } from '../../shared/OperationFeedback'
 
 type Item = { id: string; original_filename: string; byte_size: number; state: string; failure_code: string | null }
 type Receipt = { photo_ids: string[]; album_revision: number; album_id: string }
@@ -148,7 +149,9 @@ export function UploadPanel({ albumId, cityName, year, onSaved }: Props) {
       </div>}
       {(file || batch) && <p className="file-summary">{batch?.items[0].original_filename ?? file?.name} · {((batch?.items[0].byte_size ?? file?.size ?? 0) / 1024).toFixed(1)} KiB</p>}
       {batch && !staged && !working && <p className="field-help">当前状态：{batch.items[0].state === 'receiving' ? '正在接收，可稍后查询状态' : '待重新选择同一文件并上传'}。</p>}
-      {staged && <p className="staged-notice" role="status">已传输，待保存到影集。</p>}
+      {staged && !working && !error && <OperationFeedback tone="warning" title="原图已校验，等待保存">
+        <p>已传输，待保存到影集。</p><p>请核对上方城市和年份，再点击“保存到影集”。</p>
+      </OperationFeedback>}
       <div className="upload-actions">
         {!staged && <button className="primary-button" disabled={!!working || !file || unresolved} onClick={() => void upload()}>上传并校验</button>}
         {staged && <button className="primary-button" disabled={!!working || review} onClick={() => void save()}>保存到影集</button>}
@@ -156,11 +159,15 @@ export function UploadPanel({ albumId, cityName, year, onSaved }: Props) {
         {(batch || resumeId) && <button className="quiet-button" disabled={!!working} onClick={() => void cancel()}>取消本次导入</button>}
       </div>
     </>}
-    {receipt && <div className="saved-notice"><p role="status">已加入影集，原图已独立保存。</p><button className="quiet-button" onClick={() => { reset(); setNotice('可以继续选择下一张图片。') }}>继续添加一张</button></div>}
-    {closed && <p>这次导入已结束。<button className="quiet-button" onClick={() => { reset(); setNotice('可以重新选择图片。') }}>开始新的导入</button></p>}
-    {working && <p role="status">{working}</p>}
-    {error && <p className="form-error" role="alert">{error}</p>}
-    {notice && !receipt && <p role="status">{notice}</p>}
+    {receipt && !working && <OperationFeedback tone="success" title="原图已保存到影集" actions={<button className="quiet-button" onClick={() => { reset(); setNotice('可以继续选择下一张图片。') }}>继续添加一张</button>}>
+      <p>已加入影集，原图已独立保存。</p><p>保存位置：{cityName} / {year === null ? '未标年份' : `${year} 年`} · {receipt.photo_ids.length} 张原图。</p>
+    </OperationFeedback>}
+    {closed && !working && !error && <OperationFeedback title="此次导入已结束" actions={<button className="quiet-button" onClick={() => { reset(); setNotice('可以重新选择图片。') }}>开始新的导入</button>}>
+      <p>这次导入已结束。</p>
+    </OperationFeedback>}
+    {working && <OperationFeedback tone="progress" title={working}><p>请等待当前操作完成，保存成功后才会出现在影集。</p></OperationFeedback>}
+    {error && <OperationFeedback tone="error" title={review ? '影集有更新，请先重新核对' : '导入操作需要处理'}><p>{error}</p></OperationFeedback>}
+    {notice && !receipt && !staged && !working && !error && <OperationFeedback title={notice.startsWith('已取消') ? '本次导入已取消' : '导入提示'}><p>{notice}</p></OperationFeedback>}
     <p className="scope-note">重新打开本页可查询此次导入；未传完的文件需重新选择。一次添加多张时可使用上方“批量导入原图”。</p>
   </section>
 }

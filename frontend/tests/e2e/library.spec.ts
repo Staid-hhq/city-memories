@@ -131,6 +131,8 @@ test('跨分页更换封面、刷新后保持、并发冲突核对与恢复自�
   await page.getByRole('button', { name: '设为影集封面：journey-02.png', exact: true }).click()
   try {
     await expect.poll(() => refreshing).toBeTruthy()
+    await expect(page.getByRole('status').filter({ hasText: '封面已保存' })).toBeVisible()
+    await expect(page.getByText('封面已更新，照片顺序和原图保持不变。', { exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: '查看原图：journey-01.png', exact: true })).toBeDisabled()
     await expect(page.getByRole('button', { name: '加载更多照片', exact: true })).toBeDisabled()
   } finally { release() }
@@ -159,6 +161,8 @@ test('跨分页更换封面、刷新后保持、并发冲突核对与恢复自�
   expect((await read(page, albumPath)).cover_photo_id).toBe(concurrentId)
   await page.getByRole('button', { name: '重新加载照片列表', exact: true }).click()
   await expect(page.getByText('已读取 24 / 27 张', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: '封面状态已核对' })).toBeVisible()
+  await expect(page.getByText('封面结果尚未确认，请重新加载照片列表核对后再选择。', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: '恢复自动封面', exact: true }).click()
   await expect(page.getByText('已恢复自动封面，按影集顺序选择第一张有效照片。')).toBeVisible()
   expect((await read(page, albumPath)).cover_photo_id).toBe(original.cover_photo_id)

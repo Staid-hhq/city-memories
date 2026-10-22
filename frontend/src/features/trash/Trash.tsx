@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { api, ApiError, errorMessage, isAbort } from '../../shared/api'
+import { OperationFeedback } from '../../shared/OperationFeedback'
 import { OriginalImage } from '../photos/OriginalImage'
 import type { Album, City } from '../albums/types'
 import type { Detail, Photo } from '../photos/photos'
@@ -86,11 +87,13 @@ export function Trash() {
 export function PhotoLifecycle({ photoId, albumId, action }: { photoId: string; albumId?: string; action: 'trash' | 'restore' }) {
   const [context, setContext] = useState<Context | null>(null)
   const [busy, setBusy] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [blocked, setBlocked] = useState(false)
   const [error, setError] = useState<unknown>()
   const [notice, setNotice] = useState('')
   const [savedAlbum, setSavedAlbum] = useState<string>()
   const [duplicateCount, setDuplicateCount] = useState(0)
+  const [selectedFilename, setSelectedFilename] = useState('')
   const request = useRef<AbortController | null>(null)
   const load = useCallback(async () => {
     request.current?.abort()
@@ -108,7 +111,7 @@ export function PhotoLifecycle({ photoId, albumId, action }: { photoId: string; 
         const album = await api<Album>(`/albums/${photo.album_id}`, { signal: controller.signal })
         next = { kind: 'active', photo, album }
       }
-      setContext(next); setBlocked(false)
+      setContext(next); setSelectedFilename(next.photo.original_filename); setBlocked(false)
     } catch (reason) { if (!isAbort(reason)) { setError(reason); setBlocked(true) } }
     finally { if (!controller.signal.aborted) setBusy(false) }
   }, [photoId])
@@ -121,7 +124,7 @@ export function PhotoLifecycle({ photoId, albumId, action }: { photoId: string; 
   async function submit() {
     if (!context || !canAct || busy) return
     const controller = new AbortController(); request.current = controller
-    setBusy(true); setError(undefined)
+    setBusy(true); setSubmitting(true); setError(undefined); setNotice(''); setSelectedFilename(context.photo.original_filename)
     const started = performance.now()
     try {
       const { photo } = context
@@ -140,17 +143,31 @@ export function PhotoLifecycle({ photoId, albumId, action }: { photoId: string; 
       }
     } catch (reason) {
       if (!isAbort(reason)) { setError(reason); setBlocked(true); setNotice('操作结果尚未确认。请核对当前状态，再决定是否操作；不会自动重试。') }
-    } finally { if (!controller.signal.aborted) setBusy(false) }
+    } finally { if (!controller.signal.aborted) { setBusy(false); setSubmitting(false) } }
   }
   const photo = context?.photo
   const originalAlbum = context?.photo.album_id ?? savedAlbum ?? albumId
-  return <main className="journal-main lifecycle-page"><Link className="back-link" to={action === 'trash' ? `/albums/${albumId}` : '/trash'}>{action === 'trash' ? '← 返回影集，取消删除' : '← 返回回收站'}</Link>
-    <div className="page-heading"><div><p className="eyebrow">{action === 'trash' ? 'ONLY THIS PHOTO' : 'WELCOME BACK'}</p><h1>{action === 'trash' ? '确认移入回收站' : '查看与恢复'}</h1><p className="muted">{action === 'trash' ? '请核对照片；只有按下确认按钮后才会删除。' : '原图和文字原样保留，不需要重新上传。'}</p></div></div>
-    {busy && <p role="status">正在核对照片状态…</p>}
-    {notice && <p className="order-status" role="status">{notice}</p>}
-    {duplicateCount > 1 && <p className="order-status">原影集内有 {duplicateCount} 份相同内容，全部独立保留，没有自动去重。<Link to={`/albums/${savedAlbum}/duplicates`}>查看重复照片</Link></p>}
-    {error !== undefined && <p className="load-error" role="alert">{errorMessage(error)}</p>}
-    {expired && <p className="empty-note" role="status">保留期限已到，不能再查看原图或恢复。</p>}
+  const uncertain = !!notice && error !== undefined
+  const confirmed = !!notice && !uncertain
+  const nextActions = <><button className="quiet-button" disabled={busy} onClick={() => void load()}>核对当前状态</button>
+    {originalAlbum && <Link className="quiet-button" to={`/albums/${originalAlbum}`}>打开原影集</Link>}<Link className="quiet-button" to="/trash">打开回收站</Link></>
+  return <main className="journal-main lifecycle-page"><Link className="back-link" to={action === 'trash' ? `/albums/${albumId}` : '/trash'}>{action === 'trash' ? confirmed ? '← 返回影集' : '← 返回影集，取消删除' : '← 返回回收站'}</Link>
+    <div className="page-heading"><div><p className="eyebrow">{action === 'trash' ? 'ONLY THIS PHOTO' : 'WELCOME BACK'}</p><h1>{action === 'trash' ? '确认移入回收站' : '查看与恢复'}</h1><p className="muted">{confirmed ? '这份照片的处理结果已确认，可以继续查看回忆。' : action === 'trash' ? '请核对照片；只有按下确认按钮后才会删除。' : '原图和文字原样保留，不需要重新上传。'}</p></div></div>
+    {busy && <OperationFeedback tone="progress" title={submitting ? action === 'trash' ? '正在移入回收站…' : '正在恢复照片…' : '正在核对照片状态…'}>
+      <p>{selectedFilename ? `选中的照片：${selectedFilename}` : '正在读取选中照片的原图、文字和当前位置。'}</p>
+      {submitting && <p>请稍候，处理完成后会在这里显示结果。</p>}
+    </OperationFeedback>}
+    {notice && <OperationFeedback tone={uncertain ? 'warning' : 'success'} title={uncertain ? '请先核对操作结果' : action === 'trash' ? '照片已移入回收站' : '照片已恢复'} actions={nextActions}>
+      <p>选中的照片：{selectedFilename}</p><p>{notice}</p>
+      {uncertain ? <p>{errorMessage(error)}</p> : action === 'trash' ? <p>可打开回收站查看这份照片，或在保留期限内恢复。</p> : <p>照片已恢复到原影集末尾，原图和文字仍然保留。</p>}
+    </OperationFeedback>}
+    {duplicateCount > 1 && <OperationFeedback title="相同内容独立保留"><p>原影集内有 {duplicateCount} 份相同内容，全部独立保留，没有自动去重。<Link to={`/albums/${savedAlbum}/duplicates`}>查看重复照片</Link></p></OperationFeedback>}
+    {error !== undefined && !notice && !expired && <OperationFeedback tone="error" title="暂时无法核对照片" actions={nextActions}>
+      {selectedFilename && <p>选中的照片：{selectedFilename}</p>}<p>{errorMessage(error)}</p><p>请先核对当前状态，读取成功后再决定是否操作；不会自动删除或恢复。</p>
+    </OperationFeedback>}
+    {expired && <OperationFeedback tone="warning" title="照片已到保留期限" actions={notice ? undefined : nextActions}>
+      {selectedFilename && <p>选中的照片：{selectedFilename}</p>}<p>保留期限已到，不能再查看原图或恢复。</p>
+    </OperationFeedback>}
     {photo && context && <section className="lifecycle-content" aria-label="选中的照片">
       {!expired && !blocked && <div className="lifecycle-image"><OriginalImage key={`${context.kind}:${photo.id}`} photoId={photo.id} alt={`选中的原图：${photo.original_filename}`} scope={context.kind === 'trashed' ? 'trash' : 'active'} immediate retryable /></div>}
       <div className="lifecycle-details"><h2>{photo.original_filename}</h2><p>{place(context.kind === 'active' ? context.album : context.photo)}</p><p className="muted">{photo.width} × {photo.height} 像素 · 原始文件，未压缩</p>
@@ -162,7 +179,6 @@ export function PhotoLifecycle({ photoId, albumId, action }: { photoId: string; 
         {context.kind === 'active' && (action === 'restore' || photo.album_id !== albumId) && <Link className="quiet-button" to={`/albums/${photo.album_id}?photo=${photo.id}`}>查看照片当前位置</Link>}
       </div>
     </section>}
-    <div className="lifecycle-actions"><button className="quiet-button" disabled={busy} onClick={() => void load()}>核对当前状态</button>
-      {originalAlbum && <Link className="quiet-button" to={`/albums/${originalAlbum}`}>打开原影集</Link>}<Link className="quiet-button" to="/trash">打开回收站</Link></div>
+    {!notice && error === undefined && !expired && <div className="lifecycle-actions">{nextActions}</div>}
   </main>
 }

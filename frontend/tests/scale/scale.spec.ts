@@ -142,7 +142,7 @@ test('T15 400 张原图页面导入、3000 张账号规模、双账号并发和�
     } else {
       const atlas = (await (await page.request.get('/api/v1/me/atlas')).json()).data
       expect(atlas.photo_count).toBe(3000)
-      await page.getByRole('link', { name: '2026 年 400 张照片', exact: true }).click()
+      await page.getByRole('link', { name: '深圳市，2026 年，400 张照片，打开相册', exact: true }).click()
     }
     const albumUrl = page.url()
 
@@ -195,7 +195,7 @@ test('T15 400 张原图页面导入、3000 张账号规模、双账号并发和�
         await sample('400-cards-loaded', true)
         // Return by SPA navigation; repeat tests must not hide leaks by reloading JS.
         await page.getByRole('link', { name: '返回深圳市年份影集' }).click()
-        await page.getByRole('link', { name: '2026 年 400 张照片', exact: true }).click()
+        await page.getByRole('link', { name: '深圳市，2026 年，400 张照片，打开相册', exact: true }).click()
         await expect(page.locator('.photo-card')).toHaveCount(24)
       })
 
@@ -204,7 +204,7 @@ test('T15 400 张原图页面导入、3000 张账号规模、双账号并发和�
       await runPython('benchmark')
       // Benchmark deliberately updates note/reorder versions; reload metadata once.
       await page.getByRole('link', { name: '返回深圳市年份影集' }).click()
-      await page.getByRole('link', { name: '2026 年 400 张照片', exact: true }).click()
+      await page.getByRole('link', { name: '深圳市，2026 年，400 张照片，打开相册', exact: true }).click()
       await expect(page.locator('.photo-card')).toHaveCount(24)
     })
 
@@ -228,7 +228,7 @@ test('T15 400 张原图页面导入、3000 张账号规模、双账号并发和�
         await page.getByRole('button', { name: '关闭原图', exact: true }).click()
         await page.getByRole('link', { name: '返回深圳市年份影集' }).click()
         start = performance.now()
-        await page.getByRole('link', { name: '2026 年 400 张照片', exact: true }).click()
+        await page.getByRole('link', { name: '深圳市，2026 年，400 张照片，打开相册', exact: true }).click()
         await expect(page.locator('.photo-card')).toHaveCount(24)
         entryMs.push(performance.now() - start)
         await page.locator('.photo-card').first().evaluate(card => card.scrollIntoView({ block: 'start', behavior: 'instant' }))

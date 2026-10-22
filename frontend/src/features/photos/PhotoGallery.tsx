@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import { api, ApiError, errorMessage, isAbort } from '../../shared/api'
+import { OperationFeedback } from '../../shared/OperationFeedback'
 import { OriginalImage } from './OriginalImage'
 import { NoteEditor } from './NoteEditor'
 import type { Detail, Note, Photo, PhotoPage } from './photos'
 import type { Album } from '../albums/types'
 
 const changed = (error: unknown) => error instanceof ApiError && error.code === 'ALBUM_CHANGED'
+type CoverFeedback = { tone: 'progress' | 'success' | 'warning'; title: string; message: string; detail?: string; needsReview?: boolean }
 
 export function PhotoViewer({ photoId, albumId, initialRevision, close, navigate, onNoteSaved }: {
   photoId: string; albumId: string; initialRevision?: number; close: () => void; navigate: (id: string) => void; onNoteSaved: (note: Note) => void
@@ -94,8 +96,9 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
   const [sorting, setSorting] = useState(false)
   const [choosingCover, setChoosingCover] = useState(false)
   const [coverBusy, setCoverBusy] = useState(false)
-  const [coverStatus, setCoverStatus] = useState('')
+  const [coverFeedback, setCoverFeedback] = useState<CoverFeedback | null>(null)
   const coverRequest = useRef<AbortController | null>(null)
+  const coverRechecking = useRef(false)
   const [orderBlocked, setOrderBlocked] = useState(false)
   const [orderStatus, setOrderStatus] = useState('')
   const [movedId, setMovedId] = useState<string | null>(null)
@@ -112,7 +115,19 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
       setOrderBlocked(false)
       onRead(value.photo_count, value.album_revision)
       if (album) onAlbumChanged?.(album)
-    }).catch((reason) => { if (!isAbort(reason)) setError(reason) })
+      if (coverRechecking.current) {
+        coverRechecking.current = false
+        setCoverFeedback({ tone: 'success', title: '封面状态已核对', message: '已重新核对封面和照片列表，可以继续选择封面。' })
+      }
+    }).catch((reason) => {
+      if (!isAbort(reason)) {
+        if (coverRechecking.current) {
+          coverRechecking.current = false
+          setOrderBlocked(true)
+          setCoverFeedback({ tone: 'warning', title: '封面状态仍待核对', message: '核对尚未完成，请重新加载照片列表后再操作。', detail: errorMessage(reason), needsReview: true })
+        } else setError(reason)
+      }
+    })
       .finally(() => { if (!controller.signal.aborted) setBusy(false) })
     return () => controller.abort()
   }, [albumId, reload, onRead, onAlbumChanged])
@@ -139,6 +154,8 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
     finally { if (!controller.signal.aborted) setBusy(false) }
   }
   function refresh() {
+    coverRechecking.current = !!coverFeedback?.needsReview
+    setCoverFeedback(coverRechecking.current ? { tone: 'progress', title: '正在核对封面', message: '正在重新读取封面和照片列表…' } : null)
     setBusy(true); setError(undefined); setData(null); setReload((value) => value + 1)
     section.current?.scrollIntoView({ block: 'start' })
   }
@@ -146,7 +163,9 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
     if (!data || busy || coverBusy || orderBlocked) return
     const controller = new AbortController()
     coverRequest.current?.abort(); coverRequest.current = controller
-    setCoverBusy(true); setCoverStatus(''); setError(undefined)
+    const filename = data.items.find(photo => photo.id === id)?.original_filename
+    setCoverBusy(true); setError(undefined)
+    setCoverFeedback({ tone: 'progress', title: id ? '正在保存封面' : '正在恢复自动封面', message: '请稍候，保存完成后会更新照片列表。', detail: filename ? `所选照片：${filename}` : undefined })
     let committed = false
     try {
       const album = await api<Album>(`/albums/${albumId}/cover`, {
@@ -155,6 +174,7 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
       })
       committed = true
       onAlbumChanged?.(album)
+      setCoverFeedback({ tone: 'progress', title: '封面已保存', message: '正在更新照片列表，请稍候…' })
       // Cover changes share the album revision with ordering. Replace the old
       // signed cursor too, while retaining the window the user already opened.
       let fresh = await api<PhotoPage>(`/albums/${albumId}/photos`, { signal: controller.signal })
@@ -163,11 +183,11 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
         fresh = { ...next, items: [...fresh.items, ...next.items] }
       }
       setData(fresh); onRead(fresh.photo_count, fresh.album_revision)
-      setCoverStatus(id ? '封面已更新，照片顺序和原图保持不变。' : '已恢复自动封面，按影集顺序选择第一张有效照片。')
+      setCoverFeedback({ tone: 'success', title: id ? '封面设置成功' : '自动封面已启用', message: id ? '封面已更新，照片顺序和原图保持不变。' : '已恢复自动封面，按影集顺序选择第一张有效照片。', detail: filename ? `所选照片：${filename}` : undefined })
     } catch (reason) {
       if (!isAbort(reason)) {
-        setError(reason); setOrderBlocked(true)
-        setCoverStatus(committed ? '封面已保存，但照片列表刷新失败，请重新加载核对后再继续。' : '封面结果尚未确认，请重新加载照片列表核对后再选择。')
+        setOrderBlocked(true)
+        setCoverFeedback({ tone: 'warning', title: committed ? '封面已保存，列表待核对' : '封面结果需要核对', message: committed ? '封面已保存，但照片列表刷新失败，请重新加载核对后再继续。' : '封面结果尚未确认，请重新加载照片列表核对后再选择。', detail: errorMessage(reason), needsReview: true })
       }
     } finally { if (!controller.signal.aborted) setCoverBusy(false) }
   }
@@ -178,7 +198,7 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
     const controller = new AbortController()
     request.current?.abort(); request.current = controller
     const focus = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    setBusy(true); setError(undefined); setMovedId(null); setOrderStatus(`正在调整 ${context}`)
+    setBusy(true); setError(undefined); setCoverFeedback(null); setMovedId(null); setOrderStatus(`正在调整 ${context}`)
     let committed = false
     try {
       let anchor: string | null = kind === 'first' ? data.items[0].id : before ?? null
@@ -225,7 +245,10 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
           <button className="quiet-button" disabled={busy || coverBusy} onClick={() => { setSorting(!sorting); setChoosingCover(false) }}>{sorting ? '完成排序' : '整理顺序'}</button></>}</div></div>
     {choosingCover && <div className="cover-picker-note"><p>选择一张照片作为影集封面；需要其他照片时，可继续加载列表。</p>
       <button className="quiet-button" disabled={busy || coverBusy || orderBlocked} onClick={() => void selectCover(null)}>恢复自动封面</button></div>}
-    {coverStatus && <p className="cover-status" role="status">{coverStatus}</p>}
+    {coverFeedback && <OperationFeedback tone={coverFeedback.tone} title={coverFeedback.title}
+      actions={coverFeedback.needsReview ? <button className="quiet-button" disabled={busy || coverBusy} onClick={refresh}>重新加载照片列表</button> : undefined}>
+      <p>{coverFeedback.message}</p>{coverFeedback.detail && <p>{coverFeedback.detail}</p>}
+    </OperationFeedback>}
     {sorting && <p className="scope-note">拖动手柄到目标照片上方，或使用前移/后移、置顶/置底。操作针对完整影集，跨分页有效；每次成功后立即保存。需要更多目标时先加载下一批照片。</p>}
     {orderStatus && <div className="order-status" role="status"><p>{orderStatus}</p>{movedId && <button className="quiet-button" disabled={busy || coverBusy} onClick={() => open(movedId)}>查看刚调整的照片</button>}</div>}
     {error !== undefined && <div className="load-error" role="alert"><p>{errorMessage(error)}</p>

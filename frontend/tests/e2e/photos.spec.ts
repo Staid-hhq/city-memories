@@ -13,7 +13,7 @@ async function login(page: Page, username = 'Photos_One') {
 async function enterAlbum(page: Page) {
   await login(page)
   await page.goto('/cities/a03b8f10-06dd-4b56-aef1-33cfc3696301')
-  await page.getByRole('link', { name: '2035 年 27 张照片' }).click()
+  await page.getByRole('link', { name: '深圳市，2035 年，27 张照片，打开相册', exact: true }).click()
   await expect(page.locator('.photo-card')).toHaveCount(24)
 }
 

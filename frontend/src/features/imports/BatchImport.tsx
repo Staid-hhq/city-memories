@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import { api, ApiError, errorMessage, isAbort, uploadFile } from '../../shared/api'
+import { OperationFeedback } from '../../shared/OperationFeedback'
 import { applyBatch, canCommit, planJobs, prepare, validYear, yearLabel } from './importQueue'
 import type { Draft, ImportBatch, ImportItem, ImportReceipt, Job, QueueBatch } from './importQueue'
 
@@ -190,7 +191,6 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
         }
         // Only our own sequential commit advances subsequent batches locally.
         for (const next of jobsRef.current) if (next.index > job.index && next.albumId === job.albumId && next.batch && !next.commit) next.batch.album_revision = result.album_revision
-        setNotice('已加入影集，原图已独立保存。其他影集的失败不影响本批结果。')
       } catch (reason) {
         if (isAbort(reason)) throw reason
         job.error = errorMessage(reason) + ' 未确认保存结果时请查询或用相同参数重试，不会重复添加。'
@@ -210,7 +210,6 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
         }
         job.canceled = true; job.error = undefined
         for (const entry of job.entries) { entry.file = undefined; entry.activity = undefined; entry.error = undefined; if (entry.item) entry.item.state = 'discarded' }
-        setNotice('本批已取消，未加入影集的暂存副本已请求清理；源文件和已保存照片不受影响。')
       } catch (reason) {
         if (isAbort(reason)) throw reason
         job.error = '取消尚未确认，请查询状态。' + errorMessage(reason)
@@ -300,7 +299,7 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
             <ol className="upload-list">{job.entries.map((entry, index) => <li key={index}>
               <div><strong>{index + 1}. {entry.name}</strong><small>{entry.activity ?? stateLabels[entry.item?.state ?? 'pending']}{entry.item?.failure_code ? ` · ${entry.item.failure_code}` : ''}</small>
                 {entry.activity && <><progress max={100} value={entry.progress} aria-label={`${entry.name} 传输进度`} /><small>{entry.progress}% · 100% 后仍需服务端校验</small></>}
-                {entry.error && <p className="form-error" role="alert">{entry.error}</p>}
+                {entry.error && <OperationFeedback tone="error" title="这张原图需要处理"><p>{entry.error}</p></OperationFeedback>}
               </div>
               {!closed && !['staged', 'committed'].includes(entry.item?.state ?? '') && <div className="entry-retry">
                 <input type="file" accept={accept} disabled={!!busy} aria-label={`第 ${job.index + 1} 批第 ${index + 1} 项重选原图`} onChange={(event) => reselect(job, index, event.target.files?.[0])} />
@@ -308,21 +307,27 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
               </div>}
             </li>)}</ol>
           </details>
-          {job.error && <p className="form-error" role="alert">{job.error}</p>}
-          {receipt && <p className="saved-notice" role="status">已加入影集 {receipt.photo_ids.length} 项。{receipt.failed_item_ids.length > 0 && `另有 ${receipt.failed_item_ids.length} 项未保存且已废弃；可开始新队列重新导入，追加在末尾。`}</p>}
+          {job.error && <OperationFeedback tone="error" title={job.commit ? '本批保存结果尚未确认' : '本批操作需要处理'}><p>{job.error}</p></OperationFeedback>}
+          {receipt && <OperationFeedback tone={receipt.failed_item_ids.length > 0 ? 'warning' : 'success'} title={receipt.failed_item_ids.length > 0 ? '本批已部分保存' : '本批已保存'}>
+            <p>已加入影集 {receipt.photo_ids.length} 项。</p><p>保存位置：{cityName} / {yearLabel(job.year)}。原图已独立保存，其他批次的失败不影响本批结果。</p>
+            {receipt.failed_item_ids.length > 0 && <p>另有 {receipt.failed_item_ids.length} 项未保存且已废弃；可开始新队列重新导入，追加在末尾。</p>}
+          </OperationFeedback>}
+          {!receipt && !closed && !job.error && !busy && staged > 0 && <OperationFeedback tone={staged < job.entries.length ? 'warning' : 'info'} title="本批等待保存">
+            <p>{staged} 项原图已通过校验，尚未加入影集。请核对 {cityName} / {yearLabel(job.year)} 后选择下方保存操作。</p>
+          </OperationFeedback>}
           {!closed && <div className="upload-actions">
             <button className="primary-button" disabled={!ready || (!job.commit && staged !== job.entries.length)} onClick={() => save(job, false)}>{job.commit ? '重试本批保存（相同参数）' : '保存本批全部照片'}</button>
             {staged > 0 && staged < job.entries.length && !job.commit && <button className="quiet-button" disabled={!ready} onClick={() => save(job, true)}>先保存成功项（{staged} 项），放弃其余项</button>}
             {!canCommit(job, jobs) && job.batch && <span className="scope-note">请先完成同影集前批，或查询重新核对。</span>}
           </div>}
           {!receipt && !job.canceled && job.batch?.state !== 'canceled' && <button className="quiet-button cancel-batch" disabled={!!busy} onClick={() => cancel(job)}>取消本批{job.batch?.state === 'expired' ? '并清理' : ''}</button>}
-          {job.canceled || job.batch?.state === 'canceled' ? <p role="status">本批已取消。</p> : null}
+          {job.canceled || job.batch?.state === 'canceled' ? <OperationFeedback title="本批导入已取消"><p>本批已取消。</p><p>未加入影集的暂存副本已请求清理；源文件和已保存照片不受影响。</p></OperationFeedback> : null}
         </article>
       })}
     </>}
-    {busy && <p role="status">正在{busy}…</p>}
-    {error && <p className="form-error" role="alert">{error}</p>}
-    {notice && <p className="staged-notice" role="status">{notice}</p>}
+    {busy && <OperationFeedback tone="progress" title={`正在${busy}…`}><p>上传和校验不代表保存；请以各批下方的保存结果为准。</p></OperationFeedback>}
+    {error && <OperationFeedback tone="error" title="队列操作需要处理"><p>{error}</p></OperationFeedback>}
+    {notice && !busy && !error && <OperationFeedback tone={notice.startsWith('传输已停止') || jobs.some((job) => job.error || job.entries.some((entry) => entry.error)) ? 'warning' : 'info'} title="队列提示"><p>{notice}</p></OperationFeedback>}
     <p className="scope-note">地址仅保存随机队列标识，不保存文件名或照片。刷新后只恢复已登记批次；本机文件需重选，不是断点续传。上传可停止后查询/取消；保存结果不明时先查询，避免另开队列重复导入。</p>
   </section>
 }
