@@ -106,6 +106,10 @@ class Album(Base):
     created_at: Mapped[int] = mapped_column(Integer)
     updated_at: Mapped[int] = mapped_column(Integer)
 
+    # A preference, not a membership relation: moved/trashed/deleted photos are
+    # ignored by album_query, so lifecycle operations do not gain cyclic FKs.
+    preferred_cover_photo_id: Mapped[str | None] = mapped_column(Text)
+
 
 Index(
     "uq_albums_year",

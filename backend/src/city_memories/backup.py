@@ -24,7 +24,8 @@ from city_memories.cleanup import (
 from city_memories.models import Base
 from city_memories.storage import CHUNK_SIZE
 
-SCHEMA_REVISION = "b61e24f803a7"
+SCHEMA_REVISION = "c7e9a162b4d8"
+LEGACY_SCHEMA_REVISION = "b61e24f803a7"
 DATABASE_NAME = "city-memories.sqlite3"
 MANIFEST_LIMIT = 64 * 1024 * 1024
 HASH = r"^[a-f0-9]{64}$"
@@ -59,7 +60,7 @@ class Manifest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     format: Literal["city-memories-backup"]
     version: Literal[1]
-    schema_revision: Literal["b61e24f803a7"]
+    schema_revision: Literal["b61e24f803a7", "c7e9a162b4d8"]
     snapshot_at: int = Field(ge=0)
     database: FileDigest
     counts: dict[str, int]
@@ -205,18 +206,22 @@ def _check_database(db):
         _fail()
     if db.execute("SELECT 1 FROM sqlite_master WHERE type IN ('trigger','view')").fetchone():
         _fail()
-    if [row[0] for row in db.execute("SELECT version_num FROM alembic_version")] != [
-        SCHEMA_REVISION
-    ]:
+    revisions = [row[0] for row in db.execute("SELECT version_num FROM alembic_version")]
+    if len(revisions) != 1 or revisions[0] not in {LEGACY_SCHEMA_REVISION, SCHEMA_REVISION}:
         _fail("SCHEMA_MISMATCH", "数据库版本不兼容，请使用匹配版本的工具；不自动迁移备份")
+    revision = revisions[0]
     for name, table in Base.metadata.tables.items():
         columns = [row["name"] for row in db.execute(f'PRAGMA table_info("{name}")')]
-        if columns != list(table.columns.keys()):
+        expected = list(table.columns.keys())
+        if name == "albums" and revision == LEGACY_SCHEMA_REVISION:
+            expected.remove("preferred_cover_photo_id")
+        if columns != expected:
             _fail()
     if [row[0] for row in db.execute("PRAGMA integrity_check")] != ["ok"]:
         _fail()
     if db.execute("PRAGMA foreign_key_check").fetchone() is not None:
         _fail()
+    return revision
 
 
 def _inventory(db):
@@ -313,7 +318,8 @@ def _verify_locked(root: Path, *, building=False) -> Manifest:
     if _file_digest(database) != manifest.database:
         _fail("CHECKSUM_MISMATCH", "文件校验失败，备份未通过；不要使用此副本恢复")
     with _database(database, immutable=True) as db:
-        _check_database(db)
+        if _check_database(db) != manifest.schema_revision:
+            _fail("SCHEMA_MISMATCH", "备份清单与数据库版本不一致")
         counts, photos = _inventory(db)
         if counts != manifest.counts or photos != manifest.photos:
             _fail()
@@ -370,7 +376,7 @@ def create_backup(data_dir: Path, destination: Path, *, clock=_now) -> dict:
             copied_db = target / "database" / DATABASE_NAME
             _copy_database(database, copied_db)
             with _database(copied_db, writable=True) as db:
-                _check_database(db)
+                schema_revision = _check_database(db)
                 _sanitize(db, cutoff)
                 counts, photos = _inventory(db)
             for photo in photos:
@@ -384,7 +390,7 @@ def create_backup(data_dir: Path, destination: Path, *, clock=_now) -> dict:
             manifest = Manifest(
                 format="city-memories-backup",
                 version=1,
-                schema_revision=SCHEMA_REVISION,
+                schema_revision=schema_revision,
                 snapshot_at=cutoff,
                 database=_file_digest(copied_db),
                 counts=counts,

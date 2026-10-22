@@ -41,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 with engine.connect() as connection:
                     # 缺失迁移时拒绝启动，避免登录时才报缺表。
                     connection.execute(text("SELECT token_hash FROM sessions LIMIT 1"))
+                    connection.execute(text("SELECT preferred_cover_photo_id FROM albums LIMIT 0"))
                 seed_reviewed_cities(engine)
                 app.state.engine = engine
                 app.state.auth = AuthService(engine, settings)

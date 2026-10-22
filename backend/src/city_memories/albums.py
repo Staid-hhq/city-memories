@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import and_, func, literal, or_, select
+from sqlalchemy import and_, func, literal, or_, select, update
 from sqlalchemy.dialects.sqlite import insert
 
 from city_memories.auth import CurrentUser
@@ -25,6 +25,12 @@ Cursor = Annotated[str | None, Query(max_length=1024)]
 class CreateAlbum(BaseModel):
     model_config = ConfigDict(extra="forbid")
     year: Annotated[int, Field(strict=True, ge=1, le=9999)] | None
+
+
+class CoverInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    photo_id: Annotated[str, Field(strict=True, min_length=1, max_length=36)] | None
+    expected_revision: Annotated[int, Field(strict=True, ge=1)]
 
 
 class Envelope[T](BaseModel):
@@ -95,7 +101,7 @@ def album_query(owner_id: str):
         .correlate(Album)
         .scalar_subquery()
     )
-    cover = (
+    automatic_cover = (
         select(Photo.id)
         .where(Photo.album_id == Album.id, Photo.owner_id == owner_id, Photo.state == "active")
         .order_by(Photo.position, Photo.id)
@@ -103,6 +109,18 @@ def album_query(owner_id: str):
         .correlate(Album)
         .scalar_subquery()
     )
+    preferred_cover = (
+        select(Photo.id)
+        .where(
+            Photo.id == Album.preferred_cover_photo_id,
+            Photo.album_id == Album.id,
+            Photo.owner_id == owner_id,
+            Photo.state == "active",
+        )
+        .correlate(Album)
+        .scalar_subquery()
+    )
+    cover = func.coalesce(preferred_cover, automatic_cover)
     return (
         select(Album, City, count, cover)
         .join(City, Album.city_id == City.id)
@@ -227,6 +245,32 @@ def atlas(request: Request, user: CurrentUser):
     }
 
 
+@router.get("/me/albums", response_model=Envelope[PageData[AlbumView]])
+def my_albums(
+    request: Request, user: CurrentUser, cursor: Cursor = None, limit: Limit = 24
+):
+    scope = f"my-albums:{user.id}"
+    keys = decode_cursor(request, cursor, scope)
+    year = func.coalesce(Album.year, 0)
+    query = album_query(user.id)
+    if keys is not None:
+        if (type(keys[0]) is not int or not 0 <= keys[0] <= 9999
+                or not isinstance(keys[1], str) or not 1 <= len(keys[1]) <= 36):
+            raise ApiError(422, "INVALID_CURSOR", "列表位置已失效，请重新加载")
+        query = query.where(or_(year < keys[0], and_(year == keys[0], Album.id > keys[1])))
+    with request.app.state.auth.sessions() as db:
+        rows = db.execute(query.order_by(year.desc(), Album.id).limit(limit + 1)).all()
+        items = rows[:limit]
+        next_cursor = (
+            encode_cursor(request, scope, [items[-1][0].year or 0, items[-1][0].id])
+            if len(rows) > limit
+            else None
+        )
+        return {
+            "data": {"items": [album_view(row) for row in items], "next_cursor": next_cursor}
+        }
+
+
 @router.get("/cities/{city_id}/albums", response_model=Envelope[CityAlbums])
 def city_albums(
     city_id: str, request: Request, user: CurrentUser, cursor: Cursor = None, limit: Limit = 24
@@ -313,4 +357,34 @@ def album_detail(album_id: str, request: Request, user: CurrentUser):
         row = db.execute(album_query(user.id).where(Album.id == album_id)).one_or_none()
         if row is None:
             raise not_found()
+        return {"data": album_view(row)}
+
+
+@router.patch("/albums/{album_id}/cover", response_model=Envelope[AlbumView])
+def set_cover(album_id: str, data: CoverInput, request: Request, user: CurrentUser):
+    with request.app.state.auth.sessions.begin() as db:
+        # Serialize membership/version reads with imports, moves and deletion.
+        db.execute(
+            update(Album)
+            .where(Album.id == album_id, Album.owner_id == user.id)
+            .values(revision=Album.revision)
+        )
+        album = db.scalar(select(Album).where(Album.id == album_id, Album.owner_id == user.id))
+        if album is None:
+            raise not_found()
+        if data.photo_id is not None:
+            photo = db.scalar(select(Photo.id).where(
+                Photo.id == data.photo_id, Photo.album_id == album_id,
+                Photo.owner_id == user.id, Photo.state == "active",
+            ))
+            if photo is None:
+                raise not_found()
+        if album.revision != data.expected_revision:
+            raise ApiError(409, "ALBUM_CHANGED", "影集已有更新，请重新核对照片列表")
+        if album.preferred_cover_photo_id != data.photo_id:
+            album.preferred_cover_photo_id = data.photo_id
+            album.revision += 1
+            album.updated_at = request.app.state.auth.clock()
+            db.flush()
+        row = db.execute(album_query(user.id).where(Album.id == album_id)).one()
         return {"data": album_view(row)}

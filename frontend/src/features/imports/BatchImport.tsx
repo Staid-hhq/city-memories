@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import { api, ApiError, errorMessage, isAbort, uploadFile } from '../../shared/api'
 import { applyBatch, canCommit, planJobs, prepare, validYear, yearLabel } from './importQueue'
 import type { Draft, ImportBatch, ImportItem, ImportReceipt, Job, QueueBatch } from './importQueue'
@@ -9,6 +9,7 @@ const accept = '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp'
 const stateLabels: Record<string, string> = { pending: '等待上传', receiving: '服务端接收中，请查询状态', staged: '已传输，待保存', committed: '已加入影集', failed: '失败，可重试', discarded: '已废弃' }
 
 export function BatchImport({ cityId, cityName, albumId, year }: Props) {
+  const location = useLocation()
   const [search, setSearch] = useSearchParams()
   const [initialQueue] = useState(search.get('queue'))
   const queueId = useRef(initialQueue ?? crypto.randomUUID())
@@ -84,7 +85,7 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
     const planned = planJobs(draft, albumId)
     queueId.current = crypto.randomUUID()
     jobsRef.current = planned; publish(); setLocked(true); setDraft([])
-    setSearch((value) => { value.set('queue', queueId.current); return value }, { replace: true })
+    setSearch((value) => { const next = new URLSearchParams(value); next.set('queue', queueId.current); return next }, { replace: true, state: location.state })
     setNotice('归属和顺序已固定。点击上传开始；只有保存成功才会出现在影集。')
   }
   async function ensureBatch(job: Job, signal: AbortSignal) {
@@ -236,7 +237,7 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
   function reset() {
     jobsRef.current = []; publish(); setLocked(false); setDraft([]); setConfirmed(false); setError(''); setNotice(''); setPage(0)
     queueId.current = crypto.randomUUID()
-    setSearch((value) => { value.delete('queue'); return value }, { replace: true })
+    setSearch((value) => { const next = new URLSearchParams(value); next.delete('queue'); return next }, { replace: true, state: location.state })
   }
 
   const invalid = draft.some((row) => !validYear(row.year))
@@ -293,7 +294,7 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
         const ready = canCommit(job, jobs) && !busy && !receiving && staged > 0
         return <article className="import-job" key={job.index} data-job-index={job.index}>
           <div className="section-heading"><h2>{yearLabel(job.year)} · 第 {job.index + 1} 批</h2><span>{job.entries.length} 项 · {staged} 项待保存{receipt ? ` · 已保存 ${receipt.photo_ids.length} 项` : ''}</span></div>
-          {job.albumId && <Link to={`/albums/${job.albumId}`}>查看这个影集 ↗</Link>}
+          {job.albumId && <Link to={`/albums/${job.albumId}`} state={location.state}>查看这个影集 ↗</Link>}
           {job.batch && <p className="scope-note">{job.batch.state === 'expired' ? '本批已过期，不能继续上传或保存，可取消并清理暂存。' : `暂存截止：${new Date(job.batch.expires_at).toLocaleString()}`}</p>}
           <details open={job.entries.length <= 10}><summary>逐文件状态（{job.entries.length} 项）</summary>
             <ol className="upload-list">{job.entries.map((entry, index) => <li key={index}>

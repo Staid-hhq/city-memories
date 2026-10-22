@@ -1,6 +1,12 @@
 :root {
-  color: #483d33;
-  background: #f5efe5;
+  --surface: #fff;
+  --surface-soft: #f5f7f5;
+  --line: #e0e7e1;
+  --ink: #2d3931;
+  --muted: #6c786f;
+  --accent: #587b66;
+  color: var(--ink);
+  background: var(--surface);
   font-family: "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -288,4 +294,126 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
   .lifecycle-content { grid-template-columns: 1fr; gap: 1rem; }
   .lifecycle-image .original-frame { height: 300px; }
   .account-menu { flex-wrap: wrap; }
+}
+
+/* V2: white surfaces, a separate album library and photograph-led covers. */
+a { color: var(--accent); }
+.home-header, .auth-card, .status-card, .city-map, .city-card, .saved-city,
+.create-panel, .upload-panel, .photo-card, .photo-viewer, .viewer-header,
+.import-job, .move-summary, .move-picker, .queue-table {
+  background: var(--surface); border-color: var(--line);
+}
+.home-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 28px; padding-block: 24px; }
+.home-header small { color: var(--muted); font-size: 10px; }
+.account-menu { min-width: 0; gap: 16px; font-size: 13px; }
+.account-menu > span { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.journal-nav { display: flex; align-self: stretch; align-items: center; justify-content: center; gap: 30px; }
+.journal-nav a { position: relative; padding: 8px 0; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.journal-nav a[aria-current=page] { color: var(--ink); }
+.journal-nav a[aria-current=page]::after { content: ''; position: absolute; left: 0; right: 0; bottom: -24px; height: 2px; background: var(--accent); }
+.journal-nav a:hover { color: var(--accent); text-decoration: none; }
+.eyebrow, .card-arrow { color: var(--accent); }
+.muted, .chapter-mark, .section-heading > span, .scope-note, .back-link,
+.saved-city span, .city-card small, .empty-note p, .album-empty > p { color: var(--muted); }
+.saved-city, .city-card { color: var(--ink); }
+.saved-city { border-left-color: #9db3a3; }
+.quiet-button { color: var(--accent); border-color: var(--line); }
+.quiet-button:hover:not(:disabled) { background: var(--surface-soft); text-decoration: none; }
+.primary-button { background: var(--accent); border-color: var(--accent); color: #fff; }
+.primary-button:hover:not(:disabled) { background: #42664f; }
+.checkbox-label input { accent-color: var(--accent); }
+form input, .note-editor textarea, .move-picker select { background: #fff; color: var(--ink); border-color: var(--line); }
+.file-picker, .city-initial, .original-frame, .viewer-image,
+.queue-table th, .preserved-note, .lifecycle-image { background: var(--surface-soft); }
+.empty-note, .album-empty { background: #fafbfa; border-color: var(--line); }
+.file-picker, .file-picker input::file-selector-button { border-color: var(--line); }
+.file-picker input::file-selector-button { color: var(--accent); background: #fff; }
+.auth-card { box-shadow: 0 18px 60px #233e2a08; }
+.auth-tabs { border-color: var(--line); }
+.auth-tabs a[aria-current=page] { color: var(--accent); border-color: var(--accent); }
+.city-card:hover, .saved-city:hover { border-color: #a2b6a8; box-shadow: 0 6px 18px #294c3508; }
+.album-grid { gap: 30px 24px; }
+.album-card { min-width: 0; padding: 0; border: 0; border-radius: 0; color: var(--ink); background: transparent; }
+.album-card:hover { box-shadow: none; }
+.album-cover { position: relative; display: block; aspect-ratio: 3 / 4; min-height: 0; border: 0; border-radius: 6px; overflow: hidden; background: #eef2ee; box-shadow: 0 8px 24px #2a452e0a; }
+.album-cover > .original-frame { position: absolute; inset: 0; height: 100%; font-size: inherit; font-family: inherit; }
+.album-cover > .original-frame > img { object-fit: cover; transition: transform .35s ease; }
+.album-card:hover .album-cover img { transform: scale(1.025); }
+.album-cover .image-placeholder { font: 12px/1.8 "Microsoft YaHei", sans-serif; color: var(--muted); padding: 12px; }
+.album-cover-empty { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 12px; }
+.album-cover-empty > span { font: 48px/1.4 'SimSun', serif; color: #a2afa5; }
+.album-cover-empty > i { font-size: 10px; color: #8d9c91; font-style: normal; letter-spacing: .12em; }
+.album-cover-title { position: absolute; inset: auto 0 0; display: flex; flex-direction: column; gap: 8px; padding: 44px 22px 22px; color: var(--ink); overflow-wrap: anywhere; }
+.album-cover.has-cover .album-cover-title { color: #fff; background: linear-gradient(transparent, #142a20b8); }
+.album-cover-title > small { font-size: 12px; letter-spacing: .06em; }
+.album-cover-title > span { color: inherit; font: 26px/1.4 Georgia, 'SimSun', serif; }
+.album-caption { padding: 13px 0 0; flex-wrap: wrap; }
+.album-caption strong { font-weight: 500; }
+.album-caption span { color: var(--muted); font-size: 11px; }
+.album-city-name { display: flex; justify-content: space-between; gap: 12px; margin: 7px 0 0; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.album-city-name > span { color: var(--accent); }
+.album-library .page-heading { align-items: flex-end; }
+.album-library .library-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 12px; }
+.cover-picker-note { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 14px 18px; background: var(--surface-soft); border-radius: 7px; font-size: 12px; }
+.cover-picker-note p { margin: 0; line-height: 1.8; }
+.cover-status { padding: 12px 16px; border-left: 3px solid #98b49f; background: var(--surface-soft); font-size: 13px; line-height: 1.8; }
+.cover-choice { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 12px 4px 2px; border-top: 1px solid var(--line); }
+.cover-choice > span { margin-right: auto; color: var(--accent); font-size: 12px; }
+.cover-choice > button { font-size: 12px; }
+@media (max-width: 1150px) {
+  .home-header { gap: 20px; padding-inline: 30px; }
+  .home-header small { display: none; }
+  .journal-nav { gap: 24px; }
+  .album-library .library-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .home-header { grid-template-columns: 1fr auto; padding: 22px 28px; }
+  .journal-nav { grid-row: 2; grid-column: 1 / -1; justify-content: flex-start; }
+  .journal-nav a[aria-current=page]::after { bottom: -22px; }
+  .years-layout { grid-template-columns: minmax(0, 1fr); }
+  .create-panel { max-width: 480px; }
+  .auth-page { grid-template-columns: minmax(0, 1fr); gap: 30px; max-width: 620px; padding: 40px 28px; }
+  .paper-stack, .private-note { display: none; }
+  .brand-line { font-size: 23px; margin-top: 16px; }
+  .journal-intro h1 { font-size: 40px; }
+}
+@media (max-width: 760px) {
+  .journal-main, .journal-main.map-home { padding: 26px 24px 48px; }
+  .page-heading { align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
+  .page-heading h1 { font-size: 29px; }
+  .chapter-mark { display: none; }
+  .album-library .library-grid, .saved-cities, .city-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .album-grid { gap: 25px 18px; }
+  .album-cover-title { padding: 35px 16px 18px; }
+  .album-cover-title > span { font-size: 23px; }
+  .map-composition { grid-template-columns: minmax(0, 1fr); }
+  .map-toolbar, .gallery-tools { flex-wrap: wrap; }
+  .photo-viewer { padding: 20px; }
+}
+@media (max-width: 480px) {
+  .home-header { padding: 19px 20px; gap: 18px 12px; }
+  .wordmark { font-size: 23px; }
+  .account-menu { gap: 8px; flex-wrap: nowrap; font-size: 11px; }
+  .account-menu > span { display: none; }
+  .account-menu .quiet-button { padding: 7px 9px; }
+  .journal-nav a[aria-current=page]::after { bottom: -19px; }
+  .journal-main, .journal-main.map-home { padding-inline: 20px; }
+  .album-grid { gap: 22px 14px; }
+  .album-cover-title { padding-inline: 12px; }
+  .album-cover-title > span { font-size: 20px; }
+  .album-caption strong { font-size: 13px; }
+  .album-caption span { font-size: 11px; }
+  .photo-grid, .saved-cities, .city-grid { grid-template-columns: minmax(0, 1fr); }
+  .auth-page { padding: 26px 20px; }
+  .auth-card { padding: 28px 22px; }
+  .status-card { width: calc(100% - 40px); padding: 30px; }
+  .upload-panel, .create-panel { padding: 22px 18px; }
+  .search-form { flex-wrap: wrap; }
+  .search-form input { flex-basis: 100%; }
+  .section-heading { flex-wrap: wrap; }
+  .gallery-tools, .gallery-buttons, .viewer-header, .viewer-navigation { gap: 10px; }
+  .viewer-header, .viewer-navigation { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .album-cover > .original-frame > img { transition: none; }
 }

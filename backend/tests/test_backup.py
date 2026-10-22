@@ -36,6 +36,7 @@ from city_memories.backup import (
     verify_backup,
 )
 from city_memories.cleanup import InstanceLock
+from city_memories.config import Settings, get_settings
 from city_memories.main import create_app
 from city_memories.models import ImportBatch, Photo, UploadItem
 
@@ -81,6 +82,70 @@ def refresh_db_hash(root):
 
 def settings_at(settings, root):
     return settings.model_copy(update={"data_dir": root, "cleanup_enabled": False})
+
+
+def test_legacy_backup_roundtrip_keeps_schema_until_explicit_upgrade(
+    tmp_path, outputs, monkeypatch
+):
+    source = tmp_path / "legacy-source"
+    snapshot, restored = outputs
+    monkeypatch.setenv("CITY_MEMORIES_DATA_DIR", str(source))
+    get_settings.cache_clear()
+    config = Config(Path(__file__).resolve().parents[1] / "alembic.ini")
+    command.upgrade(config, backup.LEGACY_SCHEMA_REVISION)
+    settings = Settings(data_dir=source, _env_file=None)
+    settings.ensure_data_directories()
+    summary = create_backup(source, snapshot)
+    assert summary["users"] == 0
+    assert load_manifest(snapshot)["schema_revision"] == backup.LEGACY_SCHEMA_REVISION
+    assert verify_backup(snapshot) == summary
+    assert restore_backup(snapshot, restored)["users"] == 0
+    with sqlite3.connect(restored / "database" / DATABASE_NAME) as db:
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == (
+            backup.LEGACY_SCHEMA_REVISION
+        )
+        assert "preferred_cover_photo_id" not in {
+            row[1] for row in db.execute("PRAGMA table_info(albums)")
+        }
+    monkeypatch.setenv("CITY_MEMORIES_DATA_DIR", str(restored))
+    get_settings.cache_clear()
+    command.upgrade(config, "head")
+    get_settings.cache_clear()
+    with sqlite3.connect(restored / "database" / DATABASE_NAME) as db:
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == (
+            backup.SCHEMA_REVISION
+        )
+    assert verify_backup(snapshot) == summary
+
+
+def test_cover_preference_survives_backup_restore(collection, outputs):
+    _, client, settings, now, _, album, ids, _ = collection
+    snapshot, restored = outputs
+    current = read(client, f"/albums/{album}")
+    assert client.patch(
+        f"/api/v1/albums/{album}/cover", headers=csrf(client),
+        json={"photo_id": ids[2], "expected_revision": current["revision"]},
+    ).status_code == 200
+    create_backup(settings.data_dir, snapshot, clock=lambda: now[0])
+    assert load_manifest(snapshot)["schema_revision"] == backup.SCHEMA_REVISION
+    restore_backup(snapshot, restored, clock=lambda: now[0])
+    with TestClient(create_app(settings_at(settings, restored))) as recovered:
+        recovered.app.state.auth.clock = lambda: now[0]
+        assert login(recovered, "Album_Traveler").status_code == 200
+        assert read(recovered, f"/albums/{album}")["cover_photo_id"] == ids[2]
+        assert read(recovered, "/me/albums")["items"][0]["cover_photo_id"] == ids[2]
+
+
+def test_backup_manifest_must_match_actual_supported_schema(collection, outputs):
+    _, _, settings, now, _, _, _, _ = collection
+    snapshot, _ = outputs
+    create_backup(settings.data_dir, snapshot, clock=lambda: now[0])
+    update_manifest(
+        snapshot, lambda value: value.update(schema_revision=backup.LEGACY_SCHEMA_REVISION)
+    )
+    with pytest.raises(BackupError) as error:
+        verify_backup(snapshot)
+    assert error.value.code == "SCHEMA_MISMATCH"
 
 
 def test_roundtrip_accounts_ownership_notes_order_duplicates_and_old_sessions(collection, outputs):

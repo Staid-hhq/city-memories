@@ -143,19 +143,17 @@ def test_city_seed_upgrade_preserves_t01_data_and_stable_mapping(tmp_path, monke
             )
         )
         db.flush()
-        db.add(
-            Album(
-                id="old-album",
-                owner_id="old-user",
-                city_id="existing-city",
-                year=2020,
-                created_at=1,
-                updated_at=1,
-            )
+        # This fixture deliberately targets the T01 schema, before later
+        # nullable columns; use the historical columns rather than today's ORM.
+        db.execute(
+            text("INSERT INTO albums "
+                 "(id, owner_id, city_id, year, revision, created_at, updated_at) "
+                 "VALUES ('old-album', 'old-user', 'existing-city', 2020, 1, 1, 1)")
         )
     command.upgrade(config, "head")
     with Session(engine) as db, db.begin():
         assert db.get(Album, "old-album").year == 2020
+        assert db.get(Album, "old-album").preferred_cover_photo_id is None
         assert db.get(User, "old-user").password_hash == "test-only-hash"
         seeded = db.scalar(select(City).where(City.provider_code == "156440300"))
         city_id = seeded.id

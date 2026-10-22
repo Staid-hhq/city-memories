@@ -48,13 +48,16 @@ class ApiBoundary:
             reorder = scope["path"].startswith("/api/v1/albums/") and scope["path"].endswith(
                 "/reorder"
             )
+            cover = scope["path"].startswith("/api/v1/albums/") and scope["path"].endswith(
+                "/cover"
+            )
             move = scope["path"].startswith("/api/v1/photos/") and scope["path"].endswith("/move")
             trash = scope["path"].startswith("/api/v1/photos/") and scope["path"].endswith("/trash")
             restore = scope["path"].startswith("/api/v1/trash/photos/") and scope["path"].endswith(
                 "/restore"
             )
             json_write = (
-                json_write or new_import or commit_import or note_write or reorder or move
+                json_write or new_import or commit_import or note_write or reorder or cover or move
                 or trash or restore
             )
             # Allows 2000 Unicode code points even when JSON-escaped surrogate pairs

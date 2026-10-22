@@ -47,7 +47,7 @@ uv run python -m pytest -q
 
 ## T10 到期清理及故障恢复
 
-当前 API 版本 0.13.0，复用既有表、依赖和迁移头 `b61e24f803a7`。不新增清理按钮或对外清理接口，默认启动补做一轮，再在后台每轮结束后等待 60 秒。无需预先创建计划任务或填写清理密钥。**升级后下次启动真实服务就会清理已到期副本；开发验证只使用临时目录，没有清理用户真实资料。**
+T10 交付时沿用既有表、依赖和迁移头 `b61e24f803a7`；当前 API 版本仍为 0.13.0，第二版数据库升级见文末 V2-01。没有新增清理按钮或对外清理接口，默认启动补做一轮，再在后台每轮结束后等待 60 秒。无需预先创建计划任务或填写清理密钥。**升级后下次启动真实服务就会清理已到期副本；开发验证只使用临时目录，没有清理用户真实资料。**
 
 配置取自根目录 `.env` 或环境变量：
 
@@ -78,7 +78,7 @@ uv run python -m pytest -q
 
 目标父目录须存在，最终目录必须不存在、位于 Git 工作区外且与来源不互相包含；不覆盖、不合并、不递归删除任何目录，拒绝链接/网络路径。操作日志只有汇总计数和固定错误，不输出私人字段。备份本身仍含照片、文字、账号及密码哈希，须保密；不内置加密，不自动判断物理介质独立性，不创建定时任务或删除旧备份。
 
-支持当前格式 v1、迁移头 `b61e24f803a7`；无新增迁移或依赖，不自动做跨版本迁移。本轮只使用合成数据，实际使用时的独立介质、频率和保留策略仍需确定。完整命令、切换目录检查与失败处理见 [操作说明](../docs/guides/backup-restore.md)；42 项新增测试与全量结果见 [T11 交付记录](../docs/reports/t11-backup-verification.md)。
+备份格式保持 v1；V2-01 工具兼容旧迁移 `b61e24f803a7` 和新迁移 `c7e9a162b4d8` 的创建、校验与恢复，保留源 schema，不自动升级备份或恢复结果。旧版本恢复目录在启动新版应用前须显式执行 Alembic 升级；不要在备份目录本身迁移。实际使用时的独立介质、频率和保留策略仍需确定。完整命令与升级顺序见 [操作说明](../docs/guides/backup-restore.md)；T11 的历史结果见 [T11 交付记录](../docs/reports/t11-backup-verification.md)，本轮兼容验证见 [V2-01 记录](../docs/reports/2026-10-21-v2-album-library.md)。
 
 ## T13 正式地图配置与城市目录
 
@@ -87,3 +87,18 @@ uv run python -m pytest -q
 根目录私有 `.env` 或环境变量可设置 `CITY_MEMORIES_MAP_KEY`；也可设置 `CITY_MEMORIES_MAP_KEY_FILE`，指向含 `TIANDITU_KEY=占位符` 的受保护本地配置文件。不要同时复制真实值到源码。另需 `CITY_MEMORIES_MAP_REVIEW_NUMBER`、`CITY_MEMORIES_MAP_REVIEW_DATE`，由官方实际服务核对后配置；缺失则只使用文字入口。本机已引用现有 Key 文件，仓库只提供 `.env.example`。
 
 浏览器 Key 对已登录浏览器可见，上线须复核域名限制和使用条件；此接口不是保护服务端秘密的通用渠道。配置错误不会在响应中回显 Key 或文件路径。详见 [T13 交付](../docs/reports/t13-map-verification.md)、[目录审核](../docs/reference/t13-city-catalog.md)。后端全量 257 项及 Ruff 通过，无新增迁移或依赖。
+
+## V2-01 独立相册与封面偏好
+
+新增 `GET /api/v1/me/albums`，返回本人跨城市的 `{items, next_cursor}` 相册列表，分页默认 24、最多 100，按年份倒序、未标年份最后，同年按稳定 ID 排列；签名游标绑定当前账号。各项沿用 `AlbumView`，有效照片数量与封面按本人资源计算。
+
+新增 `PATCH /api/v1/albums/{id}/cover`，JSON 为 `{photo_id: null|string, expected_revision: int}`，成功返回更新后的 `AlbumView`。修改需要当前会话、CSRF 和本人影集；手选照片须仍属于该影集且有效，版本不匹配返回 `409 / ALBUM_CHANGED`。`photo_id: null` 恢复自动封面；当前手选照片无效时展示会回退到影集顺序中的第一张有效照片，无有效照片时为空。封面偏好不修改照片 ID、原图字节、文字或顺序。
+
+迁移 `c7e9a162b4d8` 在 `albums` 增加可空的 `preferred_cover_photo_id`，现有行默认 null，使用自动封面。**PyCharm 启动入口不会自动迁移。** 先正常停机、核对数据目录并备份，再从 `backend` 目录由使用者执行：
+
+```powershell
+& .\.venv\Scripts\python.exe -m alembic upgrade head
+if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动新版服务' }
+```
+
+本轮仅升级合成测试库，未读取或迁移真实数据库、照片和 `.env`；依赖与锁文件保持不变。备份工具接受旧/新 schema 并保持源版本；旧库或旧恢复目录启动新版前仍要按上述命令显式升级。实现、验证进度和第二版剩余任务见 [V2-01 记录](../docs/reports/2026-10-21-v2-album-library.md)。

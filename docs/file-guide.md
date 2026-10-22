@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-10-17。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新：2026-10-21。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -37,7 +37,7 @@
 | [playwright.config.ts](../frontend/playwright.config.ts) | 默认 Edge 测试及隔离前后端服务配置 |
 | [playwright.delivery.config.ts](../frontend/playwright.delivery.config.ts) | 构建版空库验收，复用连续流程 |
 | [playwright.scale.config.ts](../frontend/playwright.scale.config.ts) | 显式启用的重量级规模测试配置 |
-| [scripts/test-e2e.mjs](../frontend/scripts/test-e2e.mjs) | 默认测试分三组运行，各自重建隔离服务 |
+| [scripts/test-e2e.mjs](../frontend/scripts/test-e2e.mjs) | 默认业务/地图/连续流程/独立相册四组运行，各自重建隔离服务 |
 | [scripts/test-scale.mjs](../frontend/scripts/test-scale.mjs) | 先规模浏览器测试，再执行离线维护与哈希审计 |
 
 ### 应用与业务代码
@@ -48,13 +48,14 @@
 | [src/vite-env.d.ts](../frontend/src/vite-env.d.ts) | Vite 客户端的 TypeScript 类型声明 |
 | [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、会话状态、退出清理和顶层路由 |
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
-| [src/styles/global.css](../frontend/src/styles/global.css) | 当前页面和功能组件的统一样式；未改变原有样式顺序 |
-| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的手帐外壳、城市搜索、年份影集、业务子路由与地图联动 |
+| [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、主导航、封面卡与现有功能组件的统一样式 |
+| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、城市搜索、年份影集、相册入口与地图联动 |
+| [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 本人独立相册分页、返回位置记忆及城市页共用的大封面卡片 |
 | [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、影集和个人地图统计类型，不依赖页面组件 |
 | [src/features/imports/UploadPanel.tsx](../frontend/src/features/imports/UploadPanel.tsx) | 单张原图上传、校验、确认保存与失败状态 |
-| [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 批量导入页面、任务执行、重选、重试和恢复查询 |
+| [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 批量导入页面、任务执行、重选、重试和恢复查询；保留独立相册的返回来源 |
 | [src/features/imports/importQueue.ts](../frontend/src/features/imports/importQueue.ts) | 文件编号/年份解析、批次拆分、队列数据和提交规则 |
-| [src/features/photos/PhotoGallery.tsx](../frontend/src/features/photos/PhotoGallery.tsx) | 照片分页、查看层、前后浏览、影集内排序 |
+| [src/features/photos/PhotoGallery.tsx](../frontend/src/features/photos/PhotoGallery.tsx) | 照片分页、查看层、前后浏览、排序与手选/恢复自动封面 |
 | [src/features/photos/OriginalImage.tsx](../frontend/src/features/photos/OriginalImage.tsx) | 视野附近按需取原图，取消请求和释放 Blob URL/图片资源 |
 | [src/features/photos/NoteEditor.tsx](../frontend/src/features/photos/NoteEditor.tsx) | 照片文字编辑、草稿离开提醒和版本冲突处理 |
 | [src/features/photos/MovePhoto.tsx](../frontend/src/features/photos/MovePhoto.tsx) | 目标城市/年份选择、创建目标影集、确认跨影集移动 |
@@ -71,6 +72,7 @@
 | --- | --- |
 | [tests/e2e/auth.spec.ts](../frontend/tests/e2e/auth.spec.ts) | 注册、登录、退出、权限及会话行为 |
 | [tests/e2e/albums.spec.ts](../frontend/tests/e2e/albums.spec.ts) | 城市搜索、空影集、年份和账号隔离 |
+| [tests/e2e/library.spec.ts](../frontend/tests/e2e/library.spec.ts) | 独立相册分页/返回、空态/失败/换号隔离、跨页封面选择和冲突核对 |
 | [tests/e2e/uploads.spec.ts](../frontend/tests/e2e/uploads.spec.ts) | 单图校验、保存、取消、失败和原字节核对 |
 | [tests/e2e/photos.spec.ts](../frontend/tests/e2e/photos.spec.ts) | 分页、按需原图、查看层、返回位置和授权 |
 | [tests/e2e/batches.spec.ts](../frontend/tests/e2e/batches.spec.ts) | 队列纯规则与批量上传、拆批、重试、恢复流程 |
@@ -105,7 +107,7 @@
 | [src/city_memories/errors.py](../backend/src/city_memories/errors.py) | 统一业务错误及 API 响应格式 |
 | [src/city_memories/boundary.py](../backend/src/city_memories/boundary.py) | 请求边界：CSRF、请求体限制、安全缓存头和异常转换 |
 | [src/city_memories/auth.py](../backend/src/city_memories/auth.py) | 密码哈希、会话、CSRF、注册登录与限流 |
-| [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市/年份影集查询创建、个人统计及游标分页 |
+| [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市/年份影集、独立相册分页、封面偏好、个人统计及签名游标 |
 | [src/city_memories/imports.py](../backend/src/city_memories/imports.py) | 导入批次、上传租约、内容接收、幂等提交、取消及队列查询 |
 | [src/city_memories/storage.py](../backend/src/city_memories/storage.py) | 私有原图/暂存文件的校验、路径边界与文件操作 |
 | [src/city_memories/photos.py](../backend/src/city_memories/photos.py) | 照片详情、分页、前后位置与原图访问授权 |
@@ -125,6 +127,7 @@
 | [migrations/script.py.mako](../backend/migrations/script.py.mako) | 新迁移文件模板 |
 | [migrations/versions/4a097ff7fccb_create_initial_schema.py](../backend/migrations/versions/4a097ff7fccb_create_initial_schema.py) | 首次创建正式数据库结构 |
 | [migrations/versions/b61e24f803a7_seed_verified_cities.py](../backend/migrations/versions/b61e24f803a7_seed_verified_cities.py) | 初始已核对城市种子迁移；后续目录补齐由应用负责 |
+| [migrations/versions/c7e9a162b4d8_add_album_cover_preference.py](../backend/migrations/versions/c7e9a162b4d8_add_album_cover_preference.py) | 为相册增加可空封面偏好；旧行默认使用自动封面 |
 
 迁移历史不是可随意删除的旧代码；实际数据库结构以迁移与模型为准，不直接执行文档中的 SQL 设计样例覆盖数据库。
 
@@ -168,7 +171,7 @@
 | [architecture/data-model.sql](architecture/data-model.sql) | 设计阶段 SQL 样例，不是运行数据库或正式迁移入口 |
 | [architecture/account-storage-plan.md](architecture/account-storage-plan.md) | 账号隔离、原图存储和备份方案依据 |
 | [architecture/map-plan.md](architecture/map-plan.md) | 地图供应商、来源、调用和加载方案依据 |
-| [planning/development-plan.md](planning/development-plan.md) | T01–T17 任务进度、依赖和逐项实施记录 |
+| [planning/development-plan.md](planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖和逐项实施记录 |
 | [reference/t03-city-mappings.md](reference/t03-city-mappings.md) | 初期三城 UUID/供应商映射与核对依据 |
 | [reference/t13-city-catalog.md](reference/t13-city-catalog.md) | 正式目录审核、特殊地区口径和待开放项 |
 | [reports/feasibility.md](reports/feasibility.md) | 准备阶段关键可行性验证与限制 |
@@ -190,6 +193,7 @@
 | [reports/t16-local-delivery-verification.md](reports/t16-local-delivery-verification.md) | T16 本地第一版、空库与真实构建资源验收 |
 | [reports/2026-10-17-repository-organization.md](reports/2026-10-17-repository-organization.md) | 本轮目录变更、路径说明及复测记录 |
 | [reports/2026-10-17-ide-startup.md](reports/2026-10-17-ide-startup.md) | 开发软件核对、PyCharm 运行配置和隔离验证记录 |
+| [reports/2026-10-21-v2-album-library.md](reports/2026-10-21-v2-album-library.md) | V2-01 白色界面、独立相册、封面偏好、迁移/备份兼容与本轮验证 |
 
 ## 独立验证工具
 
@@ -266,4 +270,4 @@
 | `.git/` | 版本历史和远程信息，不手动移动内部文件 |
 | IDE 配置、系统临时文件 | 不属于产品；按 `.gitignore` 排除 |
 
-本轮只整理源码和文档，不清理上述本地数据。唯一移除的既有文件是已经有迁移脚本的目录内 `.gitkeep` 空占位文件，可从 Git 历史恢复。
+2026-10-17 目录整理只调整源码和文档，没有清理上述本地数据；当时移除的仅为已有迁移脚本目录内的 `.gitkeep` 空占位文件，可从 Git 历史恢复。V2-01 新增的源码与迁移列于上表，本轮也未读取或清理私人资料。

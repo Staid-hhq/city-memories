@@ -13,7 +13,7 @@ const execute = promisify(execFile)
 test('T16 空库启动、构建产物、深链接刷新和同源 API 代理', async ({ page, browser }) => {
   const startup = JSON.parse(await readFile(path.join(results, 'startup.json'), 'utf8'))
   expect(startup.initial_counts).toEqual({ users: 0, albums: 0, photos: 0 })
-  expect(startup.migration).toBe('b61e24f803a7')
+  expect(startup.migration).toBe('c7e9a162b4d8')
   expect(startup.map_enabled).toBe(false)
 
   const errors: string[] = []

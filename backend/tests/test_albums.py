@@ -1,14 +1,19 @@
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
+from photo_fixtures import seed_photos
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import OperationalError
 from test_auth import csrf, login, register
 from test_auth import environment as environment
 
 from city_memories.auth import COOKIE_NAME
+from city_memories.config import get_settings
 from city_memories.main import create_app
 from city_memories.models import Album, City, ImportBatch, Photo, UploadItem
 
@@ -86,6 +91,227 @@ def test_empty_albums_order_duplicates_and_atlas(environment):
     assert atlas["items"][0]["lit"] is False
     assert atlas["items"][0]["city"]["id"] == SHENZHEN
     assert create(client, 2026, GUANGZHOU).json()["data"]["id"] != ids[2026]
+
+
+def test_my_albums_default_page_and_cross_city_keyset_order(environment):
+    app, client, _, now = environment
+    signed_in(client)
+    owner = client.get("/api/v1/auth/me").json()["data"]["id"]
+    records = []
+    with app.state.auth.sessions.begin() as db:
+        for index, year in enumerate([*range(2000, 2026), 2025, None]):
+            identifier = str(uuid4())
+            records.append((identifier, year))
+            db.add(Album(
+                id=identifier, owner_id=owner,
+                city_id=GUANGZHOU if index == 26 else SHENZHEN,
+                year=year, revision=1, created_at=now[0], updated_at=now[0],
+            ))
+    expected = [identifier for identifier, _ in sorted(
+        records, key=lambda item: (-(item[1] or 0), item[0])
+    )]
+    first = client.get("/api/v1/me/albums").json()["data"]
+    assert len(first["items"]) == 24 and first["next_cursor"]
+    assert [album["id"] for album in first["items"]] == expected[:24]
+    second = client.get(
+        "/api/v1/me/albums", params={"cursor": first["next_cursor"]}
+    ).json()["data"]
+    assert [album["id"] for album in first["items"] + second["items"]] == expected
+    assert second["items"][-1]["year"] is None and second["next_cursor"] is None
+    assert all(album["cover_photo_id"] is None for album in first["items"])
+    assert not any(name in str(first) for name in ("owner_id", "preferred_cover_photo_id"))
+    assert client.get("/api/v1/me/albums?limit=0").status_code == 422
+    assert client.get("/api/v1/me/albums?limit=101").status_code == 422
+
+
+def test_my_albums_cursor_account_scope_and_insert_before_page(environment):
+    app, client, _, _ = environment
+    signed_in(client)
+    assert client.get("/api/v1/me/albums").json()["data"] == {
+        "items": [], "next_cursor": None,
+    }
+    ids = [create(client, year).json()["data"]["id"] for year in (2026, 2024, None)]
+    first = client.get("/api/v1/me/albums?limit=1").json()["data"]
+    create(client, 2025, GUANGZHOU)
+    second = client.get(
+        "/api/v1/me/albums", params={"cursor": first["next_cursor"]}
+    ).json()["data"]
+    assert [a["year"] for a in second["items"]] == [2025, 2024, None]
+    assert first["items"][0]["id"] not in {a["id"] for a in second["items"]}
+    city_cursor = client.get(
+        f"/api/v1/cities/{SHENZHEN}/albums?limit=1"
+    ).json()["data"]["next_cursor"]
+    for cursor in (city_cursor, first["next_cursor"] + "x"):
+        assert client.get("/api/v1/me/albums", params={"cursor": cursor}).status_code == 422
+    with TestClient(app) as other:
+        assert other.get("/api/v1/me/albums").status_code == 401
+        signed_in(other, "All_Albums_Other")
+        own = create(other, 2026, GUANGZHOU).json()["data"]["id"]
+        assert [a["id"] for a in other.get("/api/v1/me/albums").json()["data"]["items"]] == [own]
+        assert other.get(
+            "/api/v1/me/albums", params={"cursor": first["next_cursor"]}
+        ).status_code == 422
+    with app.state.auth.sessions.begin() as db:
+        db.get(City, SHENZHEN).is_active = 0
+    history = client.get("/api/v1/me/albums").json()["data"]["items"]
+    assert set(ids) <= {a["id"] for a in history}
+    assert all(not a["city"]["can_create"] for a in history if a["city"]["id"] == SHENZHEN)
+
+
+@pytest.fixture
+def cover_collection(environment):
+    app, client, settings, now = environment
+    signed_in(client)
+    owner = client.get("/api/v1/auth/me").json()["data"]["id"]
+    album = create(client, 2026).json()["data"]["id"]
+    photos, _ = seed_photos(app, owner, album, 3)
+    return app, client, settings, now, owner, album, photos
+
+
+def set_cover(client, album, photo, revision=None):
+    if revision is None:
+        revision = client.get(f"/api/v1/albums/{album}").json()["data"]["revision"]
+    return client.patch(
+        f"/api/v1/albums/{album}/cover", headers=csrf(client),
+        json={"photo_id": photo, "expected_revision": revision},
+    )
+
+
+def test_selected_cover_persists_reset_and_same_selection_is_idempotent(cover_collection):
+    _, client, settings, now, _, album, photos = cover_collection
+    before = client.get(f"/api/v1/albums/{album}").json()["data"]
+    assert before["cover_photo_id"] == photos[0]
+    now[0] += 10
+    response = set_cover(client, album, photos[2], before["revision"])
+    assert response.status_code == 200
+    selected = response.json()["data"]
+    assert selected["cover_photo_id"] == photos[2]
+    assert selected["original_url"] == f"/api/v1/photos/{photos[2]}/original"
+    assert selected["revision"] == before["revision"] + 1
+    assert selected["updated_at"] != before["updated_at"]
+    assert response.headers["cache-control"] == "private, no-store"
+    assert set_cover(client, album, photos[2]).json()["data"]["revision"] == selected["revision"]
+    with TestClient(create_app(settings)) as restarted:
+        assert login(restarted, "Album_Traveler").status_code == 200
+        recovered = restarted.get(f"/api/v1/albums/{album}").json()["data"]
+        library = restarted.get("/api/v1/me/albums").json()["data"]
+        assert recovered["cover_photo_id"] == photos[2]
+        assert library["items"][0]["cover_photo_id"] == photos[2]
+    reset = set_cover(client, album, None).json()["data"]
+    assert reset["cover_photo_id"] == photos[0] and reset["revision"] == selected["revision"] + 1
+    assert set_cover(client, album, None).json()["data"]["revision"] == reset["revision"]
+
+
+def test_cover_is_account_scoped_active_and_in_same_album(cover_collection):
+    app, client, _, _, owner, album, photos = cover_collection
+    other_album = create(client, 2025).json()["data"]["id"]
+    own_other_photos, _ = seed_photos(app, owner, other_album, 1)
+    with TestClient(app) as other:
+        signed_in(other, "Cover_Other")
+        other_owner = other.get("/api/v1/auth/me").json()["data"]["id"]
+        foreign_album = create(other, 2026).json()["data"]["id"]
+        foreign_photos, _ = seed_photos(app, other_owner, foreign_album, 1)
+        assert set_cover(other, album, photos[0], 2).status_code == 404
+    before = client.get(f"/api/v1/albums/{album}").json()["data"]
+    for photo in ("missing", foreign_photos[0], own_other_photos[0]):
+        response = set_cover(client, album, photo, before["revision"])
+        assert response.status_code == 404
+        assert response.json()["error"]["code"] == "NOT_FOUND"
+    assert set_cover(client, foreign_album, foreign_photos[0], 2).status_code == 404
+    assert client.get(f"/api/v1/albums/{album}").json()["data"] == before
+
+
+def test_cover_rejects_stale_revision_csrf_invalid_fields_and_large_body(cover_collection):
+    _, client, _, _, _, album, photos = cover_collection
+    selected = set_cover(client, album, photos[2]).json()["data"]
+    response = set_cover(client, album, photos[1], selected["revision"] - 1)
+    assert response.status_code == 409 and response.json()["error"]["code"] == "ALBUM_CHANGED"
+    path = f"/api/v1/albums/{album}/cover"
+    assert client.patch(path, json={"photo_id": None, "expected_revision": 3}).status_code == 403
+    for data in (
+        {"photo_id": None, "expected_revision": True},
+        {"photo_id": None, "expected_revision": "3"},
+        {"photo_id": 1, "expected_revision": 3},
+        {"photo_id": "", "expected_revision": 3},
+        {"photo_id": None, "expected_revision": 3, "owner_id": "forged"},
+    ):
+        assert client.patch(path, headers=csrf(client), json=data).status_code == 422
+    assert client.patch(
+        path, headers=csrf(client), content=b" " * (16 * 1024 + 1)
+    ).status_code == 413
+    assert client.get(f"/api/v1/albums/{album}").json()["data"]["cover_photo_id"] == photos[2]
+
+
+def test_cover_version_is_shared_with_reordering_and_concurrent_selections(cover_collection):
+    _, client, _, _, _, album, photos = cover_collection
+    revision = client.get(f"/api/v1/albums/{album}").json()["data"]["revision"]
+    headers = csrf(client)
+
+    def choose(photo):
+        return client.patch(
+            f"/api/v1/albums/{album}/cover", headers=headers,
+            json={"photo_id": photo, "expected_revision": revision},
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(choose, photos[1:]))
+    assert sorted(response.status_code for response in responses) == [200, 409]
+    chosen = next(response.json()["data"] for response in responses if response.status_code == 200)
+    assert client.post(
+        f"/api/v1/albums/{album}/reorder", headers=headers,
+        json={"photo_id": photos[0], "before_photo_id": None,
+              "expected_album_revision": revision},
+    ).status_code == 409
+    reordered = client.post(
+        f"/api/v1/albums/{album}/reorder", headers=headers,
+        json={"photo_id": photos[0], "before_photo_id": None,
+              "expected_album_revision": chosen["revision"]},
+    )
+    assert reordered.status_code == 200
+    latest = client.get(f"/api/v1/albums/{album}").json()["data"]
+    assert latest["cover_photo_id"] == chosen["cover_photo_id"]
+
+
+@pytest.mark.parametrize("lifecycle", ["trash", "move"])
+def test_cover_falls_back_when_selected_photo_leaves_album(cover_collection, lifecycle):
+    app, client, _, _, _, album, photos = cover_collection
+    selected = set_cover(client, album, photos[2]).json()["data"]
+    photo = client.get(f"/api/v1/photos/{photos[2]}").json()["data"]
+    if lifecycle == "trash":
+        response = client.post(
+            f"/api/v1/photos/{photos[2]}/trash", headers=csrf(client),
+            json={"expected_photo_revision": photo["revision"],
+                  "expected_album_revision": selected["revision"]},
+        )
+    else:
+        target = create(client, 2025).json()["data"]
+        response = client.post(
+            f"/api/v1/photos/{photos[2]}/move", headers=csrf(client),
+            json={"target_album_id": target["id"], "expected_photo_revision": photo["revision"],
+                  "expected_source_revision": selected["revision"],
+                  "expected_target_revision": target["revision"]},
+        )
+    assert response.status_code == 200
+    detail = client.get(f"/api/v1/albums/{album}").json()["data"]
+    assert detail["cover_photo_id"] == photos[0] and detail["photo_count"] == 2
+    assert set_cover(client, album, photos[2]).status_code == 404
+    # Even an invalid on-disk preference must not become an original URL.
+    with app.state.auth.sessions.begin() as db:
+        db.get(Album, album).preferred_cover_photo_id = "missing-photo"
+    assert client.get(f"/api/v1/albums/{album}").json()["data"]["cover_photo_id"] == photos[0]
+
+
+def test_cover_upgrade_preserves_old_albums_photos_and_original_bytes(cover_collection):
+    _, client, _, _, _, album, photos = cover_collection
+    before = client.get(f"/api/v1/albums/{album}").json()["data"]
+    originals = [client.get(f"/api/v1/photos/{photo}/original").content for photo in photos]
+    config = Config(Path(__file__).resolve().parents[1] / "alembic.ini")
+    get_settings.cache_clear()
+    command.downgrade(config, "b61e24f803a7")
+    command.upgrade(config, "head")
+    get_settings.cache_clear()
+    assert client.get(f"/api/v1/albums/{album}").json()["data"] == before
+    assert [client.get(f"/api/v1/photos/{photo}/original").content for photo in photos] == originals
 
 
 @pytest.mark.parametrize("year", [None, 2026])
