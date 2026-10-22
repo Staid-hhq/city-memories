@@ -1,6 +1,6 @@
 # 文档索引
 
-当前进度：T01–T16、V2-01 白色界面/独立相册及 V2-02/V2-03 中国市级地图已完成；V2-04 已完成首页双栏、地图交互、相册查找、卡片排版和操作反馈子项，其余浏览细节和整体验收、T17 部署待安排。进度以[开发计划](planning/development-plan.md)为准，本轮证据见[操作反馈记录](reports/2026-10-23-operation-feedback.md)，此前见[卡片排版记录](reports/2026-10-23-album-card-layout.md)、[相册查找记录](reports/2026-10-23-album-library-filters.md)、[首页改善记录](reports/2026-10-23-home-map-sidebar.md)、[中国地图记录](reports/2026-10-22-china-city-map.md)与 [V2-01 记录](reports/2026-10-21-v2-album-library.md)。日常操作以使用指南为准；历史报告保留当时的环境、失败过程与限制，不因归档而视为过期或全部重新验收。
+当前进度：T01–T16、V2-01 白色界面/独立相册及 V2-02/V2-03 中国市级地图已完成；V2-04 已完成首页双栏、地图交互、相册查找、卡片排版、操作反馈及连接提示子项，手机端细节和整体验收、T17 部署待安排。进度以[开发计划](planning/development-plan.md)为准，本轮证据见[连接提示记录](reports/2026-10-23-connection-feedback.md)，此前见[操作反馈记录](reports/2026-10-23-operation-feedback.md)、[卡片排版记录](reports/2026-10-23-album-card-layout.md)、[相册查找记录](reports/2026-10-23-album-library-filters.md)、[首页改善记录](reports/2026-10-23-home-map-sidebar.md)、[中国地图记录](reports/2026-10-22-china-city-map.md)与 [V2-01 记录](reports/2026-10-21-v2-album-library.md)。日常操作以使用指南为准；历史报告保留当时的环境、失败过程与限制，不因归档而视为过期或全部重新验收。
 
 ## 按目的阅读
 
@@ -44,6 +44,7 @@
 | [2026-10-23 相册查找](reports/2026-10-23-album-library-filters.md) | 城市/所属地区搜索、本人年份选项、组合筛选与排序、返回及请求隔离 |
 | [2026-10-23 相册卡片排版](reports/2026-10-23-album-card-layout.md) | 共享 3:4 封面、完整城市名、年份/照片数对齐、空封面与窄屏复查 |
 | [2026-10-23 操作反馈](reports/2026-10-23-operation-feedback.md) | 导入、封面和删除/恢复的持续进度、明确结果与查询/重试入口 |
+| [2026-10-23 连接与启动提示](reports/2026-10-23-connection-feedback.md) | 服务响应分类、启动帮助、手动会话核对与草稿/账号边界 |
 
 T01 的实施证据在开发计划。保留原有报告文件名便于按任务编号查找；没有复制另一套架构、接口或任务清单。
 

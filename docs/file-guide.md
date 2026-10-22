@@ -56,8 +56,8 @@
 | --- | --- |
 | [src/main.tsx](../frontend/src/main.tsx) | 创建 React 根节点和 Router，加载全局样式 |
 | [src/vite-env.d.ts](../frontend/src/vite-env.d.ts) | Vite 客户端的 TypeScript 类型声明 |
-| [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、会话状态、退出清理和顶层路由 |
-| [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
+| [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、启动连接帮助、会话手动核对、退出清理和顶层路由 |
+| [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、主导航、封面卡与现有功能组件的统一样式 |
 | [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、城市搜索、年份影集、相册入口与地图联动 |
@@ -82,7 +82,7 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| [tests/e2e/auth.spec.ts](../frontend/tests/e2e/auth.spec.ts) | 注册、登录、退出、权限及会话行为 |
+| [tests/e2e/auth.spec.ts](../frontend/tests/e2e/auth.spec.ts) | 注册/登录/退出、启动异常与超时重连、会话核对、草稿和权限隔离 |
 | [tests/e2e/albums.spec.ts](../frontend/tests/e2e/albums.spec.ts) | 城市搜索、空影集、年份和账号隔离 |
 | [tests/e2e/library.spec.ts](../frontend/tests/e2e/library.spec.ts) | 独立相册分页/返回、空态/失败/换号隔离、跨页封面选择和冲突核对 |
 | [tests/e2e/library-filters.spec.ts](../frontend/tests/e2e/library-filters.spec.ts) | 相册组合筛选/排序、完整年份选项、分页返回及失败/迟到请求/账号隔离 |
@@ -213,6 +213,7 @@
 | [reports/2026-10-23-album-library-filters.md](reports/2026-10-23-album-library-filters.md) | V2-04 相册城市/地区和年份查找、排序、接口及隔离验证 |
 | [reports/2026-10-23-album-card-layout.md](reports/2026-10-23-album-card-layout.md) | V2-04 共享相册卡片排版、空封面与窄屏视觉复查及既有行为回归 |
 | [reports/2026-10-23-operation-feedback.md](reports/2026-10-23-operation-feedback.md) | V2-04 导入、封面和回收/恢复反馈、重试核对及本轮验证 |
+| [reports/2026-10-23-connection-feedback.md](reports/2026-10-23-connection-feedback.md) | V2-04 连接错误分类、启动帮助、会话核对及隔离验证 |
 
 ## 独立验证工具
 

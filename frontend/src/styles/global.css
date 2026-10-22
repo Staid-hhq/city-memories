@@ -103,6 +103,15 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .status-card { width: 440px; padding: 44px; border: 1px solid #e3d3bc; border-radius: 18px; background: #fffcf6; }
 .status-card h1 { font-size: 40px; }
 .status-card p { line-height: 1.8; }
+.status-card.connection-card { width: min(560px, calc(100% - 40px)); margin: 24px 0; }
+.connection-card h1 { margin-bottom: 24px; }
+.connection-card .operation-feedback { margin-bottom: 0; }
+.connection-card > .primary-button { margin-top: 18px; }
+.connection-help { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.connection-help summary { width: fit-content; color: var(--accent); cursor: pointer; }
+.connection-help ol { margin: 14px 0; padding-left: 20px; }
+.connection-help li + li { margin-top: 8px; }
+.session-connection-notice { max-width: 1520px; margin: auto; padding: 0 24px; }
 .home-header { display: flex; align-items: center; justify-content: space-between; padding: 22px 44px; border-bottom: 1px solid #e4d8c6; background: #fffcf6; }
 .wordmark { font-family: "SimSun", serif; font-size: 25px; font-weight: 700; letter-spacing: .15em; }
 .home-header small { font-size: 9px; color: #a48b72; letter-spacing: .15em; margin-left: 18px; }

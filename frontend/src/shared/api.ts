@@ -37,7 +37,26 @@ export function errorMessage(error: unknown) {
       ? `${error.message}（约 ${error.retryAfter} 秒后可重试）`
       : error.message
   }
-  return '暂时连接不上服务，请检查网络后重试。'
+  return '暂时连接不上服务，请确认服务和连接状态后重试。'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function responseError(status: number, result: unknown, retryAfter: string | null, fallbackCode = 'REQUEST_FAILED') {
+  const detail = isRecord(result) && isRecord(result.error) ? result.error : null
+  const code = typeof detail?.code === 'string' && detail.code.trim() ? detail.code : fallbackCode
+  const fallback = status >= 500 ? '服务暂时无法处理请求，请稍后重试。'
+    : status === 401 ? '登录状态已失效，请重新登录。'
+    : status === 403 ? '请求未获允许，请核对当前状态后重试。'
+    : '请求失败，请核对当前状态后重试。'
+  const message = typeof detail?.message === 'string' && detail.message.trim() ? detail.message : fallback
+  return new ApiError(status, code, message, Number(retryAfter) || null)
+}
+
+function invalidResponse(status: number) {
+  return new ApiError(status, 'RESPONSE_INVALID', '服务响应无法识别，请核对当前状态后重试。')
 }
 
 // Original bytes share logout cancellation/generation protection with JSON.
@@ -113,14 +132,18 @@ export async function api<T>(path: string, init: RequestInit = {}, privateReques
     const response = await fetch(`/api/v1${path}`, {
       ...init, method, headers, signal, credentials: 'same-origin', cache: 'no-store',
     })
-    const result = response.status === 204 ? null : await response.json()
+    // A stopped backend/proxy can return an empty or HTML error response. Keep
+    // its HTTP status instead of turning a JSON parse failure into a network error.
+    const result: unknown = response.status === 204 ? null : await response.json().catch((reason: unknown) => {
+      signal.throwIfAborted()
+      if (requestGeneration !== generation) throw new DOMException('会话已改变', 'AbortError')
+      if (!response.ok || reason instanceof SyntaxError) return null
+      throw reason
+    })
+    signal.throwIfAborted()
     if (requestGeneration !== generation) throw new DOMException('会话已改变', 'AbortError')
     if (!response.ok) {
-      const error = new ApiError(
-        response.status, result?.error?.code ?? 'REQUEST_FAILED',
-        result?.error?.message ?? '请求失败，请稍后重试',
-        Number(response.headers.get('Retry-After')) || null,
-      )
+      const error = responseError(response.status, result, response.headers.get('Retry-After'))
       if (response.status === 403 || error.code === 'SESSION_EXPIRED') csrfToken = null
       if (response.status === 401 && privateRequest) {
         clearSessionState()
@@ -128,12 +151,15 @@ export async function api<T>(path: string, init: RequestInit = {}, privateReques
       }
       throw error
     }
+    if (response.status !== 204 && (!isRecord(result) || !Object.hasOwn(result, 'data') || result.data === null || result.data === undefined)) {
+      throw invalidResponse(response.status)
+    }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !path.startsWith('/auth/')) {
       window.dispatchEvent(new Event('city-memories:data-changed'))
       const channel = new BroadcastChannel('city-memories-data')
       channel.postMessage('changed'); channel.close()
     }
-    return result?.data as T
+    return (isRecord(result) ? result.data : null) as T
   } finally {
     pending.delete(controller)
   }
@@ -164,9 +190,13 @@ export async function uploadFile<T>(path: string, file: File, signal: AbortSigna
       xhr.onload = () => {
         cleanup()
         if (combined.aborted || requestGeneration !== generation) { reject(new DOMException('会话已改变', 'AbortError')); return }
-        const result = xhr.response
-        if (xhr.status >= 200 && xhr.status < 300 && result?.data) { resolve(result.data as T); return }
-        const error = new ApiError(xhr.status, result?.error?.code ?? 'UPLOAD_FAILED', result?.error?.message ?? '上传响应不完整，请查询状态后重试', Number(xhr.getResponseHeader('Retry-After')) || null)
+        const result: unknown = xhr.response
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (isRecord(result) && Object.hasOwn(result, 'data') && result.data !== null && result.data !== undefined) resolve(result.data as T)
+          else reject(invalidResponse(xhr.status))
+          return
+        }
+        const error = responseError(xhr.status, result, xhr.getResponseHeader('Retry-After'), 'UPLOAD_FAILED')
         if (xhr.status === 403) csrfToken = null
         if (xhr.status === 401) { clearSessionState(); window.dispatchEvent(new Event('city-memories:expired')) }
         reject(error)

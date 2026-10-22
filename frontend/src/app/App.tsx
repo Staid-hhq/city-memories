@@ -3,11 +3,51 @@ import type { FormEvent } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { api, ApiError, clearSessionState, errorMessage, isAbort, setCsrfToken } from '../shared/api'
 import type { LoginResult, User } from '../shared/api'
+import { OperationFeedback } from '../shared/OperationFeedback'
 import { Journal } from '../features/albums/Journal'
 
 type SessionState =
-  | { phase: 'loading' | 'guest' | 'error' | 'logging-out' | 'logout-error'; message?: string }
+  | { phase: 'loading' | 'guest' | 'logging-out' | 'logout-error'; message?: string }
+  | { phase: 'error'; error: unknown }
   | { phase: 'user'; user: User }
+
+function isUser(value: unknown): value is User {
+  if (!value || typeof value !== 'object') return false
+  const user = value as Partial<User>
+  return [user.id, user.username, user.created_at].every(field => typeof field === 'string' && field.length > 0)
+}
+
+async function readSession(controller: AbortController) {
+  const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)])
+  const user = await api<User>('/auth/me', { signal }, false)
+  if (!isUser(user)) {
+    throw new ApiError(200, 'RESPONSE_INVALID', '登录状态响应无法识别，请重新连接后再试。')
+  }
+  return user
+}
+
+function connectionTitle(error: unknown) {
+  if (error instanceof DOMException && error.name === 'TimeoutError') return '连接等待超时'
+  if (error instanceof ApiError && error.status >= 500) return '服务暂时不可用'
+  if (error instanceof ApiError && error.code === 'RESPONSE_INVALID') return '服务响应无法识别'
+  return '暂时无法连接城影记'
+}
+
+function connectionDescription(error: unknown) {
+  return error instanceof DOMException && error.name === 'TimeoutError'
+    ? '等待服务响应超过 15 秒，请确认服务已就绪后重新连接。'
+    : errorMessage(error)
+}
+
+function ConnectionHelp() {
+  return <details className="connection-help"><summary>查看本机启动步骤</summary>
+    <ol><li>在 PyCharm 选择“城影记－启动”，确认前后端都已运行完成。</li>
+      <li>如果只启动了网页，请启动“城影记－后端”；已有服务时不用重复运行。</li>
+      <li>服务就绪后点击“重新连接”。仍未恢复时，查看 PyCharm 运行窗口中的报错。</li></ol>
+    <p>连接提示无法确定具体原因；服务未就绪或连接中断都可能导致当前情况。</p>
+    {navigator.onLine === false && <p>浏览器提示当前离线，恢复连接后可再试一次。</p>}
+  </details>
+}
 
 function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: User) => void }) {
   const navigate = useNavigate()
@@ -53,6 +93,9 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
         const result = await api<LoginResult>('/auth/login', {
           method: 'POST', signal: controller.signal, body: JSON.stringify({ username, password }),
         }, false)
+        if (!isUser(result?.user) || typeof result.csrf_token !== 'string' || !result.csrf_token.trim()) {
+          throw new ApiError(200, 'RESPONSE_INVALID', '登录响应无法识别，请重新核对登录结果后再试。')
+        }
         setPassword('')
         clearSessionState()
         setCsrfToken(result.csrf_token)
@@ -125,70 +168,94 @@ export function App() {
   const [session, setSession] = useState<SessionState>({ phase: 'loading' })
   const channel = useRef<BroadcastChannel | null>(null)
   const activeUser = useRef<string | null>(null)
-  const [sessionNotice, setSessionNotice] = useState('')
+  const logoutPending = useRef(false)
+  const sessionRequest = useRef<AbortController | null>(null)
+  const checkRequest = useRef<AbortController | null>(null)
+  const [sessionNotice, setSessionNotice] = useState<unknown>()
+  const [checkingSession, setCheckingSession] = useState(false)
 
   const loadSession = useCallback(() => {
+    if (logoutPending.current) return
+    sessionRequest.current?.abort(); checkRequest.current?.abort()
+    const controller = new AbortController(); sessionRequest.current = controller
+    activeUser.current = null; setSessionNotice(undefined); setCheckingSession(false)
     clearSessionState()
-    void api<User>('/auth/me', {}, false).then((user) => {
+    void readSession(controller).then((user) => {
       activeUser.current = user.id
       setSession({ phase: 'user', user })
     }).catch((error: unknown) => {
       if (isAbort(error)) return
       activeUser.current = null
       setSession(error instanceof ApiError && error.status === 401
-        ? { phase: 'guest' } : { phase: 'error', message: errorMessage(error) })
+        ? { phase: 'guest' } : { phase: 'error', error })
     })
   }, [])
 
   const refresh = useCallback(() => {
+    if (logoutPending.current) return
     setSession({ phase: 'loading' })
     loadSession()
   }, [loadSession])
+
+  const verifySession = useCallback(async () => {
+    if (logoutPending.current) return
+    if (!activeUser.current) { refresh(); return }
+    checkRequest.current?.abort()
+    const controller = new AbortController(); checkRequest.current = controller
+    setCheckingSession(true)
+    try {
+      const user = await readSession(controller)
+      setSessionNotice(undefined)
+      if (user.id === activeUser.current) return
+      clearSessionState(); activeUser.current = user.id
+      setSession({ phase: 'user', user })
+    } catch (error) {
+      if (isAbort(error)) return
+      if (error instanceof ApiError && error.status === 401) {
+        clearSessionState(); activeUser.current = null
+        setSession({ phase: 'guest', message: '登录已过期，请重新登录。' })
+      } else setSessionNotice(error)
+    } finally { if (!controller.signal.aborted) setCheckingSession(false) }
+  }, [refresh])
 
   useEffect(() => {
     loadSession()
     const bus = new BroadcastChannel('city-memories-auth')
     channel.current = bus
     bus.onmessage = refresh
-    const expired = () => { activeUser.current = null; setSession({ phase: 'guest', message: '登录已过期，请重新登录。' }) }
+    const expired = () => { logoutPending.current = false; activeUser.current = null; setSessionNotice(undefined); setCheckingSession(false); setSession({ phase: 'guest', message: '登录已过期，请重新登录。' }) }
     const restored = (event: PageTransitionEvent) => { if (event.persisted) refresh() }
     const visible = () => {
       if (document.visibilityState !== 'visible') return
-      if (!activeUser.current) { refresh(); return }
       // Returning to the same account must not unmount an unsaved note or queue.
       // Broadcast logout still hides everything immediately through refresh().
-      void api<User>('/auth/me', {}, false).then((user) => {
-        setSessionNotice('')
-        if (user.id === activeUser.current) return
-        clearSessionState(); activeUser.current = user.id
-        setSession({ phase: 'user', user })
-      }).catch((error: unknown) => {
-        if (isAbort(error)) return
-        if (error instanceof ApiError && error.status === 401) { clearSessionState(); expired() }
-        else setSessionNotice('会话核对暂时失败，未保存内容仍在本页；请检查连接后再保存。')
-      })
+      void verifySession()
     }
     window.addEventListener('city-memories:expired', expired)
     window.addEventListener('pageshow', restored)
     document.addEventListener('visibilitychange', visible)
     return () => {
       bus.close()
+      sessionRequest.current?.abort(); checkRequest.current?.abort()
       clearSessionState()
       window.removeEventListener('city-memories:expired', expired)
       window.removeEventListener('pageshow', restored)
       document.removeEventListener('visibilitychange', visible)
     }
-  }, [refresh, loadSession])
+  }, [refresh, loadSession, verifySession])
 
   function loggedIn(user: User) {
-    activeUser.current = user.id; setSessionNotice('')
+    logoutPending.current = false
+    activeUser.current = user.id; setSessionNotice(undefined)
     setSession({ phase: 'user', user })
     channel.current?.postMessage('changed')
     navigate('/', { replace: true })
   }
 
   async function logout() {
-    activeUser.current = null; setSessionNotice('')
+    logoutPending.current = true
+    activeUser.current = null; setSessionNotice(undefined); setCheckingSession(false)
+    sessionRequest.current?.abort(); checkRequest.current?.abort()
     clearSessionState()
     setSession({ phase: 'logging-out' })
     try {
@@ -201,23 +268,33 @@ export function App() {
       }
     }
     clearSessionState()
+    logoutPending.current = false
     setSession({ phase: 'guest' })
     channel.current?.postMessage('changed')
     navigate('/login', { replace: true })
   }
 
   if (session.phase !== 'guest' && session.phase !== 'user') {
-    return <main className="status-page"><section className="status-card">
+    return <main className="status-page"><section className="status-card connection-card">
       <p className="eyebrow">CITY MEMORIES</p><h1>城影记</h1>
-      <p role={session.message ? 'alert' : 'status'}>{session.message ?? (
-        session.phase === 'logging-out' ? '正在退出…' : '正在打开你的手帐…'
-      )}</p>
-      {session.phase === 'error' && <button className="primary-button" onClick={refresh}>重新连接</button>}
+      {session.phase === 'loading' || session.phase === 'error' ? <>
+        <OperationFeedback tone={session.phase === 'error' ? 'error' : 'progress'} title={session.phase === 'error' ? connectionTitle(session.error) : '正在连接城影记'}>
+          <p>{session.phase === 'error' ? connectionDescription(session.error) : '正在确认服务和登录状态，请稍候。'}</p>
+        </OperationFeedback>
+        <button className="primary-button" onClick={refresh}>重新连接</button>
+        <ConnectionHelp />
+      </> : <p role={session.message ? 'alert' : 'status'}>{session.message ?? '正在退出…'}</p>}
       {session.phase === 'logout-error' && <button className="primary-button" onClick={() => void logout()}>重试退出</button>}
     </section></main>
   }
   if (session.phase === 'user') {
-    return <>{sessionNotice && <p className="global-notice" role="alert">{sessionNotice}</p>}<Journal key={session.user.id} user={session.user} onLogout={() => void logout()} /></>
+    return <>{sessionNotice !== undefined && <div className="session-connection-notice">
+      <OperationFeedback tone={checkingSession ? 'progress' : 'error'} title={checkingSession ? '正在核对登录状态' : '暂时无法核对登录状态'}
+        actions={<button className="quiet-button" disabled={checkingSession} onClick={() => void verifySession()}>重新核对登录状态</button>}>
+        <p>{checkingSession ? '正在重新确认登录状态，未保存内容仍在本页。' : '会话核对暂时失败，未保存内容仍在本页；请检查连接后再保存。'}</p>
+        {!checkingSession && <p>{connectionDescription(sessionNotice)}</p>}
+      </OperationFeedback>
+    </div>}<Journal key={session.user.id} user={session.user} onLogout={() => void logout()} /></>
   }
   return <>
     {session.message && <p className="global-notice" role="status">{session.message}</p>}
