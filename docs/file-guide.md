@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-10-21。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新：2026-10-22。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -11,11 +11,13 @@
 | [README.md](../README.md) | 项目首页、当前状态、启动入口和目录导航 |
 | [AGENTS.md](../AGENTS.md) | 协作约定、提交推送规则和隐私边界 |
 | [.gitignore](../.gitignore) | 防止密钥、私人数据、缓存、构建和测试产物入库 |
+| [.gitattributes](../.gitattributes) | 固定公共地图资产的 LF 换行，保持 Windows 检出与生成校验一致 |
 | [.run/local.run.xml](../.run/local.run.xml) | PyCharm 日常入口，同时运行前端和后端 |
 | [.run/backend.run.xml](../.run/backend.run.xml) | 用项目虚拟环境运行后端，不复制密钥或自动迁移 |
 | [.run/frontend.run.xml](../.run/frontend.run.xml) | npm 构建预览，固定本机 5173 端口 |
 | [.run/build.run.xml](../.run/build.run.xml) | 修改前端后执行类型检查与构建 |
 | [scripts/check-repository.mjs](../scripts/check-repository.mjs) | 只读检查文档文件链接、逐文件导航覆盖和本地模块导入 |
+| [scripts/build-china-map-data.py](../scripts/build-china-map-data.py) | 从固定公开源校验并生成中国市级矢量，只用标准库，不读私人资料 |
 
 ## 前端
 
@@ -29,16 +31,24 @@
 | [package.json](../frontend/package.json) | npm 命令和直接依赖版本 |
 | [package-lock.json](../frontend/package-lock.json) | 固定完整 npm 依赖树，安装时使用，不手改 |
 | [index.html](../frontend/index.html) | 网页 HTML 外壳及 React 挂载节点 |
-| [vite.config.ts](../frontend/vite.config.ts) | 开发/构建配置、本地 API 代理与有界连接池 |
+| [vite.config.ts](../frontend/vite.config.ts) | 开发/构建配置、本地 API 代理、有界连接池及独立测试后端端口 |
 | [eslint.config.js](../frontend/eslint.config.js) | TypeScript、React Hooks 等静态检查规则 |
 | [tsconfig.json](../frontend/tsconfig.json) | TypeScript 项目引用入口 |
 | [tsconfig.app.json](../frontend/tsconfig.app.json) | 浏览器应用代码的类型检查设置 |
 | [tsconfig.node.json](../frontend/tsconfig.node.json) | Vite 配置的 Node 环境类型检查设置 |
-| [playwright.config.ts](../frontend/playwright.config.ts) | 默认 Edge 测试及隔离前后端服务配置 |
-| [playwright.delivery.config.ts](../frontend/playwright.delivery.config.ts) | 构建版空库验收，复用连续流程 |
+| [playwright.config.ts](../frontend/playwright.config.ts) | 默认 Edge 测试及隔离服务配置，可覆盖测试端口避开日常实例 |
+| [playwright.delivery.config.ts](../frontend/playwright.delivery.config.ts) | 构建版空库验收及独立测试端口，复用连续流程 |
 | [playwright.scale.config.ts](../frontend/playwright.scale.config.ts) | 显式启用的重量级规模测试配置 |
 | [scripts/test-e2e.mjs](../frontend/scripts/test-e2e.mjs) | 默认业务/地图/连续流程/独立相册四组运行，各自重建隔离服务 |
 | [scripts/test-scale.mjs](../frontend/scripts/test-scale.mjs) | 先规模浏览器测试，再执行离线维护与哈希审计 |
+
+### 公共地图资产
+
+| 文件 | 用途 |
+| --- | --- |
+| [public/map-data/china-cities.v1.json](../frontend/public/map-data/china-cities.v1.json) | 391 个已审核入口的公共市界、背景与源国界/海岸/南海线，无私人统计 |
+| [public/map-data/NOTICE.md](../frontend/public/map-data/NOTICE.md) | 地图来源、固定版本、处理方式与复现入口 |
+| [public/map-data/LICENSES.txt](../frontend/public/map-data/LICENSES.txt) | 随公共地图分发的 GeoCode-Release 与 taiwan-atlas MIT 许可文本 |
 
 ### 应用与业务代码
 
@@ -61,9 +71,9 @@
 | [src/features/photos/MovePhoto.tsx](../frontend/src/features/photos/MovePhoto.tsx) | 目标城市/年份选择、创建目标影集、确认跨影集移动 |
 | [src/features/photos/Duplicates.tsx](../frontend/src/features/photos/Duplicates.tsx) | 本影集同内容照片的分组分页与逐份查看，不自动删除 |
 | [src/features/photos/photos.ts](../frontend/src/features/photos/photos.ts) | 照片、文字、分页和详情的 TypeScript 数据类型 |
-| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 正式地图、南海附图、点亮、缩放拖动与城市选择 |
+| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 只绘制中国的全市级 SVG、南海附图、本人点亮、定位、拖缩和返回视角 |
 | [src/features/map/mapGeometry.ts](../frontend/src/features/map/mapGeometry.ts) | 投影、WKT 边界解析、几何路径、坐标和瓦片范围计算 |
-| [src/features/map/mapService.ts](../frontend/src/features/map/mapService.ts) | 地图配置、目录核对、限速/复用、边界请求和失败处理 |
+| [src/features/map/mapService.ts](../frontend/src/features/map/mapService.ts) | 静态市界加载、严格身份关联、缓存/取消/失败处理；保留第一版行政请求兼容方法 |
 | [src/features/trash/Trash.tsx](../frontend/src/features/trash/Trash.tsx) | 回收站列表、照片删除确认、原图查看和恢复流程 |
 
 ### 测试
@@ -79,9 +89,9 @@
 | [tests/e2e/editing.spec.ts](../frontend/tests/e2e/editing.spec.ts) | 文字草稿、冲突、离开提醒、拖动和跨页排序 |
 | [tests/e2e/organizing.spec.ts](../frontend/tests/e2e/organizing.spec.ts) | 跨影集移动、重复分组及错误恢复 |
 | [tests/e2e/trash.spec.ts](../frontend/tests/e2e/trash.spec.ts) | 删除确认、回收站、恢复和状态冲突 |
-| [tests/e2e/maps.spec.ts](../frontend/tests/e2e/maps.spec.ts) | 合成地图数据、几何规则、交互和本人统计联动 |
+| [tests/e2e/maps.spec.ts](../frontend/tests/e2e/maps.spec.ts) | 静态几何关联、全市灰底、交互、本人统计和迟到请求隔离 |
 | [tests/e2e/map-service.spec.ts](../frontend/tests/e2e/map-service.spec.ts) | 地图请求调度、复用和错误规则 |
-| [tests/e2e/map-live.spec.ts](../frontend/tests/e2e/map-live.spec.ts) | 默认跳过的真实地图在线核验，单独授权使用 |
+| [tests/e2e/map-live.spec.ts](../frontend/tests/e2e/map-live.spec.ts) | 默认实际公共矢量的 391 项覆盖、零在线地图请求与窄屏检查 |
 | [tests/e2e/journey.spec.ts](../frontend/tests/e2e/journey.spec.ts) | 从注册到导入、整理、恢复、重登的连续流程与双账号检查 |
 | [tests/delivery/local.spec.ts](../frontend/tests/delivery/local.spec.ts) | 空库、真实构建资源、深链接、代理与端口冲突验收 |
 | [tests/scale/scale.spec.ts](../frontend/tests/scale/scale.spec.ts) | 400 张导入、3000 张账号、双账号并发与重复浏览内存 |
@@ -194,6 +204,7 @@
 | [reports/2026-10-17-repository-organization.md](reports/2026-10-17-repository-organization.md) | 本轮目录变更、路径说明及复测记录 |
 | [reports/2026-10-17-ide-startup.md](reports/2026-10-17-ide-startup.md) | 开发软件核对、PyCharm 运行配置和隔离验证记录 |
 | [reports/2026-10-21-v2-album-library.md](reports/2026-10-21-v2-album-library.md) | V2-01 白色界面、独立相册、封面偏好、迁移/备份兼容与本轮验证 |
+| [reports/2026-10-22-china-city-map.md](reports/2026-10-22-china-city-map.md) | V2-02/V2-03 中国市级地图、公开源覆盖、交互与隔离端口验证 |
 
 ## 独立验证工具
 
@@ -203,7 +214,7 @@
 | --- | --- |
 | [README.md](../validation/README.md) | 区分当前专项工具、历史探针与私有结果 |
 | [local-delivery/README.md](../validation/local-delivery/README.md) | 构建版空库验收命令与测试数据说明 |
-| [local-delivery/serve.py](../validation/local-delivery/serve.py) | T16 空库迁移、启动合成测试服务并记录启动状态 |
+| [local-delivery/serve.py](../validation/local-delivery/serve.py) | 构建版空库迁移、独立端口合成服务与启动状态记录 |
 | [scale/README.md](../validation/scale/README.md) | 样本生成、运行、复核、资源需求与安全限制 |
 | [scale/generate.py](../validation/scale/generate.py) | 生成不同内容的 JPEG/PNG/WebP 合成大图与清单 |
 | [scale/serve.py](../validation/scale/serve.py) | 专用隔离运行库和规模测试服务器 |
@@ -265,9 +276,9 @@
 | `frontend/node_modules/` | npm 安装依赖，按锁文件可重建，不手改依赖源码 |
 | `frontend/dist/` | 前端构建页面，`npm run build` 生成；日常预览需要它 |
 | `frontend/test-results/`、`playwright-report/` | 本机回归结果与截图，不上传 |
-| `validation/**/results/` 等工具输出 | 合成样本、隔离数据库、运行日志/证据；可能很大，只按工具说明核对清理 |
+| `validation/**/results/` 等工具输出 | 合成样本、隔离数据库、运行日志/证据及固定公共地图源下载缓存；可能很大，只按工具说明核对清理 |
 | `__pycache__/`、`.pytest_cache/`、`.ruff_cache/` | Python/测试/静态检查自动缓存 |
 | `.git/` | 版本历史和远程信息，不手动移动内部文件 |
 | IDE 配置、系统临时文件 | 不属于产品；按 `.gitignore` 排除 |
 
-2026-10-17 目录整理只调整源码和文档，没有清理上述本地数据；当时移除的仅为已有迁移脚本目录内的 `.gitkeep` 空占位文件，可从 Git 历史恢复。V2-01 新增的源码与迁移列于上表，本轮也未读取或清理私人资料。
+2026-10-17 目录整理只调整源码和文档，没有清理上述本地数据；当时移除的仅为已有迁移脚本目录内的 `.gitkeep` 空占位文件，可从 Git 历史恢复。V2-01 和中国地图新增文件列于上表；地图公共资产可以提交，私人资料及测试结果仍留本机。

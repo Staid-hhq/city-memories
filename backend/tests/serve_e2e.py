@@ -20,6 +20,10 @@ from city_memories.main import create_app
 from city_memories.models import Album, User
 
 if __name__ == "__main__":
+    frontend_port = int(os.environ.get("CITY_MEMORIES_E2E_FRONTEND_PORT", "5173"))
+    backend_port = int(os.environ.get("CITY_MEMORIES_E2E_BACKEND_PORT", "8000"))
+    if not all(1024 <= port <= 65535 for port in (frontend_port, backend_port)):
+        raise ValueError("Invalid isolated test port")
     with TemporaryDirectory(prefix="city-memories-auth-e2e-") as directory:
         os.environ["CITY_MEMORIES_DATA_DIR"] = directory
         get_settings.cache_clear()
@@ -48,13 +52,11 @@ if __name__ == "__main__":
         app = create_app(
             Settings(
                 data_dir=Path(directory), _env_file=None, auth_secret=None, cookie_secure=False,
-                map_key_file=(Path(__file__).resolve().parents[2]
-                              / "validation/map-probe/.env.local")
-                if os.environ.get("CITY_MEMORIES_LIVE_MAP") == "1" else None,
-                map_review_number="GS (2026) 4921号"
-                if os.environ.get("CITY_MEMORIES_LIVE_MAP") == "1" else "",
-                map_review_date="2026-10-04"
-                if os.environ.get("CITY_MEMORIES_LIVE_MAP") == "1" else "",
+                allowed_origins=[
+                    f"http://127.0.0.1:{frontend_port}", f"http://localhost:{frontend_port}",
+                    f"http://127.0.0.1:{backend_port}", f"http://localhost:{backend_port}",
+                ],
+                map_key=None, map_key_file=None, map_review_number="", map_review_date="",
             )
         )
         with TestClient(app):
@@ -118,4 +120,4 @@ if __name__ == "__main__":
                 _, contents = seed_photos(app, owner, album_id, 27 if year == 2095 else 3)
                 if year == 2090:
                     seed_copies(app, owner, album_id, [contents[0]], ["another-copy.png"])
-        uvicorn.run(app, host="127.0.0.1", port=8000, proxy_headers=False, access_log=False)
+        uvicorn.run(app, host="127.0.0.1", port=backend_port, proxy_headers=False, access_log=False)

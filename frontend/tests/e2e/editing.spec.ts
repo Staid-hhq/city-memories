@@ -24,7 +24,7 @@ async function view(page: Page, name: string) {
 }
 async function headers(page: Page) {
   const result = await (await page.request.get('/api/v1/auth/csrf')).json()
-  return { Origin: 'http://127.0.0.1:5173', 'X-CSRF-Token': result.data.csrf_token }
+  return { Origin: new URL(page.url()).origin, 'X-CSRF-Token': result.data.csrf_token }
 }
 async function rows(page: Page, album: string) {
   const response = await page.request.get(`/api/v1/albums/${album}/photos?limit=100`)

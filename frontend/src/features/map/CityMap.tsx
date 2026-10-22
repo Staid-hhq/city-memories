@@ -3,214 +3,195 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api, isAbort } from '../../shared/api'
 import type { Atlas } from '../albums/types'
-import { boundedView, geometryPath, nationalView, project, screen, tilesFor, unproject } from './mapGeometry'
+import { project, unproject } from './mapGeometry'
 import type { Geometry, Point, View } from './mapGeometry'
-import { MapFailure, MapService, tileUrl } from './mapService'
-import type { Directory, LocatedCity, MapCity, MapConfig } from './mapService'
+import { MapFailure, MapService } from './mapService'
+import type { ChinaMapData, LocatedCity, MapCity } from './mapService'
 
 export type MapMemory = { read: () => View | undefined; write: (view: View) => void }
-const southView: View = { center: [113, 12], zoom: 5 }
-function overview(width: number): View { return width >= 770 ? { center: [104.5, 35], zoom: 4 } : nationalView }
+type Size = { width: number; height: number }
+const initialSize: Size = { width: 900, height: 590 }
+const sourceUrl = '/map-data/NOTICE.md'
 
-function TileLayer({ view, width, height, config, layer, records, report }: {
-  view: View; width: number; height: number; config: MapConfig; layer: 'vec' | 'cva'
-  records: Record<string, { phase: 'ready' | 'error' | 'loading'; attempt: number }>
-  report: (id: string, phase: 'ready' | 'error') => void
-}) {
-  return <div className={`tile-layer ${layer}`} aria-hidden="true">{tilesFor(view, width, height).map(tile => {
-    const id = `${layer}:${tile.id}`, attempt = records[id]?.attempt ?? 0
-    return <img key={`${id}:${attempt}`} draggable={false} alt="" width={256} height={256}
-      src={tileUrl(tile, layer, config.key!)} referrerPolicy="strict-origin-when-cross-origin"
-      style={{ left: tile.x, top: tile.y }} onLoad={() => report(id, 'ready')} onError={() => report(id, 'error')} />
-  })}</div>
+function fitView({ width, height }: Size): View {
+  const northwest = project([72, 55], 0), southeast = project([136, 17], 0)
+  const padding = width < 500 ? 20 : 42
+  const scale = Math.min(Math.max(40, width - padding * 2) / (southeast[0] - northwest[0]), Math.max(40, height - padding * 2) / (southeast[1] - northwest[1]))
+  return { center: unproject([(northwest[0] + southeast[0]) / 2, (northwest[1] + southeast[1]) / 2], 0), zoom: Math.log2(scale) }
 }
 
-function TileViewport({ view, width, height, config, children, drag = [0, 0], name }: {
-  view: View; width: number; height: number; config: MapConfig; children?: React.ReactNode; drag?: Point; name: string
-}) {
-  const [records, setRecords] = useState<Record<string, { phase: 'ready' | 'error' | 'loading'; attempt: number }>>({})
-  const [late, setLate] = useState(false)
-  useEffect(() => { const timer = setTimeout(() => setLate(true), 8000); return () => clearTimeout(timer) }, [])
-  const ids = tilesFor(view, width, height).flatMap(t => [`vec:${t.id}`, `cva:${t.id}`])
-  const ready = ids.length > 0 && ids.every(id => records[id]?.phase === 'ready')
-  const failed = ids.some(id => records[id]?.phase === 'error')
-  const report = (id: string, phase: 'ready' | 'error') => setRecords(old => ({ ...old, [id]: { phase, attempt: old[id]?.attempt ?? 0 } }))
-  return <div className="map-viewport" style={{ width, height }} data-map-layer={name} data-ready={ready}>
-    <div className="map-moving" style={{ transform: `translate(${drag[0]}px,${drag[1]}px)` }}>
-      <TileLayer {...{ view, width, height, config, records, report }} layer="vec" />
-      {children}
-      <TileLayer {...{ view, width, height, config, records, report }} layer="cva" />
-    </div>
-    {!ready && <div className="map-load-note" aria-live="polite">{failed || late ? '地图未完整加载，仍可使用下方城市搜索。' : '正在加载官方底图与注记…'}
-      {(failed || late) && <button type="button" className="quiet-button" onClick={(event) => {
-        event.stopPropagation()
-        setRecords(old => Object.fromEntries(ids.map(id => [id, old[id]?.phase === 'ready' ? old[id] : { phase: 'loading', attempt: (old[id]?.attempt ?? 0) + 1 }])))
-      }}>重试未完成图层</button>}
-    </div>}
-  </div>
+// Paths stay at one fixed world scale; dragging and zooming update one SVG group.
+function fixedPath(geometry: Geometry) {
+  return geometry.flatMap(polygon => polygon.map(ring => ring.map((position, index) => {
+    const [x, y] = project(position, 0)
+    return `${index ? 'L' : 'M'}${x.toFixed(6)},${y.toFixed(6)}`
+  }).join('') + 'Z')).join('')
 }
 
-type Group = { x: number; y: number; cities: LocatedCity[] }
-function groupCities(cities: LocatedCity[], view: View, width: number, height: number): Group[] {
-  const groups = new Map<string, Group>()
-  for (const city of cities) {
-    const [x, y] = screen(city.center, view, width, height)
-    if (x < 20 || y < 20 || x > width - 20 || y > height - 20) continue
-    const key = `${Math.floor(x / 52)}:${Math.floor(y / 52)}`
-    const group = groups.get(key)
-    if (group) { group.x = (group.x * group.cities.length + x) / (group.cities.length + 1); group.y = (group.y * group.cities.length + y) / (group.cities.length + 1); group.cities.push(city) }
-    else groups.set(key, { x, y, cities: [city] })
-  }
-  return [...groups.values()]
+function fixedLines(lines: Point[][]) {
+  return lines.map(line => line.map((position, index) => {
+    const [x, y] = project(position, 0)
+    return `${index ? 'L' : 'M'}${x.toFixed(6)},${y.toFixed(6)}`
+  }).join('')).join('')
 }
 
-function MapCanvas({ config, directory, atlas, service, memory }: {
-  config: MapConfig; directory?: Directory; atlas?: Atlas; service: MapService; memory: MapMemory
-}) {
+function worldTransform(view: View, size: Size, drag: Point = [0, 0]) {
+  const [x, y] = project(view.center, view.zoom)
+  return `translate(${size.width / 2 - x + drag[0]} ${size.height / 2 - y + drag[1]}) scale(${2 ** view.zoom})`
+}
+
+function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas; memory: MapMemory }) {
   const navigate = useNavigate()
   const stage = useRef<HTMLDivElement>(null)
-  const [size, setSize] = useState({ width: 800, height: 610 })
-  const [view, setView] = useState<View>(memory.read() ?? nationalView)
+  const [size, setSize] = useState<Size>(initialSize)
+  const [view, setView] = useState<View>(() => memory.read() ?? fitView(initialSize))
   const [drag, setDrag] = useState<Point>([0, 0])
-  const pointer = useRef<{ id: number; start: Point; delta: Point } | null>(null)
-  const [chosen, setChosen] = useState<LocatedCity[]>([])
-  const [regions, setRegions] = useState<Record<string, Geometry>>({})
-  const [failures, setFailures] = useState<Record<string, string>>({})
-  const [retry, setRetry] = useState(0)
-  const lit = useMemo(() => new Set(atlas?.items.filter(i => i.lit && i.photo_count > 0).map(i => i.city.id) ?? []), [atlas])
-  const counts = new Map(atlas?.items.map(i => [i.city.id, i.photo_count]))
-  const items = useMemo(() => directory?.items ?? [], [directory])
-  const groups = groupCities(items, view, size.width, size.height)
-  const visible = items.filter(city => { const [x, y] = screen(city.center, view, size.width, size.height); return lit.has(city.id) && x >= 0 && x <= size.width && y >= 0 && y <= size.height })
-  const targets = visible.slice(0, 20)
-  const targetKey = targets.map(c => c.id).join('|')
-  const itemsRef = useRef(items)
-  useEffect(() => { itemsRef.current = items }, [items])
+  const [hovered, setHovered] = useState<LocatedCity | null>(null)
+  const [query, setQuery] = useState('')
+  const interacted = useRef(!!memory.read())
+  const pointer = useRef<{ id: number; start: Point; delta: Point; cityId?: string } | null>(null)
+  const ignoreClickUntil = useRef(0)
+  const overview = fitView(size)
+  const counts = useMemo(() => new Map(atlas?.items.map(item => [item.city.id, item.photo_count])), [atlas])
+  const lit = useMemo(() => new Set(atlas?.items.filter(item => item.lit && item.photo_count > 0).map(item => item.city.id) ?? []), [atlas])
+  const paths = useMemo(() => ({ outline: fixedPath(data.outline), borders: fixedLines(data.borders ?? []), cities: data.items.filter(city => data.regions[city.id]).map(city => ({ city, path: fixedPath(data.regions[city.id]) })) }), [data])
+  const matches = useMemo(() => query.trim() ? data.items.filter(city => `${city.name}${city.parent_name ?? ''}`.includes(query.trim())).slice(0, 8) : [], [data.items, query])
+  const photoLabel = (city: LocatedCity) => atlas ? `${counts.get(city.id) ?? 0} 张照片` : '照片统计核对中'
 
   useEffect(() => {
     const element = stage.current!
     const observer = new ResizeObserver(entries => {
       const width = Math.round(entries[0].contentRect.width), height = Math.round(entries[0].contentRect.height)
       if (!width || !height) return
-      setSize({ width, height })
-      if (!memory.read()) setView(overview(width))
+      const next = { width, height }
+      setSize(next)
+      if (!interacted.current) setView(fitView(next))
     })
     observer.observe(element)
     return () => observer.disconnect()
-  }, [memory])
-  useEffect(() => {
-    const controller = new AbortController()
-    const wanted = new Set(targetKey.split('|'))
-    for (const city of itemsRef.current.filter(c => wanted.has(c.id))) {
-      void service.boundary(city, controller.signal).then(geometry => {
-        if (!controller.signal.aborted) { setRegions(old => Object.fromEntries(Object.entries({ ...old, [city.id]: geometry }).slice(-64))); setFailures(old => { const copy = { ...old }; delete copy[city.id]; return copy }) }
-      }).catch(error => { if (!controller.signal.aborted && !isAbort(error)) setFailures(old => ({ ...old, [city.id]: error instanceof MapFailure ? error.message : '区域暂不可用。' })) })
-    }
-    return () => controller.abort()
-  }, [service, targetKey, retry])
+  }, [])
 
-  function change(next: View) { const bounded = boundedView(next); memory.write(bounded); setView(bounded); setChosen([]) }
+  function change(next: View) {
+    const bounded: View = { center: [Math.max(70, Math.min(140, next.center[0])), Math.max(0, Math.min(60, next.center[1]))], zoom: Math.max(overview.zoom, Math.min(10, next.zoom)) }
+    interacted.current = true
+    memory.write(bounded); setView(bounded); setHovered(null)
+  }
   function zoom(delta: number) { change({ ...view, zoom: view.zoom + delta }) }
   useEffect(() => {
     const element = stage.current!
     const wheel = (event: WheelEvent) => {
       event.preventDefault()
       if (Math.abs(event.deltaY) < 5) return
-      const zoom = Math.max(3, Math.min(10, view.zoom + (event.deltaY < 0 ? 1 : -1)))
+      const zoom = Math.max(fitView(size).zoom, Math.min(10, view.zoom + (event.deltaY < 0 ? .35 : -.35)))
       if (zoom === view.zoom) return
-      const next = boundedView({ ...view, zoom }); memory.write(next); setView(next); setChosen([])
+      const next = { ...view, zoom }
+      interacted.current = true; memory.write(next); setView(next); setHovered(null)
     }
     element.addEventListener('wheel', wheel, { passive: false })
     return () => element.removeEventListener('wheel', wheel)
-  }, [view, memory])
+  }, [view, memory, size])
+
   function finish(event: ReactPointerEvent) {
-    const p = pointer.current
-    if (!p || event.pointerId !== p.id) return
-    pointer.current = null; setDrag([0, 0])
-    if (stage.current?.hasPointerCapture(p.id)) stage.current.releasePointerCapture(p.id)
-    if (Math.hypot(...p.delta) > 3) { const c = project(view.center, view.zoom); change({ ...view, center: unproject([c[0] - p.delta[0], c[1] - p.delta[1]], view.zoom) }) }
+    const current = pointer.current
+    if (!current || event.pointerId !== current.id) return
+    pointer.current = null; setDrag([0, 0]); ignoreClickUntil.current = event.timeStamp + 350
+    if (stage.current?.hasPointerCapture(current.id)) stage.current.releasePointerCapture(current.id)
+    if (Math.hypot(...current.delta) > 4) {
+      const center = project(view.center, view.zoom)
+      change({ ...view, center: unproject([center[0] - current.delta[0], center[1] - current.delta[1]], view.zoom) })
+    } else if (current.cityId) navigate(`/cities/${current.cityId}`)
   }
-  const pending = targets.filter(c => !regions[c.id] && !failures[c.id]).length
-  const failed = targets.filter(c => failures[c.id])
+  function locate(city: LocatedCity) {
+    change({ center: city.center, zoom: Math.max(view.zoom, overview.zoom + 2.5) })
+    stage.current?.focus({ preventScroll: true })
+    setHovered(city)
+  }
+
+  const insetSize = { width: 136, height: 174 }
+  const insetView: View = { center: [114, 13], zoom: 3.45 }
   return <>
     <div className="map-toolbar" aria-label="地图工具"><div>
-      <button type="button" className="quiet-button" onClick={() => zoom(1)} disabled={view.zoom >= 10} aria-label="放大地图">＋</button>
-      <button type="button" className="quiet-button" onClick={() => zoom(-1)} disabled={view.zoom <= 3} aria-label="缩小地图">−</button>
-      <button type="button" className="quiet-button" onClick={() => change(overview(size.width))}>全国视图</button>
-      <button type="button" className="quiet-button" onClick={() => change(southView)}>南海视图</button>
-      <button type="button" className="quiet-button" onClick={() => change({ center: [123.6, 25.8], zoom: 8 })}>钓鱼岛相关区域</button>
-    </div><span>拖动 / 滚轮缩放 · 可用方向键移动</span></div>
-    <div className="map-composition">
-      <div ref={stage} className="map-stage" tabIndex={0} role="region" aria-label="中国城市地图"
-        data-zoom={view.zoom} data-center={view.center.join(',')}
-        onKeyDown={event => {
-          if (event.target !== event.currentTarget) return
-          const moves: Record<string, Point> = { ArrowLeft: [-100, 0], ArrowRight: [100, 0], ArrowUp: [0, -100], ArrowDown: [0, 100] }
-          if (moves[event.key]) { event.preventDefault(); const c = project(view.center, view.zoom), d = moves[event.key]; change({ ...view, center: unproject([c[0] + d[0], c[1] + d[1]], view.zoom) }) }
-          else if (event.key === '+' || event.key === '=') zoom(1)
-          else if (event.key === '-') zoom(-1)
-        }}
-        onPointerDown={event => { if (event.button !== 0 || (event.target as Element).closest('button,a,[data-city-region]')) return; pointer.current = { id: event.pointerId, start: [event.clientX, event.clientY], delta: [0, 0] }; event.currentTarget.setPointerCapture(event.pointerId) }}
-        onPointerMove={event => { const p = pointer.current; if (p?.id !== event.pointerId) return; p.delta = [event.clientX - p.start[0], event.clientY - p.start[1]]; setDrag(p.delta) }}
-        onPointerUp={finish} onPointerCancel={() => { pointer.current = null; setDrag([0, 0]) }}>
-        <TileViewport key={`${view.zoom}:${view.center}:${size.width}:${size.height}`} {...{ view, config, drag, ...size }} name="main">
-          <svg className="city-regions" width={size.width} height={size.height} aria-label="本人照片城市范围">
-            {items.filter(city => lit.has(city.id) && regions[city.id]).map(city => <path key={city.id} data-city-region={city.id}
-              d={geometryPath(regions[city.id], view, size.width, size.height)} fillRule="evenodd" role="link" tabIndex={0}
-              aria-label={`${city.name}，${counts.get(city.id)} 张照片，打开影集`} onClick={() => navigate(`/cities/${city.id}`)}
-              onKeyDown={event => { if (event.key === 'Enter') navigate(`/cities/${city.id}`) }}><title>{city.name} · 我的照片</title></path>)}
-          </svg>
-        </TileViewport>
-        <div className="city-markers" style={{ transform: `translate(${drag[0]}px,${drag[1]}px)` }}>
-          {groups.map(group => <button type="button" key={group.cities.map(c => c.id).join(',')} style={{ left: group.x, top: group.y }}
-            className={`map-marker ${group.cities.some(c => lit.has(c.id)) ? 'lit' : ''}`}
-            aria-label={group.cities.length > 1 ? `选择附近 ${group.cities.length} 座城市` : `${group.cities[0].name}，${atlas ? counts.get(group.cities[0].id) ?? 0 : '统计核对中'} 张照片`}
-            onClick={() => { if (group.cities.length === 1) navigate(`/cities/${group.cities[0].id}`); else setChosen(group.cities) }}>
-            {group.cities.length > 1 ? group.cities.length : group.cities[0].name.replace(/市$/, '')}
-          </button>)}
-        </div>
-      </div>
-      <aside className="south-map" aria-label="南海诸岛附图"><h3>南海诸岛</h3>
-        <TileViewport view={southView} width={260} height={500} config={config} name="south" />
-        <p>附图保留官方底图和注记。<br />点击“南海视图”可在主图查看。</p>
-        <div className="map-legend"><span className="lit-dot" />有照片的城市<br /><span className="empty-dot" />尚未点亮的入口</div>
+      <button type="button" className="quiet-button" onClick={() => zoom(.5)} disabled={view.zoom >= 10} aria-label="放大地图">＋</button>
+      <button type="button" className="quiet-button" onClick={() => zoom(-.5)} disabled={view.zoom <= overview.zoom + .001} aria-label="缩小地图">−</button>
+      <button type="button" className="quiet-button" onClick={() => change(overview)}>全国视图</button>
+    </div><span>拖动 / 滚轮缩放 · 点击城市进入相册</span></div>
+    <div ref={stage} className="map-stage china-map-stage" tabIndex={0} role="region" aria-label="中国城市地图"
+      data-zoom={view.zoom} data-center={view.center.join(',')}
+      onKeyDown={event => {
+        if (event.target !== event.currentTarget) return
+        const moves: Record<string, Point> = { ArrowLeft: [-80, 0], ArrowRight: [80, 0], ArrowUp: [0, -80], ArrowDown: [0, 80] }
+        if (moves[event.key]) { event.preventDefault(); const center = project(view.center, view.zoom), delta = moves[event.key]; change({ ...view, center: unproject([center[0] + delta[0], center[1] + delta[1]], view.zoom) }) }
+        else if (event.key === '+' || event.key === '=') { event.preventDefault(); zoom(.5) }
+        else if (event.key === '-') { event.preventDefault(); zoom(-.5) }
+      }}
+      onPointerDown={event => {
+        if (event.button !== 0 || (event.target as Element).closest('button,a,.china-map-inset')) return
+        const cityId = (event.target as Element).closest('[data-city-region]')?.getAttribute('data-city-region') ?? undefined
+        pointer.current = { id: event.pointerId, start: [event.clientX, event.clientY], delta: [0, 0], cityId }
+        event.currentTarget.setPointerCapture(event.pointerId)
+      }}
+      onPointerMove={event => {
+        const current = pointer.current
+        if (current?.id !== event.pointerId) return
+        current.delta = [event.clientX - current.start[0], event.clientY - current.start[1]]
+        setDrag(current.delta)
+        if (Math.hypot(...current.delta) > 4) setHovered(null)
+      }} onPointerUp={finish} onPointerCancel={() => { pointer.current = null; setDrag([0, 0]) }}>
+      <svg className="china-map-svg" width={size.width} height={size.height} viewBox={`0 0 ${size.width} ${size.height}`} data-map-layer="main" data-ready="true" aria-label="按城市划分的中国足迹地图">
+        <g transform={worldTransform(view, size, drag)}>
+          <path className="china-map-outline" d={paths.outline} fillRule="nonzero" />
+          {paths.cities.map(({ city, path }) => <path key={city.id} className={`china-city-area${lit.has(city.id) ? ' is-lit' : ''}${hovered?.id === city.id ? ' is-hovered' : ''}`}
+            data-city-region={city.id} data-lit={lit.has(city.id)} d={path} fillRule="evenodd" role="link" tabIndex={0}
+            aria-label={`${city.name}，${photoLabel(city)}，打开相册`}
+            onPointerEnter={() => { if (!pointer.current) setHovered(city) }} onPointerLeave={() => { if (!pointer.current) setHovered(null) }}
+            onFocus={() => setHovered(city)} onBlur={() => setHovered(null)}
+            onClick={event => { if (event.timeStamp >= ignoreClickUntil.current) navigate(`/cities/${city.id}`) }}
+            onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); navigate(`/cities/${city.id}`) } }}><title>{city.name} · {photoLabel(city)}</title></path>)}
+          <path className="china-national-borders" d={paths.borders} />
+        </g>
+      </svg>
+      <div className="china-map-heading" aria-hidden="true"><span>CHINA</span><small>城市里的回忆</small></div>
+      {hovered && <div className="china-map-hover" role="status"><strong>{hovered.name}</strong><span>{photoLabel(hovered)}</span></div>}
+      <aside className="china-map-inset" aria-label="南海诸岛附图">
+        <svg viewBox={`0 0 ${insetSize.width} ${insetSize.height}`} data-map-layer="south" data-ready="true" aria-hidden="true"><g transform={worldTransform(insetView, insetSize)}>
+          <path className="china-map-outline" d={paths.outline} fillRule="nonzero" />
+          {paths.cities.map(({ city, path }) => <path key={city.id} className={`china-city-area${lit.has(city.id) ? ' is-lit' : ''}`} d={path} fillRule="evenodd" />)}
+          <path className="china-national-borders" d={paths.borders} />
+        </g></svg><span>南海诸岛</span>
       </aside>
     </div>
-    <p className="map-attribution"><a href="https://www.tianditu.gov.cn/" target="_blank" rel="noreferrer">来源：天地图</a> · {config.review_number} · 核对日期 {config.review_date} · 城市填色仅表示本人有效照片</p>
-    <div className="map-progress" aria-live="polite">{!atlas ? '照片统计核对中，暂不显示私人点亮。' : `${lit.size} 座城市已有照片；空影集不点亮。`}
-      {pending > 0 && ` 当前视野 ${pending} 个区域加载中。`}{visible.length > 20 && ' 可见区域较多，最多加载前 20 个，请缩放后继续。'}
-      {failed.length > 0 && <><span> {failed.length} 个区域暂未着色：{failures[failed[0].id]}</span><button type="button" className="quiet-button" onClick={() => { setFailures({}); setRetry(n => n + 1) }}>重试区域</button></>}
-    </div>
-    {chosen.length > 0 && <section className="map-city-choice" aria-label="附近城市列表"><h3>选择一座城市</h3><button type="button" className="quiet-button" onClick={() => setChosen([])}>关闭附近城市</button>
-      <ul>{chosen.map(city => <li key={city.id}><Link to={`/cities/${city.id}`}>{city.name} · {city.parent_name ?? city.unit_kind}</Link>
-        <button type="button" className="quiet-button" onClick={() => change({ center: city.center, zoom: Math.min(10, view.zoom + 2) })}>定位{city.name}</button></li>)}</ul>
-    </section>}
+    <div className="china-map-footer"><div className="china-map-legend" aria-label="地图图例"><span><i />还未点亮</span><span><i className="is-lit" />有照片的城市</span></div>
+      <p className="map-progress" aria-live="polite">{atlas ? `已点亮 ${lit.size} 座城市` : '正在核对照片统计…'}</p></div>
+    <div className="china-map-find"><label htmlFor="map-city-search">定位一座城市</label><input id="map-city-search" aria-label="在地图中定位城市" type="search" placeholder="搜索城市名称" value={query} onChange={event => setQuery(event.target.value)} />
+      <span>小区域可搜索后放大查看，也可使用方向键移动地图。</span></div>
+    {query.trim() && <div className="china-map-results" aria-label="地图城市搜索结果">{matches.length ? <ul>{matches.map(city => <li key={city.id}><div><strong>{city.name}</strong><small>{city.parent_name ?? '中国'}</small></div>
+      <button type="button" className="quiet-button" onClick={() => locate(city)}>定位{city.name}</button><Link to={`/cities/${city.id}`}>打开相册 →</Link></li>)}</ul> : <p>没有找到这座城市，可换一个名称搜索。</p>}</div>}
+    <p className="map-attribution">足迹记录用图 · <a href={sourceUrl} target="_blank" rel="noreferrer">市界数据来源</a> · 填色表示本账号的有效照片</p>
   </>
 }
 
 function MapSession({ service, memory, atlas }: { service: MapService; memory: MapMemory; atlas?: Atlas }) {
-  const [config, setConfig] = useState<MapConfig>()
-  const [directory, setDirectory] = useState<Directory>()
-  const [message, setMessage] = useState('正在连接地图；城市搜索可先使用。')
+  const [data, setData] = useState<ChinaMapData>()
+  const [message, setMessage] = useState('正在展开中国城市地图…')
+  const [failed, setFailed] = useState(false)
   useEffect(() => {
-    let active = true
-    void Promise.all([service.configuration(), api<MapCity[]>('/map/cities')]).then(async ([configuration, cities]) => {
-      if (!active) return
-      setConfig(configuration)
-      if (!configuration.enabled) { setMessage(configuration.message ?? '地图配置暂不可用。'); return }
-      setMessage('正在核对城市位置，搜索和影集不受影响。')
-      const result = await service.loadDirectory(cities)
-      if (active) { setDirectory(result); setMessage(result.missing ? `${result.missing} 个已审核城市的位置暂未匹配，仍可使用文字入口。` : '城市位置已核对。') }
-    }).catch(error => { if (active && !isAbort(error)) setMessage(error instanceof MapFailure ? error.message : '地图暂不可用，仍可搜索城市和查看自己的影集。') })
-    return () => { active = false; service.cancel() }
+    const controller = new AbortController()
+    void api<MapCity[]>('/map/cities', { signal: controller.signal }).then(cities => service.loadChinaMap(cities, controller.signal)).then(result => {
+      if (controller.signal.aborted) return
+      setData(result)
+      setMessage(result.missing || result.missingRegions ? `部分城市资料仍待核对：${result.missing} 个城市位置、${result.missingRegions} 个市界暂不可用，仍可使用下方城市搜索。` : '每一块城市区域，都可以收藏一段回忆。')
+    }).catch(error => {
+      if (!controller.signal.aborted && !isAbort(error)) { setFailed(true); setMessage(error instanceof MapFailure ? error.message : '地图暂时未能展开，可以重新核对，或使用下方城市搜索。') }
+    })
+    return () => { controller.abort(); service.cancel() }
   }, [service])
-  return <><p className="map-session-note">{message}</p>{config?.enabled && <MapCanvas {...{ config, directory, service, memory, atlas }} />}</>
+  return <><p className="map-session-note" role={failed ? 'alert' : undefined}>{message}</p>{data && <MapCanvas {...{ data, memory, atlas }} />}</>
 }
 
 export function CityMap(props: { service: MapService; memory: MapMemory; atlas?: Atlas }) {
   const [attempt, setAttempt] = useState(0)
-  return <section className="city-map" aria-labelledby="city-map-title"><div className="section-heading"><h2 id="city-map-title">走过的城市，留下的光影</h2>
-    <button type="button" className="quiet-button" onClick={() => { props.service.cancel(); props.service.resetConfiguration(); setAttempt(n => n + 1) }}>重新核对地图</button></div>
+  return <section className="city-map china-city-map" aria-labelledby="city-map-title"><div className="section-heading"><div><p className="eyebrow">YOUR CITY FOOTPRINTS</p><h2 id="city-map-title">走过的城市，留下的光影</h2></div>
+    <button type="button" className="quiet-button" onClick={() => { props.service.cancel(); props.service.resetConfiguration(); setAttempt(value => value + 1) }}>重新核对地图</button></div>
     <MapSession key={attempt} {...props} />
   </section>
 }

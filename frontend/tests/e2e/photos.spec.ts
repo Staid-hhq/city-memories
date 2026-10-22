@@ -125,7 +125,7 @@ test('真实新导入使旧分页和前后浏览失效，需要明确重新核�
   await loadedViewer(page, 'journey-01.png')
   const buffer = await (await page.request.get(list.items[0].original_url)).body()
   const csrf = (await (await page.request.get('/api/v1/auth/csrf')).json()).data.csrf_token
-  const headers = { Origin: 'http://127.0.0.1:5173', 'X-CSRF-Token': csrf }
+  const headers = { Origin: new URL(page.url()).origin, 'X-CSRF-Token': csrf }
   const batch = (await (await page.request.post(`/api/v1/albums/${albumId}/imports`, { headers: { ...headers, 'Idempotency-Key': 't05-concurrent-import' }, data: { items: [{ original_filename: 'concurrent.png', byte_size: buffer.length, sha256: createHash('sha256').update(buffer).digest('hex') }] } })).json()).data
   expect((await page.request.put(`/api/v1/imports/${batch.id}/items/${batch.items[0].id}/content`, { headers, multipart: { file: { name: 'concurrent.png', mimeType: 'image/png', buffer } } })).status()).toBe(200)
   expect((await page.request.post(`/api/v1/imports/${batch.id}/commit`, { headers, data: { expected_album_revision: list.album_revision } })).status()).toBe(200)

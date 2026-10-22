@@ -61,7 +61,7 @@ test('单图原字节保存、刷新恢复与另一个账号无法读取', async
   await expect(page.getByRole('dialog').getByAltText('原图：synthetic.png')).toBeVisible()
   await expect(page.getByText('1 张照片 · 已保存的年份影集')).toBeVisible()
   await page.getByRole('button', { name: '关闭原图', exact: true }).click()
-  const otherContext = await browser.newContext({ baseURL: 'http://127.0.0.1:5173' })
+  const otherContext = await browser.newContext({ baseURL: new URL(page.url()).origin })
   try {
     const other = await otherContext.newPage()
     await enterAlbum(other, '2040', 'Albums_Two')

@@ -7,6 +7,69 @@ export type MapCity = City & { provider_code: string }
 export type LocatedCity = MapCity & { center: Point }
 export type MapConfig = { enabled: boolean; key: string | null; review_number: string | null; review_date: string | null; message: string | null }
 export type Directory = { items: LocatedCity[]; missing: number }
+export type ChinaMapData = Directory & { outline: Geometry; borders: Point[][]; regions: Record<string, Geometry>; missingRegions: number }
+
+type ChinaRegion = {
+  provider_code: string; name: string; parent_name: string | null; unit_kind: string
+  center: Point; geometry: Geometry | null
+}
+type ChinaAsset = { schema_version: 1; revision: string; regions: ChinaRegion[]; background: Geometry; borders?: Point[][] }
+
+function checkedGeometry(value: unknown, allowEmpty = false): Geometry {
+  if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) throw new MapFailure('市界数据格式无效，请重新加载地图。')
+  let count = 0
+  for (const polygon of value) {
+    if (!Array.isArray(polygon) || !polygon.length) throw new MapFailure('市界数据格式无效，请重新加载地图。')
+    for (const ring of polygon) {
+      if (!Array.isArray(ring) || ring.length < 4) throw new MapFailure('市界数据格式无效，请重新加载地图。')
+      for (const point of ring) {
+        if (++count > 500_000 || !Array.isArray(point) || point.length !== 2 || !point.every(p => typeof p === 'number' && Number.isFinite(p))
+          || point[0] < 70 || point[0] > 140 || point[1] < 0 || point[1] > 60) throw new MapFailure('市界坐标无效，未显示地图。')
+      }
+      if (ring[0][0] !== ring.at(-1)[0] || ring[0][1] !== ring.at(-1)[1]) throw new MapFailure('市界轮廓不完整，未显示地图。')
+    }
+  }
+  return value as Geometry
+}
+
+export function joinChinaRegions(payload: unknown, cities: MapCity[]): ChinaMapData {
+  const data = payload as Partial<ChinaAsset> | null
+  if (!data || data.schema_version !== 1 || typeof data.revision !== 'string' || !data.revision || !Array.isArray(data.regions)
+    || !data.regions.length || data.regions.length > 500) throw new MapFailure('中国市界数据版本或格式无效，请重新加载地图。')
+  const outline = [...checkedGeometry(data.background, true)]
+  const borders: Point[][] = []
+  if (data.borders !== undefined) {
+    if (!Array.isArray(data.borders) || data.borders.length > 10_000) throw new MapFailure('国界背景数据格式无效，未显示地图。')
+    let points = 0
+    for (const line of data.borders) {
+      if (!Array.isArray(line) || line.length < 2 || line.some(p => ++points > 500_000 || !Array.isArray(p) || p.length !== 2
+        || !p.every(v => typeof v === 'number' && Number.isFinite(v)) || p[0] < 70 || p[0] > 140 || p[1] < 0 || p[1] > 60)) throw new MapFailure('国界背景坐标无效，未显示地图。')
+      borders.push(line)
+    }
+  }
+  const byCode = new Map<string, ChinaRegion>()
+  for (const region of data.regions) {
+    if (!region || !/^156\d{6}$/.test(region.provider_code) || byCode.has(region.provider_code)
+      || typeof region.name !== 'string' || !region.name || !(region.parent_name === null || typeof region.parent_name === 'string')
+      || typeof region.unit_kind !== 'string' || !Array.isArray(region.center) || region.center.length !== 2
+      || !region.center.every(p => typeof p === 'number' && Number.isFinite(p))
+      || region.center[0] < 70 || region.center[0] > 140 || region.center[1] < 0 || region.center[1] > 60) throw new MapFailure('市界编码或城市资料有冲突，未显示地图。')
+    if (region.geometry !== null) outline.push(...checkedGeometry(region.geometry))
+    byCode.set(region.provider_code, region)
+  }
+  if (!outline.length) throw new MapFailure('市界轮廓为空，未显示地图。')
+  const ids = new Set<string>(), codes = new Set<string>()
+  const items: LocatedCity[] = [], regions: Record<string, Geometry> = {}
+  for (const city of cities) {
+    if (ids.has(city.id) || codes.has(city.provider_code)) throw new MapFailure('城市目录有重复项，未显示地图。')
+    ids.add(city.id); codes.add(city.provider_code)
+    const match = byCode.get(city.provider_code)
+    if (!match || match.name !== city.name || match.parent_name !== city.parent_name || match.unit_kind !== city.unit_kind) continue
+    items.push({ ...city, center: match.center })
+    if (match.geometry) regions[city.id] = match.geometry
+  }
+  return { items, regions, outline, borders, missing: cities.length - items.length, missingRegions: items.length - Object.keys(regions).length }
+}
 type District = { gb: string; name: string; level: number; center?: unknown; children?: District[]; boundary?: unknown }
 type Payload = { status?: number; data?: { district?: District[] } }
 export class MapFailure extends Error {}
@@ -53,13 +116,51 @@ export class MapService {
   private draining = false
   private cache = new Map<string, Geometry>()
   private inFlight = new Map<string, Promise<Geometry>>()
+  private chinaPayload?: unknown
+  private chinaRequest: AbortController | null = null
+
+  async loadChinaMap(cities: MapCity[], signal: AbortSignal): Promise<ChinaMapData> {
+    signal.throwIfAborted()
+    if (this.chinaPayload) return joinChinaRegions(this.chinaPayload, cities)
+    const controller = new AbortController()
+    this.chinaRequest?.abort(); this.chinaRequest = controller
+    const combined = AbortSignal.any([signal, controller.signal, AbortSignal.timeout(25_000)])
+    try {
+      const response = await fetch('/map-data/china-cities.v1.json', { signal: combined, credentials: 'omit' })
+      if (!response.ok) throw new MapFailure('市界数据暂时无法读取，仍可使用下方城市搜索。')
+      const reader = response.body?.getReader()
+      if (!reader) throw new MapFailure('市界数据为空，请重新加载地图。')
+      const chunks: Uint8Array[] = []; let size = 0
+      try {
+        for (;;) {
+          const result = await reader.read(); if (result.done) break
+          size += result.value.byteLength
+          if (size > 8_000_000) { await reader.cancel(); throw new MapFailure('市界数据超出读取上限，已停止加载。') }
+          chunks.push(result.value)
+        }
+      } finally { reader.releaseLock() }
+      combined.throwIfAborted()
+      const bytes = new Uint8Array(size); let offset = 0
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length }
+      const payload: unknown = JSON.parse(new TextDecoder().decode(bytes))
+      const result = joinChinaRegions(payload, cities)
+      combined.throwIfAborted()
+      this.chinaPayload = payload
+      return result
+    } catch (error) {
+      if (signal.aborted || controller.signal.aborted) throw aborted()
+      if (error instanceof MapFailure) throw error
+      throw new MapFailure('市界数据加载失败，仍可使用下方城市搜索。')
+    } finally { if (this.chinaRequest === controller) this.chinaRequest = null }
+  }
 
   configuration() {
     this.config ??= api<MapConfig>('/map/config').catch(error => { this.config = undefined; throw error })
     return this.config
   }
-  resetConfiguration() { this.config = undefined }
+  resetConfiguration() { this.config = undefined; this.chinaPayload = undefined }
   cancel() {
+    this.chinaRequest?.abort()
     this.current?.abort()
     for (const job of [...this.queue]) job.abort()
   }

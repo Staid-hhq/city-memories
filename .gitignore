@@ -5,6 +5,7 @@ frontend/test-results/
 frontend/playwright-report/
 validation/scale/results/
 validation/local-delivery/results/
+validation/map-plan/results/
 
 # Python environments and caches
 backend/.venv/

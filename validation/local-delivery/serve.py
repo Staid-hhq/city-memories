@@ -9,7 +9,6 @@ from tempfile import TemporaryDirectory
 import uvicorn
 from alembic import command
 from alembic.config import Config
-
 from city_memories.config import Settings, get_settings
 from city_memories.main import create_app
 
@@ -18,6 +17,10 @@ RESULTS = ROOT / "validation/local-delivery/results"
 
 
 if __name__ == "__main__":
+    frontend_port = int(os.environ.get("CITY_MEMORIES_E2E_FRONTEND_PORT", "5173"))
+    backend_port = int(os.environ.get("CITY_MEMORIES_E2E_BACKEND_PORT", "8000"))
+    if not all(1024 <= port <= 65535 for port in (frontend_port, backend_port)):
+        raise ValueError("Invalid isolated test port")
     RESULTS.mkdir(parents=True, exist_ok=True)
     # Retain this small synthetic database for local verification, never Git.
     with TemporaryDirectory(prefix="t16-runtime-", dir=RESULTS, delete=False) as temporary:
@@ -29,7 +32,8 @@ if __name__ == "__main__":
         command.upgrade(Config(ROOT / "backend/alembic.ini"), "head")
         settings = Settings(
             data_dir=directory, _env_file=None, auth_secret=None, cookie_secure=False,
-            allowed_origins=["http://127.0.0.1:5173", "http://127.0.0.1:8000"],
+            allowed_origins=[f"http://127.0.0.1:{frontend_port}",
+                             f"http://127.0.0.1:{backend_port}"],
             cleanup_enabled=True, cleanup_interval_seconds=60,
             map_key=None, map_key_file=None, map_review_number="", map_review_date="",
         )
@@ -45,6 +49,6 @@ if __name__ == "__main__":
             "migration": migration, "map_enabled": False,
         }, indent=2), encoding="utf-8")
         uvicorn.run(
-            create_app(settings), host="127.0.0.1", port=8000,
+            create_app(settings), host="127.0.0.1", port=backend_port,
             proxy_headers=False, access_log=False,
         )

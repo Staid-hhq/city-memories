@@ -20,7 +20,7 @@ async function read(page: Page, path: string) {
 }
 
 async function token(page: Page) {
-  return { Origin: 'http://127.0.0.1:5173', 'X-CSRF-Token': (await read(page, '/auth/csrf')).csrf_token }
+  return { Origin: new URL(page.url()).origin, 'X-CSRF-Token': (await read(page, '/auth/csrf')).csrf_token }
 }
 
 test('独立相册跨城市分页、失败重试及返回已读位置', async ({ page }, info) => {

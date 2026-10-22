@@ -90,7 +90,7 @@ test('两个账号同城市年份隔离，退出和换号不残留私人影集',
   await login(page)
   await page.goto(`/cities/${shenzhen}`)
   const firstAlbum = await create(page, '2031')
-  const secondContext = await browser.newContext({ baseURL: 'http://127.0.0.1:5173' })
+  const secondContext = await browser.newContext({ baseURL: new URL(page.url()).origin })
   const second = await secondContext.newPage()
   try {
     await login(second, 'Albums_Two')
@@ -116,7 +116,7 @@ test('超过一页的年份按序加载，失败重试保留已读影集', async
   const token = (await (await page.request.get('/api/v1/auth/csrf')).json()).data.csrf_token
   for (let year = 2000; year <= 2024; year += 1) {
     const response = await page.request.post(`/api/v1/cities/${hezhou}/albums`, {
-      headers: { Origin: 'http://127.0.0.1:5173', 'X-CSRF-Token': token }, data: { year },
+      headers: { Origin: new URL(page.url()).origin, 'X-CSRF-Token': token }, data: { year },
     })
     expect(response.status()).toBe(201)
   }

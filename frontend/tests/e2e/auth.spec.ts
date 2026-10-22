@@ -62,7 +62,7 @@ test('两个独立账号与多窗口退出、换号不残留', async ({ page, co
   const sibling = await context.newPage()
   await sibling.goto('/')
   await expect(sibling.getByRole('heading', { name: '你好，Ui_Alpha' })).toBeVisible()
-  const separate = await browser.newContext({ baseURL: 'http://127.0.0.1:5173' })
+  const separate = await browser.newContext({ baseURL: new URL(page.url()).origin })
   const other = await separate.newPage()
   try {
     await register(other, 'Ui_Beta')

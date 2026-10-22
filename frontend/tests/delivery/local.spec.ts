@@ -10,7 +10,9 @@ const root = fileURLToPath(new URL('../../../', import.meta.url))
 const results = path.join(root, 'validation/local-delivery/results')
 const execute = promisify(execFile)
 
-test('T16 空库启动、构建产物、深链接刷新和同源 API 代理', async ({ page, browser }) => {
+test('T16 空库启动、构建产物、深链接刷新和同源 API 代理', async ({ page, browser, baseURL }) => {
+  const origin = new URL(baseURL!).origin
+  const frontendPort = new URL(baseURL!).port
   const startup = JSON.parse(await readFile(path.join(results, 'startup.json'), 'utf8'))
   expect(startup.initial_counts).toEqual({ users: 0, albums: 0, photos: 0 })
   expect(startup.migration).toBe('c7e9a162b4d8')
@@ -21,7 +23,7 @@ test('T16 空库启动、构建产物、深链接刷新和同源 API 代理', as
   page.on('pageerror', error => errors.push(error.name))
   await page.route('**/*', route => {
     const url = new URL(route.request().url())
-    if (url.origin !== 'http://127.0.0.1:5173') {
+    if (url.origin !== origin) {
       external.push(url.origin)
       return route.abort()
     }
@@ -49,19 +51,22 @@ test('T16 空库启动、构建产物、深链接刷新和同源 API 代理', as
     manifest.push({ asset, bytes: actual.length, sha256: createHash('sha256').update(actual).digest('hex') })
   }
   expect((await page.request.get('/api/v1/health')).status()).toBe(200)
+  const mapAsset = await page.request.get('/map-data/china-cities.v1.json')
+  expect(mapAsset.status()).toBe(200)
+  expect((await mapAsset.body()).equals(await readFile(path.join(root, 'frontend/dist/map-data/china-cities.v1.json')))).toBe(true)
   expect((await page.request.get('/api/v1/auth/me')).status()).toBe(401)
   expect((await page.request.get('/api/v1/map/config')).status()).toBe(401)
   let refusal = ''
   try {
     await execute(process.execPath, [path.join(root, 'frontend/node_modules/vite/bin/vite.js'),
-      'preview', '--host', '127.0.0.1', '--port', '5173', '--strictPort'], {
+      'preview', '--host', '127.0.0.1', '--port', frontendPort, '--strictPort'], {
       cwd: path.join(root, 'frontend'), windowsHide: true, timeout: 15_000,
     })
   } catch (error) {
     expect(error).toMatchObject({ code: 1 })
     refusal = (error as { stderr: string }).stderr
   }
-  expect(refusal).toContain('Port 5173 is already in use')
+  expect(refusal).toContain(`Port ${frontendPort} is already in use`)
   const deep = await page.goto('/albums/not-a-real-id')
   expect(deep?.status()).toBe(200)
   expect(await deep!.text()).toBe(index)

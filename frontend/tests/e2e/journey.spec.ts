@@ -60,7 +60,7 @@ test('T14 新账号连续流程：空影集→批量原图→文字排序→重�
   let albumUrl = '', targetUrl = '', id = '', duplicateId = '', secondId = ''
   const green = await syntheticImage(page, '#668875')
   const orange = await syntheticImage(page, '#ae7858')
-  const secondContext = await browser.newContext({ baseURL: 'http://127.0.0.1:5173' })
+  const secondContext = await browser.newContext({ baseURL: new URL(page.url()).origin })
   const other = await secondContext.newPage()
   try {
     await test.step('两个全新账号；搜索城市并持久保存空影集', async () => {
@@ -160,7 +160,7 @@ test('T14 新账号连续流程：空影集→批量原图→文字排序→重�
       }
       const csrf = await read(other, '/auth/csrf')
       const denied = await other.request.patch(`/api/v1/photos/${id}/note`, {
-        headers: { Origin: 'http://127.0.0.1:5173', 'X-CSRF-Token': csrf.csrf_token },
+        headers: { Origin: new URL(page.url()).origin, 'X-CSRF-Token': csrf.csrf_token },
         data: { note: 'Must not overwrite owner', expected_photo_revision: moved.revision },
       })
       expect(denied.status()).toBe(404)

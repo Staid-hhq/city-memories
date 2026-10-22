@@ -1,0 +1,22 @@
+# 中国城市足迹地图数据
+
+本文件随 `china-cities.v1.json` 一起提供，记录数据来源、固定版本和处理方式。它只包含公共行政区域几何，不包含账号、照片、文字或地图密钥。
+
+## 来源与授权说明
+
+- 371 个现有城市及同级目的地的轮廓来自 [GeoCode-Release 的 china-admin-boundaries](https://github.com/zzhonglei/GeoCode-Release/tree/6e3534f7af3675b19bd3c5d54c94022959dccdd2/contributions/china-admin-boundaries)，固定提交 `6e3534f7af3675b19bd3c5d54c94022959dccdd2`。上游说明来源为天地图；仓库采用 MIT，随附完整许可证。本项目使用这一公开快照，不宣称边界实时更新。
+- 台湾 20 个既有市县目的地使用 [taiwan-atlas](https://github.com/dkaoster/taiwan-atlas/tree/60ac5fdae46c53f0ddb810c418fdb08b056273d5) 的 `2021.9.20` 包中 `counties-10t.json`，转换工具采用 MIT。该项目注明原始资料来自[政府开放资料条目 7442](https://data.gov.tw/dataset/7442)，原始资料适用[政府资料开放授权条款第 1 版](https://data.gov.tw/license)。该固定包的几何不等同于当前条目最新下载版。
+- 国界、海岸及南海界线来自同一 GeoCode 固定提交的 `thematic-map/skill/data/china_thematic_base_wgs84.gpkg`。仅按其声明的 EPSG:4326 读取 `border`、`coast`、`ninedash` 三个线图层，保留 542 条源线；不把开放线段封闭成国家面，不生成新的界线。上游 `ninedash` 图层实际含 10 个线段，本项目按原样保留。
+- 两个项目的完整 MIT 文本见同目录 `LICENSES.txt`。使用、复制或再分发本地数据时保留本来源说明和许可证，并注明基于上述资料加工。
+
+## 处理与业务对应
+
+保留原多面、离岛和内环。台湾 TopoJSON 按共享弧解码；传统字形只用于和既有业务目录名称对应，不用台湾来源代码推算供应商代码。源里的台湾整省粗轮廓由市县几何替换。坐标仅量化到小数点后 5 位，极小轮廓保留原精度，不通过抽点丢弃岛屿。各外环/内环方向统一，供背景联合填充。
+
+391 个市界逐项对应 `city-catalog.json` 中已审核代码和名称，并沿用其上级、单位类型与稳定业务 UUID；不自动注册新城市。三个未对应业务入口的甘肃保护区及金门、连江县只保留作背景。草湖市保持原有待映射状态。
+
+本图用于个人照片足迹展示。相册数量与填色只由当前账号的有效照片决定，公共几何不包含私人统计。它不使用世界瓦片，也不向在线地图供应商发送地图密钥或逐市边界请求。
+
+## 可重复生成
+
+在仓库根目录使用项目 Python 执行 `scripts/build-china-map-data.py --download`。脚本校验固定源 SHA256，核对所有已审核城市后才写出正式资产；原始下载留在忽略的测试结果目录，不读应用配置或私人资料。生成脚本中的固定 URL 和哈希是复现依据。

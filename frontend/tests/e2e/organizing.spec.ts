@@ -12,7 +12,7 @@ async function login(page: Page, username = 'Organize_One') {
 }
 async function headers(page: Page) {
   const result = await (await page.request.get('/api/v1/auth/csrf')).json()
-  return { Origin: 'http://127.0.0.1:5173', 'X-CSRF-Token': result.data.csrf_token }
+  return { Origin: new URL(page.url()).origin, 'X-CSRF-Token': result.data.csrf_token }
 }
 async function enter(page: Page, year: number) {
   await login(page)

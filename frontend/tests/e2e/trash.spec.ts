@@ -11,7 +11,7 @@ async function login(page: Page, name = 'Trash_One') {
 }
 async function headers(page: Page) {
   const result = await (await page.request.get('/api/v1/auth/csrf')).json()
-  return { Origin: 'http://127.0.0.1:5173', 'X-CSRF-Token': result.data.csrf_token }
+  return { Origin: new URL(page.url()).origin, 'X-CSRF-Token': result.data.csrf_token }
 }
 async function read(page: Page, path: string) { return (await (await page.request.get(`/api/v1${path}`)).json()).data }
 async function enter(page: Page, year: number, name = 'Trash_One') {

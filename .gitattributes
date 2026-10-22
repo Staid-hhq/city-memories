@@ -1,0 +1,2 @@
+# Keep the reproducible public map asset byte-identical on Windows checkouts.
+frontend/public/map-data/china-cities.v1.json text eol=lf
