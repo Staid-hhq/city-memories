@@ -505,7 +505,7 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 /* Keep the map beside useful account information; scrolling stays on the page. */
 .home-overview-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; gap: 24px; }
 .home-overview-grid > .city-map { min-width: 0; padding: 22px 24px 18px; }
-.home-overview-grid .china-map-stage { height: 420px; }
+.home-overview-grid .china-map-stage { height: 540px; }
 .home-overview-grid .map-toolbar { flex-wrap: wrap; gap: 12px; }
 .home-overview-grid .map-toolbar > span { font-size: 10px; }
 .home-overview-grid .china-map-find > span { flex-basis: 100%; }

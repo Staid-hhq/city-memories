@@ -93,7 +93,8 @@ test('首页地图与旅行侧栏左右排列，最近整理按真实更新时�
   expect(mapBox.width / (mapBox.width + panelBox.width)).toBeGreaterThan(.6)
   expect(mapBox.width / (mapBox.width + panelBox.width)).toBeLessThan(.76)
   const stageBox = (await page.getByRole('region', { name: '中国城市地图', exact: true }).boundingBox())!
-  expect(stageBox.height).toBeLessThan(500)
+  expect(stageBox.height).toBeGreaterThan(500)
+  expect(stageBox.height).toBeLessThan(600)
   await page.locator('.home-overview-grid').screenshot({ path: info.outputPath('home-sidebar-overview.png') })
   await page.screenshot({ path: info.outputPath('home-sidebar-desktop.png'), fullPage: true })
   await panel.locator('.recent-album').first().click()

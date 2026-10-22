@@ -10,7 +10,7 @@ import type { ChinaMapData, LocatedCity, MapCity } from './mapService'
 
 export type MapMemory = { read: () => View | undefined; write: (view: View) => void }
 type Size = { width: number; height: number }
-const initialSize: Size = { width: 900, height: 420 }
+const initialSize: Size = { width: 900, height: 540 }
 const sourceUrl = '/map-data/NOTICE.md'
 
 function fitView({ width, height }: Size): View {
