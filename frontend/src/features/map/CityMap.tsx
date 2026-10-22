@@ -46,6 +46,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   const [size, setSize] = useState<Size>(initialSize)
   const [view, setView] = useState<View>(() => memory.read() ?? fitView(initialSize))
   const [drag, setDrag] = useState<Point>([0, 0])
+  const [touchPan, setTouchPan] = useState(false)
   const [hovered, setHovered] = useState<LocatedCity | null>(null)
   const [query, setQuery] = useState('')
   const interacted = useRef(!!memory.read())
@@ -91,11 +92,17 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
     return () => element.removeEventListener('wheel', wheel)
   }, [view, memory, size])
 
-  function finish(event: ReactPointerEvent) {
+  function clearPointer(timeStamp: number, pointerId?: number) {
     const current = pointer.current
-    if (!current || event.pointerId !== current.id) return
-    pointer.current = null; setDrag([0, 0]); ignoreClickUntil.current = event.timeStamp + 350
+    if (!current || (pointerId !== undefined && pointerId !== current.id)) return
+    pointer.current = null; setDrag([0, 0]); ignoreClickUntil.current = timeStamp + 350
     if (stage.current?.hasPointerCapture(current.id)) stage.current.releasePointerCapture(current.id)
+    return current
+  }
+  function cancel(event: ReactPointerEvent) { clearPointer(event.timeStamp, event.pointerId) }
+  function finish(event: ReactPointerEvent) {
+    const current = clearPointer(event.timeStamp, event.pointerId)
+    if (!current) return
     if (Math.hypot(...current.delta) > 4) {
       const center = project(view.center, view.zoom)
       change({ ...view, center: unproject([center[0] - current.delta[0], center[1] - current.delta[1]], view.zoom) })
@@ -114,8 +121,9 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
       <button type="button" className="quiet-button" onClick={() => zoom(.5)} disabled={view.zoom >= 10} title={view.zoom >= 10 ? '已放大到最大' : '放大地图'} aria-label="放大地图">＋</button>
       <button type="button" className="quiet-button" onClick={() => zoom(-.5)} disabled={view.zoom <= overview.zoom + .001} title={view.zoom <= overview.zoom + .001 ? '已是全国视图' : '缩小地图'} aria-label="缩小地图">−</button>
       <button type="button" className="quiet-button" onClick={() => change(overview)}>全国视图</button>
-    </div><span>拖动查看 · 滚轮或＋／－缩放</span></div>
-    <div ref={stage} className="map-stage china-map-stage" tabIndex={0} role="region" aria-label="中国城市地图"
+      <button type="button" className="quiet-button map-touch-toggle" aria-pressed={touchPan} onClick={event => { clearPointer(event.timeStamp); setTouchPan(value => !value); setHovered(null) }}>{touchPan ? '完成移动' : '移动地图'}</button>
+    </div><span className="map-pointer-hint">拖动查看 · 滚轮或＋／－缩放</span><span className="map-touch-hint">{touchPan ? '拖动地图 · 完成后点“完成移动”' : '滑动页面 · 点＋／－缩放，移动地图可拖动'}</span></div>
+    <div ref={stage} className={`map-stage china-map-stage${touchPan ? ' is-touch-panning' : ''}`} tabIndex={0} role="region" aria-label="中国城市地图"
       data-zoom={view.zoom} data-center={view.center.join(',')}
       onKeyDown={event => {
         if (event.target !== event.currentTarget) return
@@ -125,7 +133,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
         else if (event.key === '-') { event.preventDefault(); zoom(-.5) }
       }}
       onPointerDown={event => {
-        if (event.button !== 0 || (event.target as Element).closest('button,a,.china-map-inset')) return
+        if (pointer.current || event.button !== 0 || (event.pointerType === 'touch' && (!event.isPrimary || !touchPan)) || (event.target as Element).closest('button,a,.china-map-inset')) return
         const cityId = (event.target as Element).closest('[data-city-region]')?.getAttribute('data-city-region') ?? undefined
         pointer.current = { id: event.pointerId, start: [event.clientX, event.clientY], delta: [0, 0], cityId }
         event.currentTarget.setPointerCapture(event.pointerId)
@@ -136,7 +144,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
         current.delta = [event.clientX - current.start[0], event.clientY - current.start[1]]
         setDrag(current.delta)
         if (Math.hypot(...current.delta) > 4) setHovered(null)
-      }} onPointerUp={finish} onPointerCancel={() => { pointer.current = null; setDrag([0, 0]) }}>
+      }} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel}>
       <svg className="china-map-svg" width={size.width} height={size.height} viewBox={`0 0 ${size.width} ${size.height}`} data-map-layer="main" data-ready="true" aria-label="按城市划分的中国足迹地图">
         <g transform={worldTransform(view, size, drag)}>
           <path className="china-map-outline" d={paths.outline} fillRule="nonzero" />

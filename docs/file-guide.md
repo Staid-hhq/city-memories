@@ -59,21 +59,21 @@
 | [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、启动连接帮助、会话手动核对、退出清理和顶层路由 |
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
-| [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、主导航、封面卡与现有功能组件的统一样式 |
+| [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、导航、封面卡与功能样式；含手机触控控件、局部横滚和短屏查看层 |
 | [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、城市搜索、年份影集、相册入口与地图联动 |
 | [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 本人相册筛选、排序分页、条件/返回位置记忆；与城市年份页共用 3:4 封面、完整城市名和对齐资料的卡片 |
 | [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹统计、最近三本相册及相册/选城快捷入口 |
 | [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、影集和个人地图统计类型，不依赖页面组件 |
 | [src/features/imports/UploadPanel.tsx](../frontend/src/features/imports/UploadPanel.tsx) | 单张原图上传、校验、确认保存与失败状态 |
-| [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 批量导入页面、任务执行、重选、重试和恢复查询；保留独立相册的返回来源 |
+| [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 批量导入页面、任务执行、重选、重试和恢复查询；提供待确认列表横滚提示并保留返回来源 |
 | [src/features/imports/importQueue.ts](../frontend/src/features/imports/importQueue.ts) | 文件编号/年份解析、批次拆分、队列数据和提交规则 |
-| [src/features/photos/PhotoGallery.tsx](../frontend/src/features/photos/PhotoGallery.tsx) | 照片分页、查看层、前后浏览、排序与手选/恢复自动封面 |
+| [src/features/photos/PhotoGallery.tsx](../frontend/src/features/photos/PhotoGallery.tsx) | 照片分页、手机短屏查看层及完整文件名、前后浏览、排序与封面选择 |
 | [src/features/photos/OriginalImage.tsx](../frontend/src/features/photos/OriginalImage.tsx) | 视野附近按需取原图，取消请求和释放 Blob URL/图片资源 |
 | [src/features/photos/NoteEditor.tsx](../frontend/src/features/photos/NoteEditor.tsx) | 照片文字编辑、草稿离开提醒和版本冲突处理 |
 | [src/features/photos/MovePhoto.tsx](../frontend/src/features/photos/MovePhoto.tsx) | 目标城市/年份选择、创建目标影集、确认跨影集移动 |
 | [src/features/photos/Duplicates.tsx](../frontend/src/features/photos/Duplicates.tsx) | 本影集同内容照片的分组分页与逐份查看，不自动删除 |
 | [src/features/photos/photos.ts](../frontend/src/features/photos/photos.ts) | 照片、文字、分页和详情的 TypeScript 数据类型 |
-| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 只绘制中国的全市级 SVG、南海附图、本人点亮、定位、拖缩和返回视角 |
+| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 中国全市级 SVG、南海附图、本人点亮、定位、拖缩和返回视角；触摸滚页与显式移动地图切换 |
 | [src/features/map/mapGeometry.ts](../frontend/src/features/map/mapGeometry.ts) | 投影、WKT 边界解析、几何路径、坐标和瓦片范围计算 |
 | [src/features/map/mapService.ts](../frontend/src/features/map/mapService.ts) | 静态市界加载、严格身份关联、缓存/取消/失败处理；保留第一版行政请求兼容方法 |
 | [src/features/trash/Trash.tsx](../frontend/src/features/trash/Trash.tsx) | 回收站列表、照片删除确认、原图查看和恢复流程 |
@@ -93,7 +93,7 @@
 | [tests/e2e/editing.spec.ts](../frontend/tests/e2e/editing.spec.ts) | 文字草稿、冲突、离开提醒、拖动和跨页排序 |
 | [tests/e2e/organizing.spec.ts](../frontend/tests/e2e/organizing.spec.ts) | 跨影集移动、重复分组及错误恢复 |
 | [tests/e2e/trash.spec.ts](../frontend/tests/e2e/trash.spec.ts) | 删除确认、回收站、恢复和状态冲突 |
-| [tests/e2e/maps.spec.ts](../frontend/tests/e2e/maps.spec.ts) | 静态几何关联、全市灰底、交互、本人统计和迟到请求隔离 |
+| [tests/e2e/maps.spec.ts](../frontend/tests/e2e/maps.spec.ts) | 静态几何、全市灰底、桌面及触屏滚页/移动交互、本人统计和请求隔离 |
 | [tests/e2e/map-service.spec.ts](../frontend/tests/e2e/map-service.spec.ts) | 地图请求调度、复用和错误规则 |
 | [tests/e2e/map-live.spec.ts](../frontend/tests/e2e/map-live.spec.ts) | 默认实际公共矢量的 391 项覆盖、零在线地图请求与窄屏检查 |
 | [tests/e2e/journey.spec.ts](../frontend/tests/e2e/journey.spec.ts) | 从注册到导入、整理、恢复、重登的连续流程与双账号检查 |
@@ -214,6 +214,7 @@
 | [reports/2026-10-23-album-card-layout.md](reports/2026-10-23-album-card-layout.md) | V2-04 共享相册卡片排版、空封面与窄屏视觉复查及既有行为回归 |
 | [reports/2026-10-23-operation-feedback.md](reports/2026-10-23-operation-feedback.md) | V2-04 导入、封面和回收/恢复反馈、重试核对及本轮验证 |
 | [reports/2026-10-23-connection-feedback.md](reports/2026-10-23-connection-feedback.md) | V2-04 连接错误分类、启动帮助、会话核对及隔离验证 |
+| [reports/2026-10-23-mobile-details.md](reports/2026-10-23-mobile-details.md) | V2-04 手机触控控件、批量列表、短屏原图查看和地图触控的范围、验证及真机边界 |
 
 ## 独立验证工具
 

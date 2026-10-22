@@ -222,6 +222,7 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .viewer-image { height: 57vh; min-height: 200px; background: #eae5d8; }
 .viewer-navigation { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 18px; font-size: 14px; }
 .viewer-metadata { text-align: center; font-size: 12px; color: #93816c; margin-bottom: 0; }
+.viewer-filename, .queue-scroll-hint { display: none; }
 .viewer-message { min-height: 160px; padding: 36px 0; text-align: center; }
 .photo-note { white-space: pre-wrap; overflow-wrap: anywhere; padding: 18px; border-left: 3px solid #c4ae8b; font-size: 14px; line-height: 1.8; }
 .photo-viewer .scope-note { text-align: center; margin: 12px 0 0; }
@@ -387,7 +388,7 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
   .clear-album-filters { justify-self: start; }
 }
 @media (max-width: 480px) {
-  .album-filters { padding: 16px; gap: 16px 12px; }
+  .album-filters { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 16px 12px; }
   .album-filter-search > div { flex-wrap: wrap; }
   .album-filter-search input { flex-basis: 150px; }
   .album-filter-search button { flex: 1; }
@@ -467,6 +468,14 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 .china-city-map .map-toolbar > span { color: var(--muted); }
 .china-city-map .map-toolbar .quiet-button { padding: 7px 13px; font-size: 12px; }
 .china-map-stage { height: 590px; border: 1px solid #edf0ed; border-radius: 8px; background: #fff; isolation: isolate; }
+.china-map-stage { touch-action: pan-x pan-y pinch-zoom; }
+.china-map-stage.is-touch-panning { touch-action: none; }
+.map-touch-toggle, .map-touch-hint { display: none; }
+@media (pointer: coarse) {
+  .china-city-map .map-touch-toggle { display: inline-flex; align-items: center; }
+  .map-touch-hint { display: inline; }
+  .map-pointer-hint { display: none; }
+}
 .china-map-stage:focus-visible { outline: 2px solid #91ad9a; outline-offset: 3px; }
 .china-map-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: hidden; }
 .china-map-outline { fill: #f1f3f0; stroke: #d6ded5; stroke-width: .65; vector-effect: non-scaling-stroke; pointer-events: none; }
@@ -599,4 +608,45 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 @media (max-width: 480px) {
   .home-overview-grid > .city-map { padding: 17px 14px; }
   .home-overview-grid .china-map-stage { height: 410px; }
+}
+
+/* Narrow layouts keep controls reachable and long original names readable. */
+@media (max-width: 760px), (pointer: coarse) {
+  button { min-height: 44px; min-width: 44px; }
+  .quiet-button, .primary-button, .danger-button, .back-link, .move-link, .trash-link,
+  .journal-nav a, .account-menu a, .auth-tabs a, .china-map-results a, .brand-link {
+    display: inline-flex; align-items: center; justify-content: center; min-height: 44px;
+  }
+  input:not([type=checkbox]):not([type=radio]), .album-filters select, .move-picker select,
+  .note-editor textarea { min-height: 44px; font-size: 16px; }
+  input[type=file]::file-selector-button { min-height: 44px; font: inherit; }
+  .checkbox-label { min-height: 44px; }
+  .checkbox-label input { width: 20px; height: 20px; flex-shrink: 0; }
+  .connection-help summary { min-height: 44px; align-content: center; }
+}
+@media (max-width: 760px) {
+  .journal-nav { gap: 12px; }
+  .journal-nav a { flex: 1; padding-inline: 10px; }
+  .journal-nav a[aria-current=page]::after { bottom: 0; }
+  .upload-actions > button { max-width: 100%; white-space: normal; }
+  .batch-year-tools { flex-wrap: wrap; align-items: flex-start; }
+  .batch-year-tools label { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .queue-table-wrap { max-width: 100%; min-width: 0; }
+  .queue-table { min-width: 640px; table-layout: fixed; }
+  .queue-scroll-hint { display: block; margin: 14px 0 10px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+  .queue-summary { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .import-job { padding: 20px 16px; }
+  .upload-list li { flex-direction: column; align-items: stretch; gap: 14px; }
+  .entry-retry { width: 100%; min-width: 0; }
+  .import-job, .queue-summary, .batch-entry, .move-confirm, .move-result { min-width: 0; overflow-wrap: anywhere; }
+  .move-summary { grid-template-columns: minmax(0, 1fr); padding: 18px; gap: 16px; }
+  .move-preview { height: 180px; }
+  .photo-viewer { width: calc(100% - 24px); max-width: none; max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); padding: 16px; overscroll-behavior: contain; }
+  .viewer-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+  .viewer-header h2 { font-size: 16px; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .viewer-header .eyebrow { font-size: 9px; }
+  .viewer-image { height: 48vh; height: 48dvh; min-height: 140px; }
+  .viewer-filename { display: block; margin: 16px 0 0; color: var(--muted); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+  .viewer-navigation { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); font-size: 12px; }
+  .viewer-navigation button { width: 100%; padding-inline: 8px; }
 }

@@ -71,6 +71,7 @@ export function PhotoViewer({ photoId, albumId, initialRevision, close, navigate
         <span aria-live="polite">第 {data.ordinal} / {data.photo_count} 张</span>
         <button className="quiet-button" disabled={!data.next_photo_id} onClick={() => data.next_photo_id && turn(data.next_photo_id)}>下一张 →</button>
       </nav>
+      <p className="viewer-filename">原文件：{data.original_filename}</p>
       <p className="viewer-metadata">{data.width} × {data.height} 像素 · {(data.byte_size / 1024 / 1024).toFixed(2)} MiB · 原始文件，未压缩</p>
       <NoteEditor key={data.id} initial={data} onSaved={(note) => { setRead({ id: data.id, data: { ...data, ...note } }); onNoteSaved(note) }} />
       <Link className="move-link" to={`/albums/${albumId}/move/${data.id}`}>移动到其他影集</Link>

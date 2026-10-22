@@ -260,7 +260,8 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
         {!albumId && <div className="batch-year-tools"><label>统一指定年份 <input aria-label="统一指定年份" inputMode="numeric" maxLength={4} value={allYear} onChange={(event) => setAllYear(event.target.value)} /></label>
           <button className="quiet-button" disabled={!validYear(allYear) || allYear === 'unmarked'} onClick={() => { setDraft((rows) => rows.map((row) => ({ ...row, year: allYear }))); setConfirmed(false) }}>应用到全部</button>
           <button className="quiet-button" onClick={() => { setDraft((rows) => rows.map((row) => row.year ? row : { ...row, year: 'unmarked' })); setConfirmed(false) }}>未识别项设为未标年份</button></div>}
-        <div className="queue-table-wrap"><table className="queue-table"><thead><tr><th>顺序</th><th>原文件</th><th>归属年份</th><th>调整</th></tr></thead>
+        <p className="queue-scroll-hint">左右滑动下方列表，可核对年份和调整顺序。</p>
+        <div className="queue-table-wrap" tabIndex={0} role="region" aria-label="待确认原图列表"><table className="queue-table"><thead><tr><th>顺序</th><th>原文件</th><th>归属年份</th><th>调整</th></tr></thead>
           <tbody>{draft.slice(page * 50, page * 50 + 50).map((row, offset) => {
             const index = page * 50 + offset
             return <tr key={row.id}><td>{index + 1}</td><td><strong>{row.file.name}</strong><small>{(row.file.size / 1024).toFixed(1)} KiB · {row.numbering ? `识别编号 ${row.numbering.order}` : '未识别编号'}</small></td>

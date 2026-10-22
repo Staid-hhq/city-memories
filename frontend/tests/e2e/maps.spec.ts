@@ -243,6 +243,95 @@ test('地图内滚轮缩放、地图外滚动页面，缩放边界显示普通�
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(outsideScroll + 100)
 })
 
+test('触屏默认滑动页面，移动模式可二维拖图，取消后仍可操作并轻点城市返回原视角', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  try {
+    await mockMaps(context)
+    const page = await context.newPage()
+    const touch = await context.newCDPSession(page)
+    const frame = () => page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+    const settleScroll = () => page.evaluate(() => new Promise<void>(resolve => {
+      let previous = window.scrollY, stable = 0
+      function check() {
+        const current = window.scrollY
+        stable = current === previous ? stable + 1 : 0
+        previous = current
+        if (stable >= 8) resolve()
+        else requestAnimationFrame(check)
+      }
+      requestAnimationFrame(check)
+    }))
+    async function swipe(start: Point, delta: Point, cancel = false) {
+      const contact = (x: number, y: number) => [{ x, y, id: 0, radiusX: 4, radiusY: 4, force: 1 }]
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: contact(...start) })
+      for (let step = 1; step <= 12; step++) {
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: contact(start[0] + delta[0] * step / 12, start[1] + delta[1] * step / 12) })
+        await frame()
+      }
+      await touch.send('Input.dispatchTouchEvent', { type: cancel ? 'touchCancel' : 'touchEnd', touchPoints: [] })
+      await frame()
+      await settleScroll()
+    }
+    await login(page, 'Map_Return')
+    await expect(page.locator('[data-city-region]')).toHaveCount(391)
+    const stage = page.getByRole('region', { name: '中国城市地图', exact: true })
+    const toggle = page.getByRole('button', { name: '移动地图', exact: true })
+    await expect(toggle).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await stage.scrollIntoViewIfNeeded()
+    const center = await stage.getAttribute('data-center'), zoom = await stage.getAttribute('data-zoom')
+    let box = (await stage.boundingBox())!
+    let scroll = await page.evaluate(() => window.scrollY)
+    await swipe([box.x + box.width * .35, box.y + box.height * .7], [0, -160])
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scroll + 60)
+    await expect(stage).toHaveAttribute('data-center', center!)
+    await expect(stage).toHaveAttribute('data-zoom', zoom!)
+    await expect(page).toHaveURL(/\/$/)
+
+    await toggle.tap()
+    const done = page.getByRole('button', { name: '完成移动', exact: true })
+    await expect(done).toHaveAttribute('aria-pressed', 'true')
+    await stage.scrollIntoViewIfNeeded()
+    await settleScroll()
+    box = (await stage.boundingBox())!
+    scroll = await page.evaluate(() => window.scrollY)
+    await swipe([box.x + box.width * .3, box.y + box.height * .35], [50, 45], true)
+    await expect(stage).toHaveAttribute('data-center', center!)
+    await swipe([box.x + box.width * .3, box.y + box.height * .35], [65, 55])
+    const moved = (await stage.getAttribute('data-center'))!.split(',').map(Number)
+    const original = center!.split(',').map(Number)
+    expect(moved[0]).not.toBeCloseTo(original[0], 6)
+    expect(moved[1]).not.toBeCloseTo(original[1], 6)
+    expect(await page.evaluate(() => window.scrollY)).toBe(scroll)
+    await expect(stage).toHaveAttribute('data-zoom', zoom!)
+    await expect(page).toHaveURL(/\/$/)
+
+    await done.tap()
+    await expect(page.getByRole('button', { name: '移动地图', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    await stage.scrollIntoViewIfNeeded()
+    box = (await stage.boundingBox())!
+    scroll = await page.evaluate(() => window.scrollY)
+    await swipe([box.x + box.width * .35, box.y + box.height * .7], [0, -160])
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scroll + 60)
+
+    await page.getByLabel('在地图中定位城市', { exact: true }).fill('深圳')
+    await page.getByRole('button', { name: '定位深圳市', exact: true }).tap()
+    await stage.scrollIntoViewIfNeeded()
+    const locatedCenter = (await stage.getAttribute('data-center'))!, locatedZoom = (await stage.getAttribute('data-zoom'))!
+    box = (await stage.boundingBox())!
+    const point = project([114.8, 23.5], Number(locatedZoom)), projectedCenter = project(locatedCenter.split(',').map(Number) as Point, Number(locatedZoom))
+    const x = box.x + box.width / 2 + point[0] - projectedCenter[0], y = box.y + box.height / 2 + point[1] - projectedCenter[1]
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-city-region]')?.getAttribute('data-city-region'), { x, y })).toBe(sz)
+    await page.touchscreen.tap(x, y)
+    await expect(page).toHaveURL(new RegExp(`/cities/${sz}$`))
+    await page.getByRole('link', { name: '返回城市入口' }).tap()
+    await expect(stage).toHaveAttribute('data-center', locatedCenter)
+    await expect(stage).toHaveAttribute('data-zoom', locatedZoom)
+  } finally {
+    await context.close()
+  }
+})
+
 test('数据失败和缺失明确降级重试，统计失败不假报零照片', async ({ page, context }) => {
   const { state } = await mockMaps(context)
   state.fail = true
