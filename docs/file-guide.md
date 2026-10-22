@@ -60,7 +60,7 @@
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、主导航、封面卡与现有功能组件的统一样式 |
 | [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、城市搜索、年份影集、相册入口与地图联动 |
-| [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 本人相册城市/地区与年份筛选、排序分页、条件/返回位置记忆及共用封面卡片 |
+| [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 本人相册筛选、排序分页、条件/返回位置记忆；与城市年份页共用 3:4 封面、完整城市名和对齐资料的卡片 |
 | [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹统计、最近三本相册及相册/选城快捷入口 |
 | [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、影集和个人地图统计类型，不依赖页面组件 |
 | [src/features/imports/UploadPanel.tsx](../frontend/src/features/imports/UploadPanel.tsx) | 单张原图上传、校验、确认保存与失败状态 |
@@ -210,6 +210,7 @@
 | [reports/2026-10-22-china-city-map.md](reports/2026-10-22-china-city-map.md) | V2-02/V2-03 中国市级地图、公开源覆盖、交互与隔离端口验证 |
 | [reports/2026-10-23-home-map-sidebar.md](reports/2026-10-23-home-map-sidebar.md) | V2-04 首页双栏、足迹/最近相册、滚轮滚页及专项验证 |
 | [reports/2026-10-23-album-library-filters.md](reports/2026-10-23-album-library-filters.md) | V2-04 相册城市/地区和年份查找、排序、接口及隔离验证 |
+| [reports/2026-10-23-album-card-layout.md](reports/2026-10-23-album-card-layout.md) | V2-04 共享相册卡片排版、空封面与窄屏视觉复查及既有行为回归 |
 
 ## 独立验证工具
 

@@ -27,13 +27,16 @@ function albumPath(filters: AlbumFilters, cursor?: string) {
 export function AlbumCard({ album, origin, onOpen }: {
   album: Album; origin?: string; onOpen?: () => void
 }) {
-  return <Link className="album-card" to={`/albums/${album.id}`} state={{ albumOrigin: origin }} onClick={onOpen}>
+  const year = album.year === null ? '未标年份' : `${album.year} 年`
+  return <Link className="album-card" to={`/albums/${album.id}`} state={{ albumOrigin: origin }} onClick={onOpen}
+    aria-label={`${album.city.name}，${year}，${album.photo_count} 张照片，打开相册`}>
     <div className={`album-cover${album.cover_photo_id ? ' has-cover' : ''}`} aria-hidden="true">
-      {album.cover_photo_id ? <OriginalImage photoId={album.cover_photo_id} alt="" /> : <div className="album-cover-empty"><span>{album.city.name[0]}</span><i>CITY MEMORIES</i></div>}
-      <div className="album-cover-title"><small>{album.city.name}</small><span>{album.year === null ? '未标年份' : `${album.year} 年`}</span></div>
+      {album.cover_photo_id ? <OriginalImage photoId={album.cover_photo_id} alt="" /> : <div className="album-cover-empty"><span>{album.city.name[0]}</span><i>等待第一张照片</i></div>}
     </div>
-    <div className="album-caption"><strong>{album.year === null ? '未标年份' : `${album.year} 年`}</strong><span>{album.photo_count} 张照片</span></div>
-    {origin === '/albums' && <p className="album-city-name">{album.city.name}<span aria-hidden="true">↗</span></p>}
+    <div className="album-card-info">
+      <p className="album-city-name" title={album.city.name}><span className="album-city-label">{album.city.name}</span><span className="album-card-arrow" aria-hidden="true">↗</span></p>
+      <div className="album-caption"><strong>{year}</strong><span>{album.photo_count} 张照片</span></div>
+    </div>
   </Link>
 }
 
