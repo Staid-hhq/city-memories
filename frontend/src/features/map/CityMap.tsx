@@ -77,6 +77,20 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
     memory.write(bounded); setView(bounded); setHovered(null)
   }
   function zoom(delta: number) { change({ ...view, zoom: view.zoom + delta }) }
+  useEffect(() => {
+    const element = stage.current!
+    const wheel = (event: WheelEvent) => {
+      if (event.ctrlKey || !event.deltaY) return
+      event.preventDefault()
+      const zoom = Math.max(fitView(size).zoom, Math.min(10, view.zoom + (event.deltaY < 0 ? .35 : -.35)))
+      if (zoom === view.zoom) return
+      const next = { ...view, zoom }
+      interacted.current = true; memory.write(next); setView(next); setHovered(null)
+    }
+    element.addEventListener('wheel', wheel, { passive: false })
+    return () => element.removeEventListener('wheel', wheel)
+  }, [view, memory, size])
+
   function finish(event: ReactPointerEvent) {
     const current = pointer.current
     if (!current || event.pointerId !== current.id) return
@@ -97,10 +111,10 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   const insetView: View = { center: [114, 13], zoom: 3.45 }
   return <>
     <div className="map-toolbar" aria-label="地图工具"><div>
-      <button type="button" className="quiet-button" onClick={() => zoom(.5)} disabled={view.zoom >= 10} aria-label="放大地图">＋</button>
-      <button type="button" className="quiet-button" onClick={() => zoom(-.5)} disabled={view.zoom <= overview.zoom + .001} aria-label="缩小地图">−</button>
+      <button type="button" className="quiet-button" onClick={() => zoom(.5)} disabled={view.zoom >= 10} title={view.zoom >= 10 ? '已放大到最大' : '放大地图'} aria-label="放大地图">＋</button>
+      <button type="button" className="quiet-button" onClick={() => zoom(-.5)} disabled={view.zoom <= overview.zoom + .001} title={view.zoom <= overview.zoom + .001 ? '已是全国视图' : '缩小地图'} aria-label="缩小地图">−</button>
       <button type="button" className="quiet-button" onClick={() => change(overview)}>全国视图</button>
-    </div><span>拖动查看 · ＋／－缩放 · 滚轮滚动页面</span></div>
+    </div><span>拖动查看 · 滚轮或＋／－缩放</span></div>
     <div ref={stage} className="map-stage china-map-stage" tabIndex={0} role="region" aria-label="中国城市地图"
       data-zoom={view.zoom} data-center={view.center.join(',')}
       onKeyDown={event => {

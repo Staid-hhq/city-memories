@@ -21,6 +21,7 @@
 .map-toolbar { display: flex; align-items: center; justify-content: space-between; margin: 12px 0; gap: 16px; }
 .map-toolbar > div { display: flex; gap: 8px; flex-wrap: wrap; }
 .map-toolbar > span { font-size: 11px; color: #8a7765; }
+.china-city-map .map-toolbar button:disabled { cursor: default; }
 .map-composition { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; }
 .map-stage { height: 610px; position: relative; overflow: hidden; border: 1px solid #c5c8b8; cursor: grab; touch-action: none; background: #e8eee8; }
 .map-stage:active { cursor: grabbing; }
@@ -502,7 +503,7 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
   .china-map-results li > div { min-width: 100%; }
 }
 
-/* Keep the map beside useful account information; scrolling stays on the page. */
+/* Keep the map beside useful account information. */
 .home-overview-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; gap: 24px; }
 .home-overview-grid > .city-map { min-width: 0; padding: 22px 24px 18px; }
 .home-overview-grid .china-map-stage { height: 540px; }
