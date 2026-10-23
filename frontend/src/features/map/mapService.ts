@@ -7,13 +7,13 @@ export type MapCity = City & { provider_code: string }
 export type LocatedCity = MapCity & { center: Point }
 export type MapConfig = { enabled: boolean; key: string | null; review_number: string | null; review_date: string | null; message: string | null }
 export type Directory = { items: LocatedCity[]; missing: number }
-export type ChinaMapData = Directory & { outline: Geometry; borders: Point[][]; regions: Record<string, Geometry>; missingRegions: number }
+export type ChinaMapData = Directory & { outline: Geometry; borders: Point[][]; provinceBorders: Point[][]; regions: Record<string, Geometry>; missingRegions: number }
 
 type ChinaRegion = {
   provider_code: string; name: string; parent_name: string | null; unit_kind: string
   center: Point; geometry: Geometry | null
 }
-type ChinaAsset = { schema_version: 1; revision: string; regions: ChinaRegion[]; background: Geometry; borders?: Point[][] }
+type ChinaAsset = { schema_version: 1; revision: string; regions: ChinaRegion[]; background: Geometry; borders?: Point[][]; province_borders?: Point[][] }
 
 function checkedGeometry(value: unknown, allowEmpty = false): Geometry {
   if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) throw new MapFailure('市界数据格式无效，请重新加载地图。')
@@ -32,21 +32,24 @@ function checkedGeometry(value: unknown, allowEmpty = false): Geometry {
   return value as Geometry
 }
 
+function checkedLines(value: unknown, label: string): Point[][] {
+  if (value === undefined) return []
+  if (!Array.isArray(value) || value.length > 10_000) throw new MapFailure(`${label}数据格式无效，未显示地图。`)
+  let points = 0
+  for (const line of value) {
+    if (!Array.isArray(line) || line.length < 2 || line.some(p => ++points > 500_000 || !Array.isArray(p) || p.length !== 2
+      || !p.every(v => typeof v === 'number' && Number.isFinite(v)) || p[0] < 70 || p[0] > 140 || p[1] < 0 || p[1] > 60)) throw new MapFailure(`${label}坐标无效，未显示地图。`)
+  }
+  return value as Point[][]
+}
+
 export function joinChinaRegions(payload: unknown, cities: MapCity[]): ChinaMapData {
   const data = payload as Partial<ChinaAsset> | null
   if (!data || data.schema_version !== 1 || typeof data.revision !== 'string' || !data.revision || !Array.isArray(data.regions)
     || !data.regions.length || data.regions.length > 500) throw new MapFailure('中国市界数据版本或格式无效，请重新加载地图。')
   const outline = [...checkedGeometry(data.background, true)]
-  const borders: Point[][] = []
-  if (data.borders !== undefined) {
-    if (!Array.isArray(data.borders) || data.borders.length > 10_000) throw new MapFailure('国界背景数据格式无效，未显示地图。')
-    let points = 0
-    for (const line of data.borders) {
-      if (!Array.isArray(line) || line.length < 2 || line.some(p => ++points > 500_000 || !Array.isArray(p) || p.length !== 2
-        || !p.every(v => typeof v === 'number' && Number.isFinite(v)) || p[0] < 70 || p[0] > 140 || p[1] < 0 || p[1] > 60)) throw new MapFailure('国界背景坐标无效，未显示地图。')
-      borders.push(line)
-    }
-  }
+  const borders = checkedLines(data.borders, '国界背景')
+  const provinceBorders = checkedLines(data.province_borders, '省界')
   const byCode = new Map<string, ChinaRegion>()
   for (const region of data.regions) {
     if (!region || !/^156\d{6}$/.test(region.provider_code) || byCode.has(region.provider_code)
@@ -68,7 +71,7 @@ export function joinChinaRegions(payload: unknown, cities: MapCity[]): ChinaMapD
     items.push({ ...city, center: match.center })
     if (match.geometry) regions[city.id] = match.geometry
   }
-  return { items, regions, outline, borders, missing: cities.length - items.length, missingRegions: items.length - Object.keys(regions).length }
+  return { items, regions, outline, borders, provinceBorders, missing: cities.length - items.length, missingRegions: items.length - Object.keys(regions).length }
 }
 type District = { gb: string; name: string; level: number; center?: unknown; children?: District[]; boundary?: unknown }
 type Payload = { status?: number; data?: { district?: District[] } }

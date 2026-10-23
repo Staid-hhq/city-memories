@@ -17,7 +17,7 @@
 | [.run/frontend.run.xml](../.run/frontend.run.xml) | npm 构建预览，固定本机 5173 端口 |
 | [.run/build.run.xml](../.run/build.run.xml) | 修改前端后执行类型检查与构建 |
 | [scripts/check-repository.mjs](../scripts/check-repository.mjs) | 只读检查文档文件链接、逐文件导航覆盖和本地模块导入 |
-| [scripts/build-china-map-data.py](../scripts/build-china-map-data.py) | 从固定公开源校验并生成中国市级矢量，只用标准库，不读私人资料 |
+| [scripts/build-china-map-data.py](../scripts/build-china-map-data.py) | 从固定公开源校验并生成中国市级矢量及独立省界线，只用标准库，不读私人资料 |
 
 ## 前端
 
@@ -46,7 +46,7 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| [public/map-data/china-cities.v1.json](../frontend/public/map-data/china-cities.v1.json) | 391 个已审核入口的公共市界、背景与源国界/海岸/南海线，无私人统计 |
+| [public/map-data/china-cities.v1.json](../frontend/public/map-data/china-cities.v1.json) | 391 个已审核入口的公共市界、独立省界、背景与源国界/海岸/南海线，无私人统计 |
 | [public/map-data/NOTICE.md](../frontend/public/map-data/NOTICE.md) | 地图来源、固定版本、处理方式与复现入口 |
 | [public/map-data/LICENSES.txt](../frontend/public/map-data/LICENSES.txt) | 随公共地图分发的 GeoCode-Release 与 taiwan-atlas MIT 许可文本 |
 
@@ -73,7 +73,7 @@
 | [src/features/photos/MovePhoto.tsx](../frontend/src/features/photos/MovePhoto.tsx) | 目标城市/年份选择、创建目标影集、确认跨影集移动 |
 | [src/features/photos/Duplicates.tsx](../frontend/src/features/photos/Duplicates.tsx) | 本影集同内容照片的分组分页与逐份查看，不自动删除 |
 | [src/features/photos/photos.ts](../frontend/src/features/photos/photos.ts) | 照片、文字、分页和详情的 TypeScript 数据类型 |
-| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 中国全市级 SVG、南海附图、本人点亮、定位、拖缩和返回视角；触摸滚页与显式移动地图切换 |
+| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 中国全市级 SVG、省市边界层级、南海附图、本人点亮、定位、拖缩和返回视角；触摸滚页与显式移动地图切换 |
 | [src/features/map/mapGeometry.ts](../frontend/src/features/map/mapGeometry.ts) | 投影、WKT 边界解析、几何路径、坐标和瓦片范围计算 |
 | [src/features/map/mapService.ts](../frontend/src/features/map/mapService.ts) | 静态市界加载、严格身份关联、缓存/取消/失败处理；保留第一版行政请求兼容方法 |
 | [src/features/trash/Trash.tsx](../frontend/src/features/trash/Trash.tsx) | 回收站列表、照片删除确认、原图查看和恢复流程 |
@@ -215,6 +215,7 @@
 | [reports/2026-10-23-operation-feedback.md](reports/2026-10-23-operation-feedback.md) | V2-04 导入、封面和回收/恢复反馈、重试核对及本轮验证 |
 | [reports/2026-10-23-connection-feedback.md](reports/2026-10-23-connection-feedback.md) | V2-04 连接错误分类、启动帮助、会话核对及隔离验证 |
 | [reports/2026-10-23-mobile-details.md](reports/2026-10-23-mobile-details.md) | V2-04 手机触控控件、批量列表、短屏原图查看和地图触控的范围、验证及真机边界 |
+| [reports/2026-10-23-province-borders.md](reports/2026-10-23-province-borders.md) | V2-04 省市边界层级、公共省界源线、保留城市交互及本轮验证 |
 
 ## 独立验证工具
 

@@ -104,9 +104,47 @@ test('首页地图与旅行侧栏左右排列，最近整理按真实更新时�
   await expect(panel).toBeVisible()
   await panel.getByRole('link', { name: '我的相册', exact: true }).click()
   await expect(page.getByRole('heading', { name: '我的相册', exact: true })).toBeVisible()
-  await page.goto('/')
-  await panel.getByRole('link', { name: '选择城市', exact: true }).click()
-  await expect(page.getByRole('heading', { name: '选择一座城市', exact: true })).toBeInViewport()
+  let releaseOverview!: () => void, releaseCities!: () => void
+  const overviewHeld = new Promise<void>(resolve => { releaseOverview = resolve })
+  const citiesHeld = new Promise<void>(resolve => { releaseCities = resolve })
+  let mapCaptured = false, atlasCaptured = false, citiesCaptured = false
+  await page.route('**/map-data/china-cities.v1.json', async route => {
+    const response = await route.fetch(); mapCaptured = true
+    await overviewHeld; await route.fulfill({ response }).catch(() => {})
+  })
+  await page.route('**/api/v1/me/atlas', async route => {
+    const response = await route.fetch(); atlasCaptured = true
+    await overviewHeld; await route.fulfill({ response }).catch(() => {})
+  })
+  await page.route('**/api/v1/cities?q=*', async route => {
+    const response = await route.fetch(); citiesCaptured = true
+    await citiesHeld; await route.fulfill({ response }).catch(() => {})
+  })
+  try {
+    await page.goto('/')
+    await expect.poll(() => mapCaptured && atlasCaptured && citiesCaptured).toBeTruthy()
+    await panel.getByRole('link', { name: '选择城市', exact: true }).click()
+    const chooseCity = page.getByRole('heading', { name: '选择一座城市', exact: true })
+    await expect(page).toHaveURL(/\/#choose-city-title$/)
+    await expect(chooseCity).toBeInViewport()
+    releaseOverview()
+    await expect(page.locator('[data-city-region]')).toHaveCount(391)
+    await assertStats(panel, await read<Atlas>(page, '/me/atlas'))
+    await expect(chooseCity).toBeInViewport()
+    // Deliberate browsing must stop anchor alignment before later content arrives.
+    await page.mouse.move(8, 120)
+    await page.mouse.wheel(0, -600)
+    await expect(chooseCity).not.toBeInViewport()
+    releaseCities()
+    await expect(page.locator('.city-card').first()).toBeAttached()
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+    await expect(chooseCity).not.toBeInViewport()
+  } finally {
+    releaseOverview(); releaseCities()
+    await page.unroute('**/map-data/china-cities.v1.json')
+    await page.unroute('**/api/v1/me/atlas')
+    await page.unroute('**/api/v1/cities?q=*')
+  }
   for (const width of [1000, 360, 320]) {
     await page.setViewportSize({ width, height: 850 })
     await page.evaluate(() => window.scrollTo(0, 0))
@@ -138,6 +176,7 @@ test('旅行侧栏空态、加载和请求失败可手动重试，退出后迟�
   await panel.getByRole('button', { name: '重读足迹统计', exact: true }).click()
   await assertStats(panel, await read<Atlas>(page, '/me/atlas'))
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
   await login(page, 'Map_Return')
   let release!: () => void
   let captured = false

@@ -58,8 +58,13 @@ def read_source(directory, name, download):
     return path if name.endswith(".gpkg") else json.loads(content)
 
 
-def national_lines(source):
-    """Decode only the three fixed public line layers; never close them as faces."""
+def public_lines(source, layers):
+    """Decode the fixed public line layers; never close them as faces."""
+
+    if not layers or any(
+        table not in ("border", "coast", "ninedash", "province") for table in layers
+    ):
+        raise ValueError("Unsupported public line layer")
 
     def decode(blob):
         if blob[:3] != b"GP\x00" or blob[3] & 0b00110000:
@@ -106,12 +111,13 @@ def national_lines(source):
         source.resolve().as_uri() + "?mode=ro&immutable=1", uri=True
     ) as db:
         db.execute("PRAGMA trusted_schema=OFF")
-        for table in ("border", "coast", "ninedash"):
+        for table in layers:
             metadata = db.execute(
-                "SELECT srs_id, geometry_type_name FROM gpkg_geometry_columns WHERE table_name=?",
+                "SELECT srs_id, geometry_type_name, z, m "
+                "FROM gpkg_geometry_columns WHERE table_name=?",
                 (table,),
             ).fetchone()
-            if metadata != (4326, "MULTILINESTRING"):
+            if metadata != (4326, "MULTILINESTRING", 0, 0):
                 raise ValueError("Unexpected public line metadata")
             for row in db.execute(f'SELECT geom FROM "{table}" ORDER BY fid'):
                 result.extend(decode(row[0]))
@@ -237,11 +243,13 @@ def main():
     taiwan = read_source(
         arguments.source_dir, "taiwan-counties.raw.topojson", arguments.download
     )
-    borders = national_lines(
-        read_source(
-            arguments.source_dir, "china-thematic-base.raw.gpkg", arguments.download
-        )
+    line_source = read_source(
+        arguments.source_dir, "china-thematic-base.raw.gpkg", arguments.download
     )
+    borders = public_lines(line_source, ("border", "coast", "ninedash"))
+    province_borders = public_lines(line_source, ("province",))
+    if len(province_borders) != 171 or sum(map(len, province_borders)) != 19_170:
+        raise ValueError("Province line coverage differs from the pinned public source")
     catalog = json.loads(
         (ROOT / "backend/src/city_memories/city-catalog.json").read_text(
             encoding="utf-8"
@@ -296,10 +304,11 @@ def main():
     regions.sort(key=lambda r: r["provider_code"])
     asset = {
         "schema_version": 1,
-        "revision": "2026-10-22",
+        "revision": "2026-10-23-province-borders",
         "regions": regions,
         "background": background,
         "borders": borders,
+        "province_borders": province_borders,
     }
     encoded = (
         json.dumps(asset, ensure_ascii=False, separators=(",", ":")) + "\n"
@@ -308,7 +317,8 @@ def main():
     destination = DATA / "china-cities.v1.json"
     destination.write_bytes(encoded)
     print(
-        f"Public China city asset: {len(regions)} verified destinations, {len(encoded)} bytes"
+        f"Public China city asset: {len(regions)} verified destinations, "
+        f"{len(province_borders)} province lines, {len(encoded)} bytes"
     )
     print(f"SHA256: {hashlib.sha256(encoded).hexdigest()}")
 

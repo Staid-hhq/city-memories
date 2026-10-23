@@ -55,9 +55,10 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   const overview = fitView(size)
   const counts = useMemo(() => new Map(atlas?.items.map(item => [item.city.id, item.photo_count])), [atlas])
   const lit = useMemo(() => new Set(atlas?.items.filter(item => item.lit && item.photo_count > 0).map(item => item.city.id) ?? []), [atlas])
-  const paths = useMemo(() => ({ outline: fixedPath(data.outline), borders: fixedLines(data.borders ?? []), cities: data.items.filter(city => data.regions[city.id]).map(city => ({ city, path: fixedPath(data.regions[city.id]) })) }), [data])
+  const paths = useMemo(() => ({ outline: fixedPath(data.outline), borders: fixedLines(data.borders), provinceBorders: fixedLines(data.provinceBorders), cities: data.items.filter(city => data.regions[city.id]).map(city => ({ city, path: fixedPath(data.regions[city.id]) })) }), [data])
   const matches = useMemo(() => query.trim() ? data.items.filter(city => `${city.name}${city.parent_name ?? ''}`.includes(query.trim())).slice(0, 8) : [], [data.items, query])
   const photoLabel = (city: LocatedCity) => atlas ? `${counts.get(city.id) ?? 0} 张照片` : '照片统计核对中'
+  const cityLabel = (city: LocatedCity) => city.parent_name && city.parent_name !== city.name ? `${city.parent_name} · ${city.name}` : city.name
 
   useEffect(() => {
     const element = stage.current!
@@ -150,20 +151,22 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
           <path className="china-map-outline" d={paths.outline} fillRule="nonzero" />
           {paths.cities.map(({ city, path }) => <path key={city.id} className={`china-city-area${lit.has(city.id) ? ' is-lit' : ''}${hovered?.id === city.id ? ' is-hovered' : ''}`}
             data-city-region={city.id} data-lit={lit.has(city.id)} d={path} fillRule="evenodd" role="link" tabIndex={0}
-            aria-label={`${city.name}，${photoLabel(city)}，打开相册`}
+            aria-label={`${cityLabel(city)}，${photoLabel(city)}，打开相册`}
             onPointerEnter={() => { if (!pointer.current) setHovered(city) }} onPointerLeave={() => { if (!pointer.current) setHovered(null) }}
             onFocus={() => setHovered(city)} onBlur={() => setHovered(null)}
             onClick={event => { if (event.timeStamp >= ignoreClickUntil.current) navigate(`/cities/${city.id}`) }}
-            onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); navigate(`/cities/${city.id}`) } }}><title>{city.name} · {photoLabel(city)}</title></path>)}
+            onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); navigate(`/cities/${city.id}`) } }}><title>{cityLabel(city)} · {photoLabel(city)}</title></path>)}
+          <path className="china-province-borders" d={paths.provinceBorders} aria-hidden="true" />
           <path className="china-national-borders" d={paths.borders} />
         </g>
       </svg>
       <div className="china-map-heading" aria-hidden="true"><span>CHINA</span><small>城市里的回忆</small></div>
-      {hovered && <div className="china-map-hover" role="status"><strong>{hovered.name}</strong><span>{photoLabel(hovered)}</span></div>}
+      {hovered && <div className="china-map-hover" role="status"><strong>{cityLabel(hovered)}</strong><span>{photoLabel(hovered)}</span></div>}
       <aside className="china-map-inset" aria-label="南海诸岛附图">
         <svg viewBox={`0 0 ${insetSize.width} ${insetSize.height}`} data-map-layer="south" data-ready="true" aria-hidden="true"><g transform={worldTransform(insetView, insetSize)}>
           <path className="china-map-outline" d={paths.outline} fillRule="nonzero" />
           {paths.cities.map(({ city, path }) => <path key={city.id} className={`china-city-area${lit.has(city.id) ? ' is-lit' : ''}`} d={path} fillRule="evenodd" />)}
+          <path className="china-province-borders" d={paths.provinceBorders} aria-hidden="true" />
           <path className="china-national-borders" d={paths.borders} />
         </g></svg><span>南海诸岛</span>
       </aside>

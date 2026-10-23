@@ -13,7 +13,9 @@ const cities: MapCity[] = catalog.cities.filter((c: { mapping_status: string }) 
 const wkt = 'MULTIPOLYGON (((113 22,115 22,115 24,113 24,113 22),(113.5 22.5,114.5 22.5,114.5 23,113.5 22.5)),((115.2 22,115.3 22,115.3 22.1,115.2 22)))'
 const rectangle = (x: number, y: number): Geometry => [[[[x, y], [x + 1.4, y], [x + 1.4, y + 1.1], [x, y + 1.1], [x, y]]]]
 // Synthetic rectangles exercise all reviewed business identities, never supplier data.
-const asset = { schema_version: 1, revision: 'synthetic-test-only', background: [] as Geometry, regions: cities.map((city, index) => {
+const asset = { schema_version: 1, revision: 'synthetic-test-only', background: [] as Geometry,
+  province_borders: [[[113.2, 23.5], [115, 23.5]]] as Point[][],
+  regions: cities.map((city, index) => {
   const center: Point = city.id === sz ? [114, 23] : city.id === gz ? [112, 25] : [74 + index % 26 * 2.2, 20 + Math.floor(index / 26) * 1.8]
   return { provider_code: city.provider_code, name: city.name, parent_name: city.parent_name, unit_kind: city.unit_kind,
     center, geometry: city.id === sz ? parseBoundary(wkt)! : rectangle(center[0] - 0.7, center[1] - 0.55) }
@@ -56,6 +58,14 @@ test('市界逐条映射和台湾市县独立，拒绝重复编码和非法坐�
   expect(Object.keys(joined.regions)).toHaveLength(391)
   expect(joined.missing).toBe(0)
   expect(joined.missingRegions).toBe(0)
+  expect(joined.provinceBorders).toEqual(asset.province_borders)
+  expect(joined.provinceBorders[0]).toHaveLength(2) // Open province lines must not be closed as areas.
+  const legacy = joinChinaRegions({ ...asset, province_borders: undefined }, cities)
+  expect(legacy.provinceBorders).toEqual([])
+  expect(Object.keys(legacy.regions)).toHaveLength(391)
+  for (const province_borders of [null, 'invalid', [[]], [[[114, 23]]], [[[114, 23], [141, 23]]], [[[114, 23], [114, NaN]]], Array.from({ length: 10_001 }, () => [[114, 23], [115, 23]])]) {
+    expect(() => joinChinaRegions({ ...asset, province_borders }, cities)).toThrow(/省界/)
+  }
   const taiwan = cities.filter(city => city.unit_kind === 'taiwan-destination')
   expect(taiwan).toHaveLength(20)
   for (const city of taiwan) expect(joined.regions[city.id]).toBeTruthy()
@@ -99,6 +109,10 @@ test('全部市界灰底且没有世界瓦片，空影集不点亮，跨窗口�
   await expect(litRegions(page)).toHaveCount(0)
   await expect(page.locator('.map-progress')).toHaveText('已点亮 0 座城市')
   await expect(page.locator('.tile-layer, .map-marker')).toHaveCount(0)
+  await page.locator(`[data-city-region="${sz}"]`).focus()
+  await expect(page.locator('.china-map-hover')).toContainText('广东省 · 深圳市')
+  await expect(page.locator('.china-map-hover')).toContainText('0 张照片')
+  await page.getByRole('region', { name: '中国城市地图', exact: true }).focus()
   const other = await context.newPage()
   await other.goto(`/cities/${sz}`)
   await other.getByLabel('影集年份', { exact: true }).fill('2040')
@@ -116,6 +130,8 @@ test('全部市界灰底且没有世界瓦片，空影集不点亮，跨窗口�
   await other.getByRole('button', { name: '保存到影集', exact: true }).click()
   await expect(page.locator(`[data-city-region="${sz}"]`)).toHaveAttribute('data-lit', 'true')
   await expect(page.locator('.map-progress')).toHaveText('已点亮 1 座城市')
+  await page.locator(`[data-city-region="${sz}"]`).focus()
+  await expect(page.locator('.china-map-hover')).toContainText('1 张照片')
   const photo = (await read(other, `/albums/${other.url().split('/albums/')[1].split('?')[0]}/photos`)).items[0]
   await other.close()
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
@@ -167,6 +183,9 @@ test('小城定位、区域点击、拖动缩放和返回视角，窄屏没有�
   const x = box.x + box.width / 2 + point[0] - projectedCenter[0], y = box.y + box.height / 2 + point[1] - projectedCenter[1]
   expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-city-region]')?.getAttribute('data-city-region'), { x, y })).toBe(sz)
   await page.mouse.move(x, y)
+  await expect(page.locator('.china-map-hover')).toContainText('广东省 · 深圳市')
+  await expect(page.locator('.china-map-hover')).toContainText('1 张照片')
+  await expect(page.locator(`[data-city-region="${sz}"]`)).toHaveAccessibleName('广东省 · 深圳市，1 张照片，打开相册')
   await page.mouse.down(); await page.mouse.move(x + 60, y + 40, { steps: 5 }); await page.mouse.up()
   await expect(stage).not.toHaveAttribute('data-center', before!)
   await expect(page).toHaveURL(/\/$/)

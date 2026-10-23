@@ -90,11 +90,32 @@ function CitySearch({ query }: { query: string }) {
 
 function Home({ user, service, memory }: { user: User; service: MapService; memory: MapMemory }) {
   const location = useLocation()
+  const main = useRef<HTMLElement>(null)
   useEffect(() => {
     if (location.hash !== '#choose-city-title') return
-    const frame = requestAnimationFrame(() => document.getElementById('choose-city-title')?.scrollIntoView({ block: 'start' }))
-    return () => cancelAnimationFrame(frame)
-  }, [location.hash])
+    const element = main.current, target = document.getElementById('choose-city-title')
+    if (!element || !target) return
+    // A short loading page limits the first scroll; realign as content arrives until the user takes over.
+    let frame: number | undefined, stopped = false
+    const align = () => {
+      if (stopped) return
+      if (frame !== undefined) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => { frame = undefined; if (!stopped) target.scrollIntoView({ block: 'start', behavior: 'instant' }) })
+    }
+    const observer = new ResizeObserver(align)
+    const inputs = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const
+    const stop = () => {
+      stopped = true
+      observer.disconnect()
+      if (frame !== undefined) cancelAnimationFrame(frame)
+      for (const type of inputs) window.removeEventListener(type, interact, true)
+    }
+    const interact = (event: Event) => { if (event.isTrusted) stop() }
+    observer.observe(element)
+    for (const type of inputs) window.addEventListener(type, interact, { capture: true, passive: true })
+    align()
+    return stop
+  }, [location.key, location.hash])
   const atlas = useResource<Atlas>('/me/atlas')
   const recent = useResource<PageData<Album>>('/me/albums?sort=recent&limit=3')
   const refreshAtlas = atlas.retry
@@ -112,7 +133,7 @@ function Home({ user, service, memory }: { user: User; service: MapService; memo
   const [input, setInput] = useState('')
   const [query, setQuery] = useState('')
   function search(event: FormEvent) { event.preventDefault(); setQuery(input.trim()) }
-  return <main className="journal-main map-home">
+  return <main ref={main} className="journal-main map-home">
     <div className="page-heading"><div><p className="eyebrow">YOUR TRAVEL JOURNAL</p><h1>你好，{user.username}</h1>
       <p className="muted">从一座城市开始，给每一年的回忆留个位置。</p></div><span className="chapter-mark">第一章 / 城市</span></div>
     <div className="home-overview-grid"><CityMap service={service} memory={memory} atlas={atlas.data} />
