@@ -216,6 +216,7 @@
 | [reports/2026-10-23-connection-feedback.md](reports/2026-10-23-connection-feedback.md) | V2-04 连接错误分类、启动帮助、会话核对及隔离验证 |
 | [reports/2026-10-23-mobile-details.md](reports/2026-10-23-mobile-details.md) | V2-04 手机触控控件、批量列表、短屏原图查看和地图触控的范围、验证及真机边界 |
 | [reports/2026-10-23-province-borders.md](reports/2026-10-23-province-borders.md) | V2-04 省市边界层级、公共省界源线、保留城市交互及本轮验证 |
+| [reports/2026-10-23-upload-entry-feedback.md](reports/2026-10-23-upload-entry-feedback.md) | V2-04 上传空闲光标与选图提示、批量入口及多选说明的范围和验证 |
 
 ## 独立验证工具
 

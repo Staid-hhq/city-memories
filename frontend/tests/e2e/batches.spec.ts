@@ -22,7 +22,10 @@ async function album(page: Page, year: number) {
   await page.getByRole('button', { name: '创建或进入影集' }).click()
   await expect(page.getByRole('heading', { name: `${year} 年`, exact: true })).toBeVisible()
   const id = page.url().split('/albums/')[1]
-  await page.getByRole('link', { name: /批量导入原图/ }).click()
+  const batchEntry = page.getByRole('link', { name: '一次上传多张照片', exact: true })
+  await expect(batchEntry).toHaveAttribute('href', `/albums/${id}/import`)
+  await batchEntry.click()
+  await expect(page).toHaveURL(new RegExp(`/albums/${id}/import$`))
   return id
 }
 async function confirm(page: Page) {
@@ -107,6 +110,9 @@ test('城市跨年份核对、未知年份手动指定、独立失败与刷新�
 
 test('固定影集不改归属、数字排序后手动调整、并发完成不乱序、重名保留', async ({ page }) => {
   const id = await album(page, 2050)
+  await expect(page.getByLabel('选择多张原图')).toHaveAttribute('multiple', '')
+  await expect(page.getByText(/Ctrl/)).toContainText('Shift')
+  await expect(page.getByText(/Ctrl/)).toContainText('Ctrl+A')
   const completion: string[] = []
   let first = true
   let parallel = 0

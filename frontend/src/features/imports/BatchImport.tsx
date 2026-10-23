@@ -251,7 +251,9 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
       <p className="muted">{cityName}{albumId ? ` / ${yearLabel(year ?? null)} · 固定归属` : ' · 按核对后的年份分组'}</p></div><span className="chapter-mark">核对 → 上传 → 保存</span></div>
     <p className="scope-note">JPEG、PNG、静态 WebP；单张最多 50 MiB / 8000 万像素。保留原始字节，不改源文件。每批最多 400 张，超出自动拆批；同影集依次保存，不改变已有照片顺序。</p>
     {!locked ? <>
-      <div className="file-picker"><label htmlFor="batch-files">选择多张原图</label><input ref={input} id="batch-files" type="file" multiple accept={accept} onChange={(event) => choose(Array.from(event.target.files ?? []))} /></div>
+      <div className="file-picker"><label htmlFor="batch-files">选择多张原图</label><input ref={input} id="batch-files" type="file" multiple accept={accept} aria-describedby="batch-selection-help" onChange={(event) => choose(Array.from(event.target.files ?? []))} />
+        <p className="field-help" id="batch-selection-help">可一次选择多张。在电脑文件窗口中，按住 Ctrl 点选、Shift 连选，或 Ctrl+A 全选。</p>
+      </div>
       {!!draft.length && <>
         <div className="section-heading"><h2>核对 {draft.length} 张照片</h2><span>全有编号时按数字排序；其他情况保留选择顺序</span></div>
         <p className="scope-note">例如 24-1.jpg 表示 2024 年第 1 张；两位年份按 2000–2099 识别。无法识别时请指定年份或选“未标年份”，不会使用当前年份。相同编号不会合并，重名文件也独立保留。</p>

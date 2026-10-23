@@ -58,7 +58,7 @@ button, input { font: inherit; }
 button, a, input { -webkit-tap-highlight-color: transparent; }
 button, a { touch-action: manipulation; }
 button { cursor: pointer; }
-button:disabled { cursor: wait; opacity: .65; }
+button:disabled { cursor: default; opacity: .65; }
 a { color: #9d5534; text-decoration: none; }
 a:hover { text-decoration: underline; }
 :focus-visible { outline: 3px solid #567168; outline-offset: 4px; }
@@ -309,7 +309,7 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .preserved-note { white-space: pre-wrap; padding: 1rem; background: #f3eee5; border-radius: 8px; }
 .lifecycle-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: 2rem 0; }
 .danger-button { background: #914b3e; color: #fff; padding: .85rem 1.3rem; border: 0; border-radius: 7px; cursor: pointer; font: inherit; }
-.danger-button:disabled { cursor: wait; opacity: .55; }
+.danger-button:disabled { cursor: default; opacity: .55; }
 .danger-button:focus-visible { outline: 3px solid #583123; outline-offset: 3px; }
 @media (max-width: 760px) {
   .lifecycle-content { grid-template-columns: 1fr; gap: 1rem; }

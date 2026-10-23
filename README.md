@@ -19,6 +19,7 @@
 | 处理启动连接失败、服务异常或登录过期 | [连接与启动提示](docs/reports/2026-10-23-connection-feedback.md) |
 | 使用手机布局、批量列表和地图触控 | [手机端细节](docs/reports/2026-10-23-mobile-details.md) |
 | 导入、浏览、整理和恢复照片 | [功能使用指南](docs/guides/user-guide.md) |
+| 了解上传按钮状态和一次选择多张照片 | [上传入口与空闲提示](docs/reports/2026-10-23-upload-entry-feedback.md) |
 | 备份与恢复资料 | [备份操作说明](docs/guides/backup-restore.md) |
 | 看每个文件的用途、找代码 | [文件导航](docs/file-guide.md) |
 | 找需求、设计和历次验证 | [文档索引](docs/README.md) |

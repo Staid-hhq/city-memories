@@ -30,6 +30,7 @@ async function syntheticImage(page: Page) {
 
 async function stage(page: Page, buffer: Buffer, name = 'synthetic.png') {
   await page.getByLabel('选择原图', { exact: true }).setInputFiles({ name, mimeType: 'image/png', buffer })
+  await expect(page.getByRole('button', { name: '上传并校验', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: '上传并校验', exact: true }).click()
   await expect(page.getByRole('button', { name: '保存到影集', exact: true })).toBeEnabled()
   await expect(page.getByText('已传输，待保存到影集。', { exact: true })).toBeVisible()
@@ -98,6 +99,13 @@ test('上传及提交响应丢失仍可重试，重复文件作为独立照片�
   await expect(page.locator('.photo-card')).toHaveCount(1)
   const firstId = await page.locator('.photo-card').first().getAttribute('data-photo-id')
   await page.getByRole('button', { name: '继续添加一张', exact: true }).click()
+  const uploadPanel = page.getByRole('region', { name: '添加一张原图', exact: true })
+  const uploadButton = uploadPanel.getByRole('button', { name: '上传并校验', exact: true })
+  await expect(uploadPanel).toHaveAttribute('aria-busy', 'false')
+  await expect(uploadButton).toBeDisabled()
+  await expect(uploadButton).toHaveCSS('cursor', 'default')
+  await expect(uploadPanel.getByText('请先选择一张图片，再点击“上传并校验”。', { exact: true })).toBeVisible()
+  await expect(uploadPanel.getByRole('link', { name: '一次上传多张照片', exact: true })).toBeVisible()
   await stage(page, buffer, 'retry.png')
   await page.getByRole('button', { name: '保存到影集', exact: true }).click()
   await expect(page.getByText('2 张照片 · 已保存的年份影集')).toBeVisible()

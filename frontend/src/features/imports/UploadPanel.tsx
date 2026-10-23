@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import { api, ApiError, errorMessage, isAbort } from '../../shared/api'
 import { OperationFeedback } from '../../shared/OperationFeedback'
 
@@ -9,6 +9,7 @@ type Batch = { id: string; album_id: string; album_revision: number; state: stri
 type Props = { albumId: string; cityName: string; year: number | null; onSaved: (photoId: string) => void }
 
 export function UploadPanel({ albumId, cityName, year, onSaved }: Props) {
+  const location = useLocation()
   const [search, setSearch] = useSearchParams()
   const [resumeId, setResumeId] = useState(search.get('import'))
   const [file, setFile] = useState<File | null>(null)
@@ -147,13 +148,15 @@ export function UploadPanel({ albumId, cityName, year, onSaved }: Props) {
       {!staged && <div className="file-picker"><label htmlFor="original-file">选择原图</label>
         <input ref={input} id="original-file" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled={!!working || unresolved} onChange={(event) => choose(event.target.files?.[0])} />
       </div>}
+      {!file && !batch && !working && !unresolved && <p className="field-help">请先选择一张图片，再点击“上传并校验”。</p>}
       {(file || batch) && <p className="file-summary">{batch?.items[0].original_filename ?? file?.name} · {((batch?.items[0].byte_size ?? file?.size ?? 0) / 1024).toFixed(1)} KiB</p>}
       {batch && !staged && !working && <p className="field-help">当前状态：{batch.items[0].state === 'receiving' ? '正在接收，可稍后查询状态' : '待重新选择同一文件并上传'}。</p>}
       {staged && !working && !error && <OperationFeedback tone="warning" title="原图已校验，等待保存">
         <p>已传输，待保存到影集。</p><p>请核对上方城市和年份，再点击“保存到影集”。</p>
       </OperationFeedback>}
       <div className="upload-actions">
-        {!staged && <button className="primary-button" disabled={!!working || !file || unresolved} onClick={() => void upload()}>上传并校验</button>}
+        {!staged && <button className="primary-button" disabled={!!working || !file || unresolved} title={!file && !working && !unresolved ? '请先选择一张图片' : undefined} onClick={() => void upload()}>上传并校验</button>}
+        {!batch && !resumeId && !working && <Link className="quiet-button" to={`/albums/${albumId}/import`} state={location.state}>一次上传多张照片 <span aria-hidden="true">→</span></Link>}
         {staged && <button className="primary-button" disabled={!!working || review} onClick={() => void save()}>保存到影集</button>}
         {(batch || resumeId) && <button className="quiet-button" disabled={!!working} onClick={() => void status()}>{review ? '重新核对影集' : '查询导入状态'}</button>}
         {(batch || resumeId) && <button className="quiet-button" disabled={!!working} onClick={() => void cancel()}>取消本次导入</button>}
