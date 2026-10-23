@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import type { Album } from '../../src/features/albums/types'
+import type { City, CityAlbum } from '../../src/features/albums/types'
 
 const shenzhen = 'a03b8f10-06dd-4b56-aef1-33cfc3696301'
 const guangzhou = 'a03b8f10-06dd-4b56-aef1-33cfc3696302'
 const password = 'Only for T03 browser tests!'
-type AlbumPage = { items: Album[]; next_cursor: string | null }
+type AlbumPage = { items: CityAlbum[]; next_cursor: string | null }
 
 async function login(page: Page, username: string) {
   await page.goto('/login')
@@ -48,7 +48,7 @@ async function search(page: Page, value: string) {
 }
 
 async function allAlbums(page: Page, query = '') {
-  const path = `/me/albums${query ? `?${query}` : ''}`
+  const path = `/me/city-albums${query ? `?${query}` : ''}`
   let result = await read<AlbumPage>(page, path)
   const items = [...result.items]
   while (result.next_cursor) {
@@ -58,22 +58,27 @@ async function allAlbums(page: Page, query = '') {
   return items
 }
 
-async function assertCards(page: Page, albums: Album[]) {
-  const cards = page.locator('.album-card')
+async function assertCards(page: Page, albums: CityAlbum[]) {
+  const cards = page.locator('.city-album-card')
   await expect(cards).toHaveCount(albums.length)
   for (const [index, album] of albums.entries()) {
-    await expect(cards.nth(index)).toHaveAttribute('href', `/albums/${album.id}`)
+    await expect(cards.nth(index)).toHaveAttribute('href', `/cities/${album.city.id}`)
     await expect(cards.nth(index).locator('.album-city-name')).toContainText(album.city.name)
-    await expect(cards.nth(index).locator('.album-caption strong')).toHaveText(album.year === null ? '未标年份' : `${album.year} 年`)
+    await expect(cards.nth(index).locator('.album-caption strong')).toHaveText(`${album.album_count} 本年份影集`)
+    await expect(cards.nth(index).locator('.album-caption span')).toHaveText(`${album.photo_count} 张照片`)
   }
 }
 
-const isList = (url: URL) => url.pathname === '/api/v1/me/albums'
+const isList = (url: URL) => url.pathname === '/api/v1/me/city-albums'
 
 test('相册筛选查遍未加载页，组合城市与年份、最近排序、清除及返回位置，手机无溢出', async ({ page }, info) => {
   await register(page, 'Filters_Catalog')
+  const guangdong = (await read<{ items: City[] }>(page, `/cities?q=${encodeURIComponent('广东')}&limit=100`)).items
+  expect(guangdong).toHaveLength(21)
+  const otherCities = (await read<{ items: City[] }>(page, '/cities?limit=100')).items.filter(city => city.parent_name?.endsWith('省') && city.parent_name !== '广东省').slice(0, 6)
   await createAlbums(page, [
-    ...Array.from({ length: 25 }, (_, index) => ({ city: shenzhen, year: 2200 + index })),
+    ...guangdong.map((city, index) => ({ city: city.id, year: 2200 + index })),
+    ...otherCities.map((city, index) => ({ city: city.id, year: 2250 + index })),
     { city: guangzhou, year: 2229 }, { city: guangzhou, year: 2228 },
     { city: guangzhou, year: 2199 }, { city: shenzhen, year: null },
   ])
@@ -81,7 +86,7 @@ test('相册筛选查遍未加载页，组合城市与年份、最近排序、�
   await expect(page.locator('.album-card')).toHaveCount(24)
   await expect(page.getByLabel('相册排序', { exact: true })).toHaveValue('year')
   await expect(page.getByRole('button', { name: '清除筛选', exact: true })).toHaveCount(0)
-  // The oldest year is outside the first page, but must still be selectable.
+  // Year options cover every year, including years hidden within a city's card.
   const years = page.getByLabel('筛选相册年份', { exact: true })
   await expect(years.locator('option[value="2199"]')).toHaveCount(1)
   await expect(years.locator('option[value="unmarked"]')).toHaveCount(1)
@@ -95,17 +100,22 @@ test('相册筛选查遍未加载页，组合城市与年份、最近排序、�
   await trimmedSearch
   await assertCards(page, await allAlbums(page, `q=${encodeURIComponent('广州')}&year=2199`))
   await expect(page.locator('.album-card')).toHaveCount(1)
+  // A year filter selects cities; the city card still counts all its years.
+  await expect(page.locator('.album-caption strong')).toHaveText('4 本年份影集')
   await years.selectOption('unmarked')
   await expect(page.getByRole('heading', { name: '没有找到符合条件的相册', exact: true })).toBeVisible()
   await search(page, '深圳')
   await assertCards(page, await allAlbums(page, `q=${encodeURIComponent('深圳')}&year=unmarked`))
-  await expect(page.locator('.album-caption strong')).toHaveText('未标年份')
+  await expect(page.locator('.album-caption strong')).toHaveText('2 本年份影集')
   await years.selectOption('')
+  await expect(page.locator('.album-card')).toHaveCount(1)
+  await search(page, '省')
   await expect(page.locator('.album-card')).toHaveCount(24)
   await page.getByLabel('相册排序', { exact: true }).selectOption('recent')
-  const recent = await allAlbums(page, `q=${encodeURIComponent('深圳')}&sort=recent`)
-  expect(recent).toHaveLength(26)
-  expect(recent[0].year).toBeNull()
+  const recent = await allAlbums(page, `q=${encodeURIComponent('省')}&sort=recent`)
+  expect(recent).toHaveLength(27)
+  expect(recent[0].city.id).toBe(shenzhen)
+  expect(recent[0].has_unmarked).toBeTruthy()
   await assertCards(page, recent.slice(0, 24))
   await page.getByRole('button', { name: '加载更多相册', exact: true }).click()
   await assertCards(page, recent)
@@ -113,10 +123,17 @@ test('相册筛选查遍未加载页，组合城市与年份、最近排序、�
   await last.scrollIntoViewIfNeeded()
   const scroll = await page.evaluate(() => window.scrollY)
   await last.click()
-  await expect(page).toHaveURL(new RegExp(`/albums/${recent.at(-1)!.id}$`))
+  const lastCity = recent.at(-1)!.city
+  await expect(page).toHaveURL(new RegExp(`/cities/${lastCity.id}$`))
+  await expect(page.getByRole('heading', { name: lastCity.name, exact: true })).toBeVisible()
+  const firstYear = await page.locator('.year-album-card .album-caption strong').first().innerText()
+  await page.locator('.year-album-card').first().click()
+  await expect(page.getByRole('heading', { name: firstYear, exact: true })).toBeVisible()
+  await page.locator('.back-link').click()
+  await expect(page.getByRole('heading', { name: lastCity.name, exact: true })).toBeVisible()
   await page.getByRole('link', { name: '← 返回我的相册', exact: true }).click()
   await assertCards(page, recent)
-  await expect(page.getByLabel('搜索相册城市', { exact: true })).toHaveValue('深圳')
+  await expect(page.getByLabel('搜索相册城市', { exact: true })).toHaveValue('省')
   await expect(years).toHaveValue('')
   await expect(page.getByLabel('相册排序', { exact: true })).toHaveValue('recent')
   await expect.poll(async () => Math.abs(await page.evaluate(() => window.scrollY) - scroll)).toBeLessThan(3)
@@ -128,9 +145,8 @@ test('相册筛选查遍未加载页，组合城市与年份、最近排序、�
   await expect(page.getByRole('button', { name: '清除筛选', exact: true })).toHaveCount(0)
   // Searching a parent region also uses the entire account's matching catalog.
   await search(page, '广东')
-  await assertCards(page, (await allAlbums(page, `q=${encodeURIComponent('广东')}`)).slice(0, 24))
-  await page.getByRole('button', { name: '加载更多相册', exact: true }).click()
-  await expect(page.locator('.album-card')).toHaveCount(29)
+  await assertCards(page, await allAlbums(page, `q=${encodeURIComponent('广东')}`))
+  await expect(page.locator('.album-card')).toHaveCount(21)
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({ path: info.outputPath('library-filters-desktop.png') })
   for (const width of [1024, 360, 320]) {

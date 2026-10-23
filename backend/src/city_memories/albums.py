@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import and_, func, literal, or_, select, update
+from sqlalchemy import and_, case, func, literal, or_, select, update
 from sqlalchemy.dialects.sqlite import insert
 
 from city_memories.auth import CurrentUser
@@ -66,6 +66,16 @@ class AlbumOptions(BaseModel):
     years: list[int | None]
 
 
+class CityAlbumView(BaseModel):
+    city: CityView
+    album_count: int
+    photo_count: int
+    latest_year: int | None
+    has_unmarked: bool
+    cover_photo_id: str | None
+    original_url: str | None
+
+
 class CityAlbums(PageData[AlbumView]):
     city: CityView
 
@@ -97,14 +107,8 @@ def city_view(city: City) -> dict:
     }
 
 
-def album_query(owner_id: str):
-    # Correlated, indexed subqueries count only the owner's active photos.
-    count = (
-        select(func.count(Photo.id))
-        .where(Photo.album_id == Album.id, Photo.owner_id == owner_id, Photo.state == "active")
-        .correlate(Album)
-        .scalar_subquery()
-    )
+def album_cover(owner_id: str):
+    # Preferences remain valid only while this owner's photo is active in the album.
     automatic_cover = (
         select(Photo.id)
         .where(Photo.album_id == Album.id, Photo.owner_id == owner_id, Photo.state == "active")
@@ -124,7 +128,18 @@ def album_query(owner_id: str):
         .correlate(Album)
         .scalar_subquery()
     )
-    cover = func.coalesce(preferred_cover, automatic_cover)
+    return func.coalesce(preferred_cover, automatic_cover)
+
+
+def album_query(owner_id: str):
+    # Correlated, indexed subqueries count only the owner's active photos.
+    count = (
+        select(func.count(Photo.id))
+        .where(Photo.album_id == Album.id, Photo.owner_id == owner_id, Photo.state == "active")
+        .correlate(Album)
+        .scalar_subquery()
+    )
+    cover = album_cover(owner_id)
     return (
         select(Album, City, count, cover)
         .join(City, Album.city_id == City.id)
@@ -307,6 +322,107 @@ def my_album_options(request: Request, user: CurrentUser):
             .order_by(Album.year.desc())
         ).all()
     return {"data": {"years": years}}
+
+
+@router.get("/me/city-albums", response_model=Envelope[PageData[CityAlbumView]])
+def my_city_albums(
+    request: Request, user: CurrentUser, cursor: Cursor = None, limit: Limit = 24,
+    sort: Literal["year", "recent"] = "year",
+    q: Annotated[str, Query(max_length=80)] = "",
+    year: Annotated[str | None, Query(pattern=r"^(?:unmarked|[1-9][0-9]{0,3})$")] = None,
+):
+    q = q.strip()
+    filters = json.dumps([sort, q, year], ensure_ascii=False, separators=(",", ":"))
+    scope = f"my-city-albums:{user.id}:{hashlib.sha256(filters.encode()).hexdigest()}"
+    keys = decode_cursor(request, cursor, scope)
+    # Aggregate all years before paging: a city must never be split across pages.
+    albums = (
+        select(
+            Album.city_id, func.count().label("album_count"),
+            func.max(Album.year).label("latest_year"),
+            func.max(Album.updated_at).label("updated_at"),
+            func.max(case((Album.year.is_(None), 1), else_=0)).label("has_unmarked"),
+        )
+        .where(Album.owner_id == user.id)
+        .group_by(Album.city_id)
+    )
+    if year is not None:
+        # A year selects cities with that year, without truncating city totals.
+        matches = Album.year.is_(None) if year == "unmarked" else Album.year == int(year)
+        albums = albums.having(func.max(case((matches, 1), else_=0)) == 1)
+    albums = albums.subquery()
+    photos = (
+        select(Album.city_id, func.count(Photo.id).label("photo_count"))
+        .join(
+            Photo,
+            and_(Photo.album_id == Album.id, Photo.owner_id == user.id, Photo.state == "active"),
+        )
+        .where(Album.owner_id == user.id)
+        .group_by(Album.city_id)
+        .subquery()
+    )
+    order_key = albums.c.updated_at if sort == "recent" else func.coalesce(albums.c.latest_year, 0)
+    query = (
+        select(
+            City, albums.c.album_count, func.coalesce(photos.c.photo_count, 0),
+            albums.c.latest_year, albums.c.has_unmarked, order_key,
+        )
+        .join(albums, albums.c.city_id == City.id)
+        .outerjoin(photos, photos.c.city_id == City.id)
+    )
+    if q:
+        query = query.where(or_(
+            City.name.contains(q, autoescape=True),
+            City.parent_name.contains(q, autoescape=True),
+        ))
+    if keys is not None:
+        maximum_key = (2**63 - 1) if sort == "recent" else 9999
+        if (type(keys[0]) is not int or not 0 <= keys[0] <= maximum_key
+                or not isinstance(keys[1], str) or not 1 <= len(keys[1]) <= 36):
+            raise ApiError(422, "INVALID_CURSOR", "列表位置已失效，请重新加载")
+        query = query.where(or_(
+            order_key < keys[0], and_(order_key == keys[0], City.id > keys[1])
+        ))
+    with request.app.state.auth.sessions() as db:
+        rows = db.execute(query.order_by(order_key.desc(), City.id).limit(limit + 1)).all()
+        items = rows[:limit]
+        covers = {}
+        if items:
+            # Rank only photo-bearing albums belonging to this page's cities.
+            # Evaluate each winning album's preferred/automatic cover afterwards.
+            active_photo = select(Photo.id).where(
+                Photo.album_id == Album.id, Photo.owner_id == user.id, Photo.state == "active",
+            ).exists()
+            ranked = select(
+                Album.id.label("album_id"), Album.city_id,
+                func.row_number().over(
+                    partition_by=Album.city_id,
+                    order_by=(func.coalesce(Album.year, 0).desc(), Album.id),
+                ).label("position"),
+            ).where(
+                Album.owner_id == user.id, Album.city_id.in_([row[0].id for row in items]),
+                active_photo,
+            ).subquery()
+            covers = dict(db.execute(
+                select(ranked.c.city_id, album_cover(user.id))
+                .join(Album, Album.id == ranked.c.album_id)
+                .where(ranked.c.position == 1)
+            ).all())
+        next_cursor = (
+            encode_cursor(request, scope, [items[-1][5], items[-1][0].id])
+            if len(rows) > limit else None
+        )
+        return {"data": {
+            "items": [{
+                "city": city_view(city), "album_count": count, "photo_count": photo_count,
+                "latest_year": latest_year, "has_unmarked": bool(has_unmarked),
+                "cover_photo_id": covers.get(city.id),
+                "original_url": (
+                    f"/api/v1/photos/{covers[city.id]}/original" if covers.get(city.id) else None
+                ),
+            } for city, count, photo_count, latest_year, has_unmarked, _ in items],
+            "next_cursor": next_cursor,
+        }}
 
 
 @router.get("/cities/{city_id}/albums", response_model=Envelope[CityAlbums])

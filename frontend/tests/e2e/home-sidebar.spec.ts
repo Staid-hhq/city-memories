@@ -41,7 +41,7 @@ function sidebar(page: Page) { return page.getByRole('complementary', { name: '�
 async function assertStats(panel: Locator, atlas: Atlas) {
   for (const [label, value] of [
     ['已点亮城市', atlas.items.filter(item => item.lit && item.photo_count > 0).length],
-    ['相册数', atlas.album_count], ['照片数', atlas.photo_count],
+    ['年份影集', atlas.album_count], ['照片数', atlas.photo_count],
   ] as const) {
     await expect(panel.getByText(label, { exact: true }).locator('..').locator('dd')).toHaveText(String(value))
   }

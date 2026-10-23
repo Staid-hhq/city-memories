@@ -13,6 +13,7 @@ type CoverFeedback = { tone: 'progress' | 'success' | 'warning'; title: string; 
 export function PhotoViewer({ photoId, albumId, initialRevision, close, navigate, onNoteSaved }: {
   photoId: string; albumId: string; initialRevision?: number; close: () => void; navigate: (id: string) => void; onNoteSaved: (note: Note) => void
 }) {
+  const location = useLocation()
   const dialog = useRef<HTMLDialogElement | null>(null)
   const revision = useRef(initialRevision)
   const [read, setRead] = useState<{ id: string; data?: Detail; error?: unknown }>({ id: photoId })
@@ -63,7 +64,7 @@ export function PhotoViewer({ photoId, albumId, initialRevision, close, navigate
     {!data && !error && <p className="viewer-message" role="status">正在读取照片资料…</p>}
     {error !== undefined && <div className="viewer-message" role="alert"><p>{errorMessage(error)}</p>
       <button className="quiet-button" onClick={retry}>{changed(error) ? '重新核对照片' : '重试读取照片资料'}</button>
-      {changed(error) && <Link className="move-link" to={`/albums/${albumId}/move/${photoId}`}>核对照片当前位置</Link>}</div>}
+      {changed(error) && <Link className="move-link" to={`/albums/${albumId}/move/${photoId}`} state={location.state}>核对照片当前位置</Link>}</div>}
     {data && <>
       <div className="viewer-image"><OriginalImage key={data.id} photoId={data.id} alt={`原图：${data.original_filename}`} immediate retryable /></div>
       <nav className="viewer-navigation" aria-label="照片前后浏览">
@@ -74,8 +75,8 @@ export function PhotoViewer({ photoId, albumId, initialRevision, close, navigate
       <p className="viewer-filename">原文件：{data.original_filename}</p>
       <p className="viewer-metadata">{data.width} × {data.height} 像素 · {(data.byte_size / 1024 / 1024).toFixed(2)} MiB · 原始文件，未压缩</p>
       <NoteEditor key={data.id} initial={data} onSaved={(note) => { setRead({ id: data.id, data: { ...data, ...note } }); onNoteSaved(note) }} />
-      <Link className="move-link" to={`/albums/${albumId}/move/${data.id}`}>移动到其他影集</Link>
-      <Link className="trash-link" to={`/albums/${albumId}/trash/${data.id}`}>移入回收站</Link>
+      <Link className="move-link" to={`/albums/${albumId}/move/${data.id}`} state={location.state}>移动到其他影集</Link>
+      <Link className="trash-link" to={`/albums/${albumId}/trash/${data.id}`} state={location.state}>移入回收站</Link>
     </>}
     <p className="scope-note">编辑框外可用左右方向键切换，Esc 关闭；未保存文字离开前需要确认。</p>
   </dialog>
@@ -241,7 +242,7 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
   return <section className="photo-section" ref={section} tabIndex={-1} aria-labelledby="photos-title">
     <div className="section-heading"><h2 id="photos-title">影集里的照片</h2><span>{data ? `已读取 ${data.items.length} / ${data.photo_count} 张` : '按保存顺序浏览'}</span></div>
     <div className="gallery-tools"><p className="scope-note">原图按需读取；点开查看完整画面，不生成缩略图。</p>
-      <div className="gallery-buttons"><Link className="quiet-button" to={`/albums/${albumId}/duplicates`}>查看重复照片</Link>{savedPhotoId && <button className="quiet-button" disabled={busy || coverBusy} onClick={() => open(savedPhotoId)}>查看刚保存的照片</button>}
+      <div className="gallery-buttons"><Link className="quiet-button" to={`/albums/${albumId}/duplicates`} state={location.state}>查看重复照片</Link>{savedPhotoId && <button className="quiet-button" disabled={busy || coverBusy} onClick={() => open(savedPhotoId)}>查看刚保存的照片</button>}
         {!!data?.items.length && <><button className="quiet-button" disabled={busy || coverBusy} onClick={() => { setChoosingCover(!choosingCover); setSorting(false) }}>{choosingCover ? '完成封面选择' : '更换封面'}</button>
           <button className="quiet-button" disabled={busy || coverBusy} onClick={() => { setSorting(!sorting); setChoosingCover(false) }}>{sorting ? '完成排序' : '整理顺序'}</button></>}</div></div>
     {choosingCover && <div className="cover-picker-note"><p>选择一张照片作为影集封面；需要其他照片时，可继续加载列表。</p>
@@ -264,8 +265,8 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
         <OriginalImage photoId={photo.id} alt={`原图：${photo.original_filename}`} suspended={!!photoId} />
         <span className="photo-caption"><strong>{photo.original_filename}</strong><small>{photo.width} × {photo.height}{photo.has_note ? ' · 有文字记录' : ''}</small></span>
       </button>
-      <Link className="move-link" to={`/albums/${albumId}/move/${photo.id}`} aria-label={`移动照片：${photo.original_filename}`}>移动到其他影集 →</Link>
-      <Link className="trash-link" to={`/albums/${albumId}/trash/${photo.id}`} aria-label={`删除照片：${photo.original_filename}`}>移入回收站</Link>
+      <Link className="move-link" to={`/albums/${albumId}/move/${photo.id}`} state={location.state} aria-label={`移动照片：${photo.original_filename}`}>移动到其他影集 →</Link>
+      <Link className="trash-link" to={`/albums/${albumId}/trash/${photo.id}`} state={location.state} aria-label={`删除照片：${photo.original_filename}`}>移入回收站</Link>
       {sorting && <div className="photo-order-controls">
         <button className="drag-handle quiet-button" draggable={!busy && !orderBlocked} disabled={busy || orderBlocked} aria-label={`拖动排序：${photo.original_filename}`} title="拖到目标照片上方"
           onDragStart={(event) => { dragged.current = photo; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('application/x-city-memories-photo', photo.id) }}

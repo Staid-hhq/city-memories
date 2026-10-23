@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { api, errorMessage, isAbort } from '../../shared/api'
 import { OriginalImage } from './OriginalImage'
 import type { Album, City } from '../albums/types'
@@ -99,6 +99,7 @@ function TargetPicker({ sourceId, onChoose }: { sourceId: string; onChoose: (alb
 }
 
 export function MovePhoto({ albumId, photoId }: { albumId: string; photoId: string }) {
+  const location = useLocation()
   const [photo, setPhoto] = useState<Detail | null>(null)
   const [source, setSource] = useState<Album | null>(null)
   const [target, setTarget] = useState<Album | null>(null)
@@ -151,18 +152,18 @@ export function MovePhoto({ albumId, photoId }: { albumId: string; photoId: stri
     } catch (reason) { if (!isAbort(reason)) setError(errorMessage(reason) + ' 尚未核对成功，原选择仍保留。') }
     finally { if (!controller.signal.aborted) setBusy(false) }
   }
-  return <main className="journal-main move-page"><Link className="back-link" to={`/albums/${albumId}`}>← 返回原影集</Link>
+  return <main className="journal-main move-page"><Link className="back-link" to={`/albums/${albumId}`} state={location.state}>← 返回原影集</Link>
     <div className="page-heading"><div><p className="eyebrow">A DIFFERENT CHAPTER</p><h1>移动到其他影集</h1><p className="muted">只改变归属，原图、文件名和已保存文字保持不变。</p></div></div>
     {error && <p className="form-error" role="alert">{error}</p>}
     {busy && <p role="status">正在核对或保存，请稍候…</p>}
     {notice && <p className="staged-notice" role="status">{notice}</p>}
     {(!photo || !source) && !busy && <div className="upload-actions"><button className="quiet-button" onClick={() => { setBusy(true); setAttempt((n) => n + 1) }}>重试读取移动资料</button><button className="quiet-button" onClick={() => void reconcile()}>核对照片当前位置</button></div>}
-    {current && <Link className="batch-entry" to={`/albums/${current.id}?photo=${photoId}`}>打开当前位置：{albumLabel(current)}</Link>}
+    {current && <Link className="batch-entry" to={`/albums/${current.id}?photo=${photoId}`} state={{ albumOrigin: `/cities/${current.city.id}` }}>打开当前位置：{albumLabel(current)}</Link>}
     {photo && source && <>
       <div className="move-summary"><div className="move-preview"><OriginalImage photoId={photoId} alt={`待移动原图：${photo.original_filename}`} /></div><div><h2>{photo.original_filename}</h2><p>原影集：{albumLabel(source)}</p><p className="photo-note">{photo.note || '（没有文字记录）'}</p></div></div>
       {result && target ? <section className="move-result" role="status"><h2>移动已保存</h2><p>已移到 {albumLabel(target)} 的末尾，原图和文字均保留。原影集即使变空也不会删除。</p>
         {result.target_duplicate_count > 1 && <p>目标影集内有 {result.target_duplicate_count} 份相同内容，已全部保留，没有自动去重。</p>}
-        <div className="upload-actions"><Link className="quiet-button" to={`/albums/${albumId}`}>留在原影集</Link><Link className="quiet-button" to={`/albums/${target.id}?photo=${photoId}`}>打开目标影集中的照片</Link><Link className="quiet-button" to={`/albums/${target.id}/duplicates`}>查看目标影集重复照片</Link></div>
+        <div className="upload-actions"><Link className="quiet-button" to={`/albums/${albumId}`} state={location.state}>留在原影集</Link><Link className="quiet-button" to={`/albums/${target.id}?photo=${photoId}`} state={{ albumOrigin: `/cities/${target.city.id}` }}>打开目标影集中的照片</Link><Link className="quiet-button" to={`/albums/${target.id}/duplicates`} state={{ albumOrigin: `/cities/${target.city.id}` }}>查看目标影集重复照片</Link></div>
       </section> : !current && <>
         <fieldset className="move-picker" disabled={busy || blocked}><TargetPicker sourceId={albumId} onChoose={(album) => void choose(album)} /></fieldset>
         {target && <div className="move-confirm" ref={confirmPanel} tabIndex={-1}><h2>核对这次移动</h2><p>{albumLabel(source)} → <strong>{albumLabel(target)}</strong>（末尾）</p><p className="scope-note">目标目前 {target.photo_count} 张；相同内容也正常保留。确认成功后才算完成，离开页面不会撤销已发出的移动。</p><button className="primary-button" disabled={busy || blocked} onClick={() => void submit()}>确认移动到目标影集末尾</button></div>}

@@ -372,6 +372,12 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 .album-caption { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; padding: 0; }
 .album-caption strong { font: 500 16px/1.5 Georgia, 'SimSun', serif; white-space: nowrap; }
 .album-caption span { color: var(--muted); font-size: 12px; line-height: 1.5; white-space: nowrap; }
+.city-album-card .album-caption { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; }
+.city-album-card .album-caption strong { font: 500 13px/1.6 "Microsoft YaHei", sans-serif; }
+.year-album-card .album-caption { margin-top: 0; }
+.year-album-card .album-caption strong { font-size: 20px; }
+.year-album-card .album-city-name { margin-top: 8px; min-height: 0; color: var(--muted); font-size: 12px; }
+.album-filter-scope { margin: -8px 0 24px; color: var(--muted); font-size: 12px; line-height: 1.8; }
 .album-library .page-heading { align-items: flex-end; }
 .album-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 160px 170px auto; align-items: end; gap: 14px; padding: 20px; margin: 0 0 24px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
 .album-filters label { display: block; margin-bottom: 9px; font-size: 12px; color: var(--muted); }

@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-10-23。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新：2026-10-24。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -60,10 +60,10 @@
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、导航、封面卡与功能样式；含手机触控控件、局部横滚和短屏查看层 |
-| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、城市搜索、年份影集、相册入口与地图联动 |
-| [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 本人相册筛选、排序分页、条件/返回位置记忆；与城市年份页共用 3:4 封面、完整城市名和对齐资料的卡片 |
-| [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹统计、最近三本相册及相册/选城快捷入口 |
-| [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、影集和个人地图统计类型，不依赖页面组件 |
+| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、城市搜索、城市相册/年份影集逐级返回、计数与地图联动 |
+| [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 一城市一卡的相册库、城市聚合筛选/排序分页、条件/返回位置记忆及城市/年份封面卡 |
+| [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹与年份影集统计、最近三本年份影集及相册/选城快捷入口 |
+| [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、城市相册聚合、年份影集和个人地图统计类型，不依赖页面组件 |
 | [src/features/imports/UploadPanel.tsx](../frontend/src/features/imports/UploadPanel.tsx) | 单张原图上传、校验、确认保存与失败状态 |
 | [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 批量导入页面、任务执行、重选、重试和恢复查询；提供待确认列表横滚提示并保留返回来源 |
 | [src/features/imports/importQueue.ts](../frontend/src/features/imports/importQueue.ts) | 文件编号/年份解析、批次拆分、队列数据和提交规则 |
@@ -84,8 +84,8 @@
 | --- | --- |
 | [tests/e2e/auth.spec.ts](../frontend/tests/e2e/auth.spec.ts) | 注册/登录/退出、启动异常与超时重连、会话核对、草稿和权限隔离 |
 | [tests/e2e/albums.spec.ts](../frontend/tests/e2e/albums.spec.ts) | 城市搜索、空影集、年份和账号隔离 |
-| [tests/e2e/library.spec.ts](../frontend/tests/e2e/library.spec.ts) | 独立相册分页/返回、空态/失败/换号隔离、跨页封面选择和冲突核对 |
-| [tests/e2e/library-filters.spec.ts](../frontend/tests/e2e/library-filters.spec.ts) | 相册组合筛选/排序、完整年份选项、分页返回及失败/迟到请求/账号隔离 |
+| [tests/e2e/library.spec.ts](../frontend/tests/e2e/library.spec.ts) | 城市相册/多个年份影集层级、分页/逐级返回、空态/失败/换号隔离、跨页封面选择和冲突核对 |
+| [tests/e2e/library-filters.spec.ts](../frontend/tests/e2e/library-filters.spec.ts) | 城市聚合筛选/排序及全市统计、完整年份选项、分页返回及失败/迟到请求/账号隔离 |
 | [tests/e2e/home-sidebar.spec.ts](../frontend/tests/e2e/home-sidebar.spec.ts) | 首页双栏/窄屏、本人统计和最近相册、错误/空态/换号及刷新联动 |
 | [tests/e2e/uploads.spec.ts](../frontend/tests/e2e/uploads.spec.ts) | 单图校验、保存、取消、失败和原字节核对 |
 | [tests/e2e/photos.spec.ts](../frontend/tests/e2e/photos.spec.ts) | 分页、按需原图、查看层、返回位置和授权 |
@@ -121,7 +121,7 @@
 | [src/city_memories/errors.py](../backend/src/city_memories/errors.py) | 统一业务错误及 API 响应格式 |
 | [src/city_memories/boundary.py](../backend/src/city_memories/boundary.py) | 请求边界：CSRF、请求体限制、安全缓存头和异常转换 |
 | [src/city_memories/auth.py](../backend/src/city_memories/auth.py) | 密码哈希、会话、CSRF、注册登录与限流 |
-| [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市/年份影集、本人相册筛选/排序分页及年份选项、封面、统计和签名游标 |
+| [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市相册聚合分页、城市/年份影集查找及年份选项、本人封面/统计和独立签名游标 |
 | [src/city_memories/imports.py](../backend/src/city_memories/imports.py) | 导入批次、上传租约、内容接收、幂等提交、取消及队列查询 |
 | [src/city_memories/storage.py](../backend/src/city_memories/storage.py) | 私有原图/暂存文件的校验、路径边界与文件操作 |
 | [src/city_memories/photos.py](../backend/src/city_memories/photos.py) | 照片详情、分页、前后位置与原图访问授权 |
@@ -153,7 +153,8 @@
 | [tests/serve_e2e.py](../backend/tests/serve_e2e.py) | 为默认 Edge 回归启动隔离数据库与测试服务 |
 | [tests/test_database.py](../backend/tests/test_database.py) | 迁移、约束、配置和数据库基础检查 |
 | [tests/test_auth.py](../backend/tests/test_auth.py) | 认证、CSRF、限流、授权边界 |
-| [tests/test_albums.py](../backend/tests/test_albums.py) | 城市、相册组合筛选/年份选项、封面、稳定分页及游标/账号隔离 |
+| [tests/test_albums.py](../backend/tests/test_albums.py) | 城市、年份影集筛选/选项与封面、稳定分页及游标/账号隔离 |
+| [tests/test_city_album_library.py](../backend/tests/test_city_album_library.py) | 本人城市相册聚合、全市统计/封面、筛选/稳定分页、游标隔离及旧接口兼容 |
 | [tests/test_imports.py](../backend/tests/test_imports.py) | 原图导入、校验、幂等提交及失败边界 |
 | [tests/test_import_queue.py](../backend/tests/test_import_queue.py) | 批量队列状态查询与恢复协议 |
 | [tests/test_photos.py](../backend/tests/test_photos.py) | 原图/详情授权、分页和数据变化 |
@@ -217,6 +218,7 @@
 | [reports/2026-10-23-mobile-details.md](reports/2026-10-23-mobile-details.md) | V2-04 手机触控控件、批量列表、短屏原图查看和地图触控的范围、验证及真机边界 |
 | [reports/2026-10-23-province-borders.md](reports/2026-10-23-province-borders.md) | V2-04 省市边界层级、公共省界源线、保留城市交互及本轮验证 |
 | [reports/2026-10-23-upload-entry-feedback.md](reports/2026-10-23-upload-entry-feedback.md) | V2-04 上传空闲光标与选图提示、批量入口及多选说明的范围和验证 |
+| [reports/2026-10-24-city-album-hierarchy.md](reports/2026-10-24-city-album-hierarchy.md) | V2-04 城市相册/年份影集层级、聚合接口、计数/封面/返回规则、更新和验证 |
 
 ## 独立验证工具
 

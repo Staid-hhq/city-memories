@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { api, ApiError, errorMessage, isAbort } from '../../shared/api'
 import { OperationFeedback } from '../../shared/OperationFeedback'
 import { OriginalImage } from '../photos/OriginalImage'
@@ -85,6 +85,7 @@ export function Trash() {
 }
 
 export function PhotoLifecycle({ photoId, albumId, action }: { photoId: string; albumId?: string; action: 'trash' | 'restore' }) {
+  const location = useLocation()
   const [context, setContext] = useState<Context | null>(null)
   const [busy, setBusy] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -150,8 +151,8 @@ export function PhotoLifecycle({ photoId, albumId, action }: { photoId: string; 
   const uncertain = !!notice && error !== undefined
   const confirmed = !!notice && !uncertain
   const nextActions = <><button className="quiet-button" disabled={busy} onClick={() => void load()}>核对当前状态</button>
-    {originalAlbum && <Link className="quiet-button" to={`/albums/${originalAlbum}`}>打开原影集</Link>}<Link className="quiet-button" to="/trash">打开回收站</Link></>
-  return <main className="journal-main lifecycle-page"><Link className="back-link" to={action === 'trash' ? `/albums/${albumId}` : '/trash'}>{action === 'trash' ? confirmed ? '← 返回影集' : '← 返回影集，取消删除' : '← 返回回收站'}</Link>
+    {originalAlbum && <Link className="quiet-button" to={`/albums/${originalAlbum}`} state={originalAlbum === albumId ? location.state : undefined}>打开原影集</Link>}<Link className="quiet-button" to="/trash">打开回收站</Link></>
+  return <main className="journal-main lifecycle-page"><Link className="back-link" to={action === 'trash' ? `/albums/${albumId}` : '/trash'} state={action === 'trash' ? location.state : undefined}>{action === 'trash' ? confirmed ? '← 返回影集' : '← 返回影集，取消删除' : '← 返回回收站'}</Link>
     <div className="page-heading"><div><p className="eyebrow">{action === 'trash' ? 'ONLY THIS PHOTO' : 'WELCOME BACK'}</p><h1>{action === 'trash' ? '确认移入回收站' : '查看与恢复'}</h1><p className="muted">{confirmed ? '这份照片的处理结果已确认，可以继续查看回忆。' : action === 'trash' ? '请核对照片；只有按下确认按钮后才会删除。' : '原图和文字原样保留，不需要重新上传。'}</p></div></div>
     {busy && <OperationFeedback tone="progress" title={submitting ? action === 'trash' ? '正在移入回收站…' : '正在恢复照片…' : '正在核对照片状态…'}>
       <p>{selectedFilename ? `选中的照片：${selectedFilename}` : '正在读取选中照片的原图、文字和当前位置。'}</p>
@@ -176,7 +177,7 @@ export function PhotoLifecycle({ photoId, albumId, action }: { photoId: string; 
           {action === 'trash' && <><p>照片当前在回收站中，不会重复删除或延长保留期限。</p><Link className="quiet-button" to={`/trash/photos/${photo.id}`}>查看回收站中的照片</Link></>}
         </> : action === 'restore' || photo.album_id !== albumId ? <p>照片当前已在{photo.album_id !== albumId && action === 'trash' ? '另一个' : ''}影集中。请先查看当前位置。</p> : <p className="duplicate-explanation">只将这一份照片和它的文字移入回收站。同内容的其他照片不受影响。30 天内可恢复到这个影集的末尾；到期后不能查看或恢复。空影集仍会保留。</p>}
         {canAct && <button className={action === 'trash' ? 'danger-button' : 'primary-button'} disabled={busy} onClick={() => void submit()}>{action === 'trash' ? '确认移入回收站' : '恢复到原影集末尾'}</button>}
-        {context.kind === 'active' && (action === 'restore' || photo.album_id !== albumId) && <Link className="quiet-button" to={`/albums/${photo.album_id}?photo=${photo.id}`}>查看照片当前位置</Link>}
+        {context.kind === 'active' && (action === 'restore' || photo.album_id !== albumId) && <Link className="quiet-button" to={`/albums/${photo.album_id}?photo=${photo.id}`} state={photo.album_id === albumId ? location.state : { albumOrigin: `/cities/${context.album.city.id}` }}>查看照片当前位置</Link>}
       </div>
     </section>}
     {!notice && error === undefined && !expired && <div className="lifecycle-actions">{nextActions}</div>}

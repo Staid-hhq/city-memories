@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
 import { api, ApiError, errorMessage, isAbort } from '../../shared/api'
@@ -19,6 +19,7 @@ import type { AlbumLibraryMemory } from './AlbumLibrary'
 
 type PageData<T> = { items: T[]; next_cursor: string | null }
 type CityAlbums = PageData<Album> & { city: City }
+type PageMemory = { read: () => { count: number; scrollY: number }; write: (value: { count: number; scrollY: number }) => void }
 type Load<T> = { data?: T; error?: unknown; loading: boolean }
 
 // Components are keyed by route/query and account. Unmount cancels requests;
@@ -48,13 +49,45 @@ function LoadError({ error, retry }: { error: unknown; retry: () => void }) {
   </div>
 }
 
-function Paged<T>({ initial, path, children }: {
-  initial: PageData<T>; path: string; children: (items: T[]) => React.ReactNode
+function Paged<T>({ initial, path, memory, children }: {
+  initial: PageData<T>; path: string; memory?: PageMemory; children: (items: T[]) => React.ReactNode
 }) {
   const [data, setData] = useState(initial)
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState(!!memory)
+  const [restoring, setRestoring] = useState(!!memory)
+  const [restoreFailed, setRestoreFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<unknown>()
   const active = useRef<AbortController | null>(null)
+  const pendingScroll = useRef<number | null>(null)
+  useEffect(() => {
+    if (!memory) return
+    const controller = new AbortController()
+    active.current = controller
+    const saved = memory.read()
+    setBusy(true); setRestoring(true); setError(undefined)
+    void (async () => {
+      try {
+        let fresh = initial
+        // Rebuild the previously opened year window from current account data.
+        while (fresh.next_cursor && fresh.items.length < saved.count) {
+          const next = await api<PageData<T>>(`${path}?cursor=${encodeURIComponent(fresh.next_cursor)}`, { signal: controller.signal })
+          fresh = { ...next, items: [...fresh.items, ...next.items] }
+        }
+        if (controller.signal.aborted) return
+        pendingScroll.current = saved.scrollY
+        memory.write({ count: fresh.items.length, scrollY: saved.scrollY })
+        setData({ ...fresh }); setRestoreFailed(false)
+      } catch (reason) { if (!isAbort(reason)) { setError(reason); setRestoreFailed(true) } }
+      finally { if (!controller.signal.aborted) { setBusy(false); setRestoring(false) } }
+    })()
+    return () => controller.abort()
+  }, [initial, path, memory, attempt])
+  useLayoutEffect(() => {
+    if (pendingScroll.current === null) return
+    window.scrollTo({ top: pendingScroll.current, behavior: 'instant' })
+    pendingScroll.current = null
+  }, [data])
   useEffect(() => () => active.current?.abort(), [])
   async function more() {
     if (!data.next_cursor) return
@@ -64,13 +97,17 @@ function Paged<T>({ initial, path, children }: {
     active.current = controller
     try {
       const next = await api<PageData<T>>(`${path}${path.includes('?') ? '&' : '?'}cursor=${encodeURIComponent(data.next_cursor)}`, { signal: controller.signal })
-      setData({ items: [...data.items, ...next.items], next_cursor: next.next_cursor })
+      if (controller.signal.aborted) return
+      const fresh = { items: [...data.items, ...next.items], next_cursor: next.next_cursor }
+      setData(fresh)
+      if (memory) memory.write({ ...memory.read(), count: fresh.items.length })
     } catch (reason) { if (!isAbort(reason)) setError(reason) }
     finally { if (!controller.signal.aborted) setBusy(false) }
   }
-  return <>{children(data.items)}
-    {error !== undefined && <p className="form-error" role="alert">{errorMessage(error)}</p>}
-    {data.next_cursor && <button className="quiet-button more-button" disabled={busy} onClick={() => void more()}>{busy ? '正在加载…' : '加载更多'}</button>}
+  return <>{restoring ? <p role="status">正在翻开年份影集…</p> : children(data.items)}
+    {error !== undefined && <div className="form-error" role="alert"><p>{errorMessage(error)}</p>
+      {restoreFailed && <button className="quiet-button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>重新加载年份影集</button>}</div>}
+    {!restoring && !restoreFailed && data.next_cursor && <button className="quiet-button more-button" disabled={busy} onClick={() => void more()}>{busy ? '正在加载…' : '加载更多'}</button>}
   </>
 }
 
@@ -139,11 +176,11 @@ function Home({ user, service, memory }: { user: User; service: MapService; memo
     <div className="home-overview-grid"><CityMap service={service} memory={memory} atlas={atlas.data} />
       <HomeSidebar atlas={atlas.data} loading={atlas.loading} retryAtlas={refreshAtlas} recent={recent} /></div>
     <section className="journal-section" aria-labelledby="my-cities-title">
-      <div className="section-heading"><h2 id="my-cities-title">我的城市手帐</h2>{atlas.data && <span>{atlas.data.items.length} 座城市 · {atlas.data.album_count} 本影集 · {atlas.data.photo_count} 张照片</span>}</div>
+      <div className="section-heading"><h2 id="my-cities-title">我的城市相册</h2>{atlas.data && <span>{atlas.data.items.length} 本城市相册 · {atlas.data.album_count} 本年份影集 · {atlas.data.photo_count} 张照片</span>}</div>
       {atlas.loading ? <p role="status">正在读取你的手帐…</p> : !atlas.data ? <LoadError error={atlas.error} retry={atlas.retry} /> :
         atlas.data.items.length ? <div className="saved-cities">{atlas.data.items.map((item) => <Link key={item.city.id} className="saved-city" to={`/cities/${item.city.id}`}>
-          <strong>{item.city.name}</strong><span>{item.album_count} 本影集 · {item.photo_count} 张照片</span>
-          <small>{item.lit ? '已有旅行照片' : '空影集 · 尚未点亮'}{!item.city.can_create ? ' · 暂停新建' : ''}</small>
+          <strong>{item.city.name}</strong><span>{item.album_count} 本年份影集 · {item.photo_count} 张照片</span>
+          <small>{item.lit ? '已有旅行照片' : '暂无照片 · 尚未点亮'}{!item.city.can_create ? ' · 暂停新建' : ''}</small>
         </Link>)}</div> : <div className="empty-note"><strong>你的第一本手帐，还在等一个目的地。</strong><p>先选一座城市，再创建年份影集。没有照片也可以先留好位置。</p></div>}
     </section>
     <section className="journal-section" aria-labelledby="choose-city-title">
@@ -160,7 +197,7 @@ function Home({ user, service, memory }: { user: User; service: MapService; memo
   </main>
 }
 
-function NewAlbum({ city }: { city: City }) {
+function NewAlbum({ city, cityAlbumOrigin }: { city: City; cityAlbumOrigin?: string }) {
   const navigate = useNavigate()
   const [year, setYear] = useState('')
   const [unmarked, setUnmarked] = useState(false)
@@ -180,7 +217,7 @@ function NewAlbum({ city }: { city: City }) {
       const result = await api<Album & { created: boolean }>(`/cities/${city.id}/albums`, {
         method: 'POST', signal: controller.signal, body: JSON.stringify({ year: unmarked ? null : Number(year) }),
       })
-      navigate(`/albums/${result.id}`)
+      navigate(`/albums/${result.id}`, { state: { albumOrigin: `/cities/${city.id}`, cityAlbumOrigin } })
     } catch (reason) { if (!isAbort(reason)) setError(errorMessage(reason)) }
     finally { if (!controller.signal.aborted) setBusy(false) }
   }
@@ -198,17 +235,19 @@ function NewAlbum({ city }: { city: City }) {
   </aside>
 }
 
-function CityPage({ cityId }: { cityId: string }) {
+function CityPage({ cityId, memory }: { cityId: string; memory: PageMemory }) {
+  const location = useLocation()
+  const cityAlbumOrigin = location.state?.cityAlbumOrigin === '/albums' ? '/albums' : undefined
   const path = `/cities/${encodeURIComponent(cityId)}/albums`
   const result = useResource<CityAlbums>(path)
   return <main className="journal-main">
-    <Link className="back-link" to="/">← 返回城市入口</Link>
+    <Link className="back-link" to={cityAlbumOrigin ?? '/'}>{cityAlbumOrigin ? '← 返回我的相册' : '← 返回城市入口'}</Link>
     {result.loading ? <p role="status">正在翻开城市手帐…</p> : !result.data ? <LoadError error={result.error} retry={result.retry} /> : <>
-      <div className="page-heading"><div><p className="eyebrow">{result.data.city.parent_name} · 城市手帐</p><h1>{result.data.city.name}</h1><p className="muted">按年份翻开回忆，未标年份收在最后。</p></div><span className="chapter-mark">第二章 / 年份</span></div>
-      {result.data.city.can_create && <Link className="batch-entry" to={`/cities/${cityId}/import`}>批量导入原图 <span>核对年份，分组放入影集 →</span></Link>}
+      <div className="page-heading"><div><p className="eyebrow">{result.data.city.parent_name ?? result.data.city.name} · 城市相册</p><h1>{result.data.city.name}</h1><p className="muted">这座城市的每一年，都有一个影集。未标年份收在最后。</p></div><span className="chapter-mark">第二章 / 年份影集</span></div>
+      {result.data.city.can_create && <Link className="batch-entry" to={`/cities/${cityId}/import`} state={location.state}>批量导入原图 <span>核对年份，分组放入影集 →</span></Link>}
       <div className="years-layout"><section aria-labelledby="years-title"><div className="section-heading"><h2 id="years-title">我的年份影集</h2><span>从新到旧</span></div>
-        <Paged initial={result.data} path={path}>{(items) => items.length ? <div className="album-grid">{items.map((album) => <AlbumCard key={album.id} album={album} />)}</div> : <div className="empty-note"><strong>这座城市，还没有你的年份影集。</strong><p>在右侧选一个年份，或留下“未标年份”的位置。</p></div>}</Paged>
-      </section><NewAlbum city={result.data.city} /></div>
+        <Paged initial={result.data} path={path} memory={memory}>{(items) => items.length ? <div className="album-grid">{items.map((album) => <AlbumCard key={album.id} album={album} origin={`/cities/${cityId}`} cityAlbumOrigin={cityAlbumOrigin} onOpen={() => memory.write({ ...memory.read(), scrollY: window.scrollY })} />)}</div> : <div className="empty-note"><strong>这座城市，还没有你的年份影集。</strong><p>在右侧选一个年份，或留下“未标年份”的位置。</p></div>}</Paged>
+      </section><NewAlbum city={result.data.city} cityAlbumOrigin={cityAlbumOrigin} /></div>
     </>}
   </main>
 }
@@ -223,6 +262,7 @@ function AlbumPage({ albumId }: { albumId: string }) {
 function AlbumContent({ initial }: { initial: Album }) {
   const location = useLocation()
   const [origin] = useState<unknown>(() => location.state?.albumOrigin)
+  const [cityAlbumOrigin] = useState(() => location.state?.cityAlbumOrigin === '/albums' ? '/albums' : undefined)
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [initial.id])
   const [album, setAlbum] = useState(initial)
   const [savedPhotoId, setSavedPhotoId] = useState<string | null>(null)
@@ -242,7 +282,7 @@ function AlbumContent({ initial }: { initial: Album }) {
       .catch((reason) => { if (!isAbort(reason)) setError('图片已保存，但影集数量刷新失败，请重新打开影集。') })
   }, [initial.id])
   return <main className="journal-main">
-    <Link className="back-link" to={origin === '/albums' ? '/albums' : origin === '/' ? '/' : `/cities/${album.city.id}`}>{origin === '/albums' ? '← 返回我的相册' : origin === '/' ? '← 返回首页' : `← 返回${album.city.name}年份影集`}</Link>
+    <Link className="back-link" to={origin === '/albums' ? '/albums' : origin === '/' ? '/' : `/cities/${album.city.id}`} state={cityAlbumOrigin ? { cityAlbumOrigin } : undefined}>{origin === '/albums' ? '← 返回我的相册' : origin === '/' ? '← 返回首页' : `← 返回${album.city.name}年份影集`}</Link>
     <div className="page-heading"><div><p className="eyebrow">{album.city.name} · 私人影集</p><h1>{album.year === null ? '未标年份' : `${album.year} 年`}</h1><p className="muted">{album.photo_count} 张照片 · 已保存的年份影集</p></div><span className="chapter-mark">第三章 / 影集</span></div>
     {error && <p className="form-error" role="alert">{error}</p>}
     <Link className="batch-entry" to={`/albums/${album.id}/import`} state={location.state}>批量导入原图 <span>全部加入当前影集 →</span></Link>
@@ -251,7 +291,7 @@ function AlbumContent({ initial }: { initial: Album }) {
   </main>
 }
 
-function CityRoute() { const { cityId = '' } = useParams(); return <CityPage key={cityId} cityId={cityId} /> }
+function CityRoute({ memory }: { memory: (id: string) => PageMemory }) { const { cityId = '' } = useParams(); return <CityPage key={cityId} cityId={cityId} memory={memory(cityId)} /> }
 function AlbumRoute() { const { albumId = '' } = useParams(); return <AlbumPage key={albumId} albumId={albumId} /> }
 function MoveRoute() { const { albumId = '', photoId = '' } = useParams(); return <MovePhoto key={`${albumId}:${photoId}`} albumId={albumId} photoId={photoId} /> }
 function DuplicatesRoute() { const { albumId = '' } = useParams(); return <Duplicates key={albumId} albumId={albumId} /> }
@@ -275,6 +315,17 @@ export function Journal({ user, onLogout }: { user: User; onLogout: () => void }
     let saved: ReturnType<AlbumLibraryMemory['read']> = { count: 0, scrollY: 0 }
     return { read: () => saved, write: next => { saved = next } }
   })
+  const [cityMemories] = useState(() => {
+    const cities = new Map<string, PageMemory>()
+    return (id: string): PageMemory => {
+      const existing = cities.get(id)
+      if (existing) return existing
+      let saved = { count: 0, scrollY: 0 }
+      const entry: PageMemory = { read: () => saved, write: value => { saved = value } }
+      cities.set(id, entry)
+      return entry
+    }
+  })
   const [service] = useState(() => new MapService())
   const [memory] = useState<MapMemory>(() => {
     let view: ReturnType<MapMemory['read']>
@@ -284,5 +335,5 @@ export function Journal({ user, onLogout }: { user: User; onLogout: () => void }
   return <div className="home-page"><header className="home-header"><Link to="/" className="brand-link"><span className="wordmark">城影记</span><small>CITY MEMORIES</small></Link>
     <nav className="journal-nav" aria-label="主导航"><Link to="/" aria-current={location.pathname === '/' ? 'page' : undefined}>城市地图</Link><Link to="/albums" aria-current={albumActive ? 'page' : undefined}>我的相册</Link></nav>
     <div className="account-menu"><Link className="quiet-button" to="/trash">回收站</Link><span>{user.username}</span><button className="quiet-button" onClick={onLogout}>退出登录</button></div>
-  </header><Routes><Route path="/" element={<Home user={user} service={service} memory={memory} />} /><Route path="/albums" element={<AlbumLibrary memory={libraryMemory} />} /><Route path="/cities/:cityId" element={<CityRoute />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="/cities/:cityId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/move/:photoId" element={<MoveRoute />} /><Route path="/albums/:albumId/duplicates" element={<DuplicatesRoute />} /><Route path="/albums/:albumId/trash/:photoId" element={<TrashPhotoRoute action="trash" />} /><Route path="/trash" element={<Trash />} /><Route path="/trash/photos/:photoId" element={<TrashPhotoRoute action="restore" />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
+  </header><Routes><Route path="/" element={<Home user={user} service={service} memory={memory} />} /><Route path="/albums" element={<AlbumLibrary memory={libraryMemory} />} /><Route path="/cities/:cityId" element={<CityRoute memory={cityMemories} />} /><Route path="/albums/:albumId" element={<AlbumRoute />} /><Route path="/cities/:cityId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/import" element={<ImportRoute />} /><Route path="/albums/:albumId/move/:photoId" element={<MoveRoute />} /><Route path="/albums/:albumId/duplicates" element={<DuplicatesRoute />} /><Route path="/albums/:albumId/trash/:photoId" element={<TrashPhotoRoute action="trash" />} /><Route path="/trash" element={<Trash />} /><Route path="/trash/photos/:photoId" element={<TrashPhotoRoute action="restore" />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></div>
 }

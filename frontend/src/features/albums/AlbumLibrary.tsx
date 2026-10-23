@@ -3,9 +3,9 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router'
 import { api, errorMessage, isAbort } from '../../shared/api'
 import { OriginalImage } from '../photos/OriginalImage'
-import type { Album } from './types'
+import type { Album, CityAlbum } from './types'
 
-type AlbumPage = { items: Album[]; next_cursor: string | null }
+type AlbumPage = { items: CityAlbum[]; next_cursor: string | null }
 type AlbumFilters = { q: string; year: string; sort: 'year' | 'recent' }
 const defaultFilters: AlbumFilters = { q: '', year: '', sort: 'year' }
 type AlbumLibraryState = { count: number; scrollY: number; filters?: AlbumFilters }
@@ -21,21 +21,35 @@ function albumPath(filters: AlbumFilters, cursor?: string) {
   if (filters.year) params.set('year', filters.year)
   if (filters.sort !== 'year') params.set('sort', filters.sort)
   if (cursor) params.set('cursor', cursor)
-  return `/me/albums${params.size ? `?${params}` : ''}`
+  return `/me/city-albums${params.size ? `?${params}` : ''}`
 }
 
-export function AlbumCard({ album, origin, onOpen }: {
-  album: Album; origin?: string; onOpen?: () => void
+export function AlbumCard({ album, origin, cityAlbumOrigin, onOpen }: {
+  album: Album; origin?: string; cityAlbumOrigin?: string; onOpen?: () => void
 }) {
   const year = album.year === null ? '未标年份' : `${album.year} 年`
-  return <Link className="album-card" to={`/albums/${album.id}`} state={{ albumOrigin: origin }} onClick={onOpen}
+  return <Link className="album-card year-album-card" to={`/albums/${album.id}`} state={{ albumOrigin: origin, cityAlbumOrigin }} onClick={onOpen}
     aria-label={`${album.city.name}，${year}，${album.photo_count} 张照片，打开相册`}>
     <div className={`album-cover${album.cover_photo_id ? ' has-cover' : ''}`} aria-hidden="true">
       {album.cover_photo_id ? <OriginalImage photoId={album.cover_photo_id} alt="" /> : <div className="album-cover-empty"><span>{album.city.name[0]}</span><i>等待第一张照片</i></div>}
     </div>
     <div className="album-card-info">
-      <p className="album-city-name" title={album.city.name}><span className="album-city-label">{album.city.name}</span><span className="album-card-arrow" aria-hidden="true">↗</span></p>
       <div className="album-caption"><strong>{year}</strong><span>{album.photo_count} 张照片</span></div>
+      <p className="album-city-name" title={album.city.name}><span className="album-city-label">{album.city.name}</span><span className="album-card-arrow" aria-hidden="true">↗</span></p>
+    </div>
+  </Link>
+}
+
+function CityAlbumCard({ collection, onOpen }: { collection: CityAlbum; onOpen: () => void }) {
+  const { city, album_count: albums, photo_count: photos, cover_photo_id: cover } = collection
+  return <Link className="album-card city-album-card" to={`/cities/${city.id}`} state={{ cityAlbumOrigin: '/albums' }} onClick={onOpen}
+    aria-label={`${city.name}，${albums} 本年份影集，${photos} 张照片，打开城市相册`}>
+    <div className={`album-cover${cover ? ' has-cover' : ''}`} aria-hidden="true">
+      {cover ? <OriginalImage photoId={cover} alt="" /> : <div className="album-cover-empty"><span>{city.name[0]}</span><i>等待第一张照片</i></div>}
+    </div>
+    <div className="album-card-info">
+      <p className="album-city-name" title={city.name}><span className="album-city-label">{city.name}</span><span className="album-card-arrow" aria-hidden="true">↗</span></p>
+      <div className="album-caption"><strong>{albums} 本年份影集</strong><span>{photos} 张照片</span></div>
     </div>
   </Link>
 }
@@ -81,7 +95,7 @@ export function AlbumLibrary({ memory }: { memory: AlbumLibraryMemory }) {
   const changed = !sameFilters(filters, defaultFilters) || !!input
   return <main className="journal-main album-library">
     <div className="page-heading"><div><p className="eyebrow">A COLLECTION OF MOMENTS</p><h1>我的相册</h1>
-      <p className="muted">从一张封面，翻开一座城市、一年的回忆。</p></div>
+      <p className="muted">一座城市，一本相册；每一年的回忆，都收在里面。</p></div>
       <Link className="quiet-button" to="/#choose-city-title">选择城市，创建影集</Link>
     </div>
     <form className="album-filters" aria-label="查找相册" onSubmit={search}>
@@ -96,10 +110,11 @@ export function AlbumLibrary({ memory }: { memory: AlbumLibraryMemory }) {
         </select></div>
       <div className="album-filter-field"><label htmlFor="album-sort">相册排序</label>
         <select id="album-sort" value={filters.sort} onChange={event => apply({ ...filters, q: input.trim(), sort: event.target.value as AlbumFilters['sort'] })}>
-          <option value="year">年份从新到旧</option><option value="recent">最近整理</option>
+          <option value="year">最新影集年份</option><option value="recent">最近整理</option>
         </select></div>
       {changed && <button className="quiet-button clear-album-filters" type="button" onClick={() => apply({ ...defaultFilters })}>清除筛选</button>}
     </form>
+    {filters.year && <p className="album-filter-scope">显示包含{filters.year === 'unmarked' ? '未标年份' : `${filters.year} 年`}影集的城市；数量与封面包含这个城市的全部年份。</p>}
     {years.error !== undefined && <div className="album-options-error" role="alert"><span>年份选项暂时不可用，仍可搜索城市或切换排序。</span>
       <button className="quiet-button" disabled={years.loading} onClick={refreshYears}>重试读取年份</button></div>}
     <AlbumResults key={JSON.stringify(filters)} {...{ filters, memory }} onReset={() => apply({ ...defaultFilters })} />
@@ -191,7 +206,7 @@ function AlbumResults({ filters, memory, onReset }: { filters: AlbumFilters; mem
     {data && !data.items.length && (filters.q || filters.year ? <div className="album-empty"><h2>没有找到符合条件的相册</h2><p>试试其他城市或年份，也可以清除筛选查看全部相册。</p>
       <button className="quiet-button" onClick={onReset}>查看全部相册</button></div> : <div className="album-empty"><h2>第一本相册，从一座城市开始。</h2><p>选好城市，创建年份影集，再把喜欢的照片放进去。</p>
       <Link className="quiet-button" to="/#choose-city-title">选择一座城市</Link></div>)}
-    {data && <div className="album-grid library-grid">{data.items.map(album => <AlbumCard key={album.id} album={album} origin="/albums" onOpen={() => memory.write({ ...memory.read(), scrollY: window.scrollY })} />)}</div>}
+    {data && <div className="album-grid library-grid">{data.items.map(collection => <CityAlbumCard key={collection.city.id} collection={collection} onOpen={() => memory.write({ ...memory.read(), scrollY: window.scrollY })} />)}</div>}
     {data?.next_cursor && <button className="quiet-button more-button" disabled={loading} onClick={() => void more()}>{loading ? '正在读取…' : '加载更多相册'}</button>}
     {data && !data.next_cursor && data.items.length > 0 && <p className="gallery-end">每一段回忆，都有自己的位置。</p>}
   </>

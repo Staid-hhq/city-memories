@@ -118,7 +118,7 @@ test('全部市界灰底且没有世界瓦片，空影集不点亮，跨窗口�
   await other.getByLabel('影集年份', { exact: true }).fill('2040')
   await other.getByRole('button', { name: '创建或进入影集' }).click()
   await expect(other).toHaveURL(/\/albums\//)
-  await expect(page.locator('.saved-city')).toContainText('空影集 · 尚未点亮')
+  await expect(page.locator('.saved-city')).toContainText('暂无照片 · 尚未点亮')
   await expect(litRegions(page)).toHaveCount(0)
   const png = Buffer.from(await other.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 16; canvas.height = 16

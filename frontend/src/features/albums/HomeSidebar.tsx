@@ -16,7 +16,7 @@ export function HomeSidebar({ atlas, loading, retryAtlas, recent }: {
       <p className="eyebrow">COLLECT YOUR MOMENTS</p><h2 id="footprint-summary-title">我的足迹</h2>
       <p className="sidebar-intro">把走过的地方，收进回忆里。</p>
       {atlas ? <dl className="footprint-stats"><div><dt>已点亮城市</dt><dd>{lit}</dd></div>
-        <div><dt>相册数</dt><dd>{atlas.album_count}</dd></div><div><dt>照片数</dt><dd>{atlas.photo_count}</dd></div></dl>
+        <div><dt>年份影集</dt><dd>{atlas.album_count}</dd></div><div><dt>照片数</dt><dd>{atlas.photo_count}</dd></div></dl>
         : loading ? <p className="sidebar-status" role="status">正在读取足迹统计…</p>
           : <div className="sidebar-status"><p>足迹统计暂时不可用。</p><button className="quiet-button" onClick={retryAtlas}>重读足迹统计</button></div>}
       <Link className="sidebar-library-link" to="/albums">我的相册 <span aria-hidden="true">↗</span></Link>
@@ -30,7 +30,7 @@ export function HomeSidebar({ atlas, loading, retryAtlas, recent }: {
             <div className="home-recent-cover" aria-hidden="true">{album.cover_photo_id ? <OriginalImage photoId={album.cover_photo_id} alt="" /> : <span>{album.city.name[0]}</span>}</div>
             <div className="home-recent-caption"><strong>{album.city.name}</strong><span>{album.year === null ? '未标年份' : `${album.year} 年`}</span><small>{album.photo_count} 张照片</small></div><span className="recent-album-arrow" aria-hidden="true">↗</span>
           </Link>)}</div> : <div className="sidebar-empty"><p>还没有相册，先留下一座城市。</p><Link to="/#choose-city-title">选择城市，创建影集 →</Link></div>}
-      {!!recent.data?.items.length && <p className="sidebar-scope">按相册创建、照片或封面整理时间排列。</p>}
+      {!!recent.data?.items.length && <p className="sidebar-scope">按年份影集创建、照片或封面整理时间排列。</p>}
     </section>
     <Link className="home-start-entry" to="/#choose-city-title" aria-label="选择城市"><span><strong>下一段回忆</strong><small>选一座城市，开启新的影集</small></span><span aria-hidden="true">＋</span></Link>
   </aside>
