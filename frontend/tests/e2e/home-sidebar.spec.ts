@@ -116,7 +116,7 @@ test('首页地图与旅行侧栏左右排列，最近整理按真实更新时�
     const response = await route.fetch(); atlasCaptured = true
     await overviewHeld; await route.fulfill({ response }).catch(() => {})
   })
-  await page.route('**/api/v1/cities?q=*', async route => {
+  await page.route('**/api/v1/cities?view=province-centers&limit=100', async route => {
     const response = await route.fetch(); citiesCaptured = true
     await citiesHeld; await route.fulfill({ response }).catch(() => {})
   })
@@ -143,7 +143,7 @@ test('首页地图与旅行侧栏左右排列，最近整理按真实更新时�
     releaseOverview(); releaseCities()
     await page.unroute('**/map-data/china-cities.v1.json')
     await page.unroute('**/api/v1/me/atlas')
-    await page.unroute('**/api/v1/cities?q=*')
+    await page.unroute('**/api/v1/cities?view=province-centers&limit=100')
   }
   for (const width of [1000, 360, 320]) {
     await page.setViewportSize({ width, height: 850 })

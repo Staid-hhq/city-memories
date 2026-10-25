@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-10-24。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新：2026-10-25。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -60,7 +60,7 @@
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、导航、封面卡与功能样式；含手机触控控件、局部横滚和短屏查看层 |
-| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、城市搜索、城市相册/年份影集逐级返回、计数与地图联动 |
+| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、省会默认入口与全国城市搜索、城市相册/年份影集逐级返回、计数与地图联动 |
 | [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 一城市一卡的相册库、城市聚合筛选/排序分页、条件/返回位置记忆及城市/年份封面卡 |
 | [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹与年份影集统计、最近三本年份影集及相册/选城快捷入口 |
 | [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、城市相册聚合、年份影集和个人地图统计类型，不依赖页面组件 |
@@ -121,7 +121,8 @@
 | [src/city_memories/errors.py](../backend/src/city_memories/errors.py) | 统一业务错误及 API 响应格式 |
 | [src/city_memories/boundary.py](../backend/src/city_memories/boundary.py) | 请求边界：CSRF、请求体限制、安全缓存头和异常转换 |
 | [src/city_memories/auth.py](../backend/src/city_memories/auth.py) | 密码哈希、会话、CSRF、注册登录与限流 |
-| [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市相册聚合分页、城市/年份影集查找及年份选项、本人封面/统计和独立签名游标 |
+| [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市相册聚合、省会/全目录视图分页、城市/年份影集查找及年份选项、本人封面/统计和独立签名游标 |
+| [src/city_memories/province_centers.py](../backend/src/city_memories/province_centers.py) | 各省级地区默认城市的稳定业务 ID 与明确拼音排序键，不改城市目录或状态 |
 | [src/city_memories/imports.py](../backend/src/city_memories/imports.py) | 导入批次、上传租约、内容接收、幂等提交、取消及队列查询 |
 | [src/city_memories/storage.py](../backend/src/city_memories/storage.py) | 私有原图/暂存文件的校验、路径边界与文件操作 |
 | [src/city_memories/photos.py](../backend/src/city_memories/photos.py) | 照片详情、分页、前后位置与原图访问授权 |
@@ -155,6 +156,7 @@
 | [tests/test_auth.py](../backend/tests/test_auth.py) | 认证、CSRF、限流、授权边界 |
 | [tests/test_albums.py](../backend/tests/test_albums.py) | 城市、年份影集筛选/选项与封面、稳定分页及游标/账号隔离 |
 | [tests/test_city_album_library.py](../backend/tests/test_city_album_library.py) | 本人城市相册聚合、全市统计/封面、筛选/稳定分页、游标隔离及旧接口兼容 |
+| [tests/test_province_centers.py](../backend/tests/test_province_centers.py) | 34 个省级入口覆盖/拼音排序、分页/游标隔离、状态门禁及全目录搜索兼容 |
 | [tests/test_imports.py](../backend/tests/test_imports.py) | 原图导入、校验、幂等提交及失败边界 |
 | [tests/test_import_queue.py](../backend/tests/test_import_queue.py) | 批量队列状态查询与恢复协议 |
 | [tests/test_photos.py](../backend/tests/test_photos.py) | 原图/详情授权、分页和数据变化 |
@@ -219,6 +221,7 @@
 | [reports/2026-10-23-province-borders.md](reports/2026-10-23-province-borders.md) | V2-04 省市边界层级、公共省界源线、保留城市交互及本轮验证 |
 | [reports/2026-10-23-upload-entry-feedback.md](reports/2026-10-23-upload-entry-feedback.md) | V2-04 上传空闲光标与选图提示、批量入口及多选说明的范围和验证 |
 | [reports/2026-10-24-city-album-hierarchy.md](reports/2026-10-24-city-album-hierarchy.md) | V2-04 城市相册/年份影集层级、聚合接口、计数/封面/返回规则、更新和验证 |
+| [reports/2026-10-25-province-city-entries.md](reports/2026-10-25-province-city-entries.md) | V2-04 省会默认入口、城市拼音排序、全目录搜索兼容、更新和验证 |
 
 ## 独立验证工具
 

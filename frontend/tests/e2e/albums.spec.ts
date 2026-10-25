@@ -22,6 +22,72 @@ async function create(page: Page, year: string | null) {
   return page.url()
 }
 
+test('省级入口完整按城市拼音排列，搜索仍可找到其他城市，失败可重试', async ({ page }, testInfo) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const defaultRoute = '**/api/v1/cities?view=province-centers&limit=100'
+  await page.route(defaultRoute, route => route.abort('failed'))
+  await login(page, 'Map_Empty')
+  const section = page.getByRole('region', { name: '选择一座城市', exact: true })
+  const cards = section.locator('.city-card')
+  await expect(section.getByRole('alert')).toContainText('暂时连接不上服务')
+  await expect(cards).toHaveCount(0)
+  await page.unroute(defaultRoute)
+  await section.getByRole('button', { name: '重新加载', exact: true }).click()
+  const names = [
+    '澳门特别行政区', '北京市', '长春市', '长沙市', '成都市', '重庆市', '福州市', '广州市', '贵阳市',
+    '哈尔滨市', '海口市', '杭州市', '合肥市', '呼和浩特市', '济南市', '昆明市', '兰州市', '拉萨市',
+    '南昌市', '南京市', '南宁市', '上海市', '沈阳市', '石家庄市', '台北市', '太原市', '天津市',
+    '武汉市', '乌鲁木齐市', '西安市', '香港特别行政区', '西宁市', '银川市', '郑州市',
+  ]
+  const regions = [
+    '澳门特别行政区', '北京市', '吉林省', '湖南省', '四川省', '重庆市', '福建省', '广东省', '贵州省',
+    '黑龙江省', '海南省', '浙江省', '安徽省', '内蒙古自治区', '山东省', '云南省', '甘肃省', '西藏自治区',
+    '江西省', '江苏省', '广西壮族自治区', '上海市', '辽宁省', '河北省', '台湾省', '山西省', '天津市',
+    '湖北省', '新疆维吾尔自治区', '陕西省', '香港特别行政区', '青海省', '宁夏回族自治区', '河南省',
+  ]
+  await expect(cards.locator('strong')).toHaveText(names)
+  expect(await cards.locator('small').allTextContents().then(values => values.map(text => text.split(' · ')[0]))).toEqual(regions)
+  expect(new Set(await cards.evaluateAll(elements => elements.map(element => element.getAttribute('href')))).size).toBe(34)
+  await expect(cards.filter({ hasText: '广东省' }).locator('strong')).toHaveText(['广州市'])
+  await expect(section.getByRole('button', { name: '加载更多', exact: true })).toHaveCount(0)
+  await section.getByRole('heading').scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('province-entries-desktop.png') })
+  await page.setViewportSize({ width: 360, height: 800 })
+  await section.getByRole('heading').scrollIntoViewIfNeeded()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+  await page.screenshot({ path: testInfo.outputPath('province-entries-mobile.png') })
+  await page.setViewportSize({ width: 1360, height: 940 })
+  await cards.filter({ hasText: '广州市' }).click()
+  await expect(page).toHaveURL(new RegExp(`/cities/${guangzhou}$`))
+  await expect(page.getByRole('heading', { name: '广州市', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: '返回城市入口' }).click()
+  await expect(cards).toHaveCount(34)
+  await page.getByLabel('搜索城市', { exact: true }).fill('广东')
+  await section.getByRole('button', { name: '搜索', exact: true }).click()
+  await expect(cards).toHaveCount(21)
+  for (const name of ['广州市', '深圳市', '东莞市']) await expect(cards.filter({ hasText: name })).toHaveCount(1)
+  await page.getByLabel('搜索城市', { exact: true }).fill('新疆')
+  await section.getByRole('button', { name: '搜索', exact: true }).click()
+  await expect(cards).toHaveCount(24)
+  await section.getByRole('button', { name: '加载更多', exact: true }).click()
+  await expect(cards).toHaveCount(26)
+  await expect(cards.filter({ hasText: '草湖市' })).toHaveCount(0)
+  await page.getByLabel('搜索城市', { exact: true }).fill('深圳')
+  await section.getByRole('button', { name: '搜索', exact: true }).click()
+  await expect(cards.locator('strong')).toHaveText(['深圳市'])
+  await cards.first().click()
+  await expect(page).toHaveURL(new RegExp(`/cities/${shenzhen}$`))
+  await page.getByRole('link', { name: '返回城市入口' }).click()
+  await page.getByLabel('搜索城市', { exact: true }).fill('广东')
+  await section.getByRole('button', { name: '搜索', exact: true }).click()
+  await expect(cards).toHaveCount(21)
+  await section.getByRole('button', { name: '返回省会列表', exact: true }).click()
+  await expect(page.getByLabel('搜索城市', { exact: true })).toHaveValue('')
+  await expect(cards.locator('strong')).toHaveText(names)
+  expect(errors).toEqual([])
+})
+
 test('城市搜索、空年份、重复进入、未标年份唯一和重载保存', async ({ page }, testInfo) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))

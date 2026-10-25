@@ -16,6 +16,7 @@ from sqlalchemy.dialects.sqlite import insert
 from city_memories.auth import CurrentUser
 from city_memories.errors import ApiError
 from city_memories.models import Album, City, Photo
+from city_memories.province_centers import PROVINCE_CENTERS
 
 router = APIRouter(prefix="/api/v1", tags=["albums"])
 Limit = Annotated[int, Query(ge=1, le=100)]
@@ -197,11 +198,21 @@ def cities(
     q: Annotated[str, Query(max_length=80)] = "",
     cursor: Cursor = None,
     limit: Limit = 24,
+    view: Literal["all", "province-centers"] = "all",
 ):
     q = q.strip()
-    scope = f"cities:{q}"
+    scope = f"cities:{q}" if view == "all" else f"province-centers:v1:{q}"
     keys = decode_cursor(request, cursor, scope)
     query = select(City).where(City.is_active == 1, City.mapping_status == "verified")
+    order_key = City.name
+    if view == "province-centers":
+        query = query.where(City.id.in_(PROVINCE_CENTERS))
+        order_key = case(PROVINCE_CENTERS, value=City.id)
+        if keys and (
+            not all(isinstance(key, str) for key in keys)
+            or keys[0] != PROVINCE_CENTERS.get(keys[1])
+        ):
+            raise ApiError(422, "INVALID_CURSOR", "列表位置已失效，请重新加载")
     if q:
         query = query.where(
             or_(
@@ -210,12 +221,15 @@ def cities(
             )
         )
     if keys:
-        query = query.where(or_(City.name > keys[0], and_(City.name == keys[0], City.id > keys[1])))
+        query = query.where(or_(order_key > keys[0], and_(order_key == keys[0], City.id > keys[1])))
     with request.app.state.auth.sessions() as db:
-        rows = db.scalars(query.order_by(City.name, City.id).limit(limit + 1)).all()
+        rows = db.scalars(query.order_by(order_key, City.id).limit(limit + 1)).all()
     items = rows[:limit]
     next_cursor = (
-        encode_cursor(request, scope, [items[-1].name, items[-1].id]) if len(rows) > limit else None
+        encode_cursor(request, scope, [
+            PROVINCE_CENTERS[items[-1].id] if view == "province-centers" else items[-1].name,
+            items[-1].id,
+        ]) if len(rows) > limit else None
     )
     return {"data": {"items": [city_view(city) for city in items], "next_cursor": next_cursor}}
 

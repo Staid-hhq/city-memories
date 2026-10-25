@@ -112,16 +112,22 @@ function Paged<T>({ initial, path, memory, children }: {
 }
 
 function CitySearch({ query }: { query: string }) {
-  const path = `/cities?q=${encodeURIComponent(query)}`
+  const isDefault = !query
+  const path = isDefault ? '/cities?view=province-centers&limit=100' : `/cities?q=${encodeURIComponent(query)}`
   const result = useResource<PageData<City>>(path)
   if (result.loading) return <p role="status">正在查找城市…</p>
   if (!result.data) return <LoadError error={result.error} retry={result.retry} />
+  function description(city: City) {
+    if (isDefault && city.unit_kind === 'prefecture') return city.parent_name?.endsWith('自治区') ? '首府' : '省会'
+    if (isDefault && city.unit_kind === 'taiwan-destination') return '省会'
+    return { prefecture: '地级城市', municipality: '直辖市', 'special-region': '特别行政区', 'direct-admin-unit': '省直辖县级单位', 'taiwan-destination': '台湾地区市县' }[city.unit_kind] ?? '已审核目的地'
+  }
   return <Paged initial={result.data} path={path}>{(items) => items.length ?
     <div className="city-grid">{items.map((city) => <Link className="city-card" key={city.id} to={`/cities/${city.id}`}>
       <span className="city-initial" aria-hidden="true">{city.name[0]}</span>
-      <span><strong>{city.name}</strong><small>{city.parent_name ?? city.name} · {{ prefecture: '地级城市', municipality: '直辖市', 'special-region': '特别行政区', 'direct-admin-unit': '省直辖县级单位', 'taiwan-destination': '台湾地区市县' }[city.unit_kind] ?? '已审核目的地'}</small></span>
+      <span><strong>{city.name}</strong><small>{city.parent_name ?? city.name} · {description(city)}</small></span>
       <span className="card-arrow" aria-hidden="true">↗</span>
-    </Link>)}</div> : <div className="empty-note" role="status">当前开放的城市中没有“{query}”。试试城市全称或所属地区；待映射城市暂未开放。</div>
+    </Link>)}</div> : <div className="empty-note" role="status">{isDefault ? '暂时没有可选的省会入口，请搜索城市或稍后重试。' : <>当前开放的城市中没有“{query}”。试试城市全称或所属地区；待映射城市暂未开放。</>}</div>
   }</Paged>
 }
 
@@ -184,13 +190,14 @@ function Home({ user, service, memory }: { user: User; service: MapService; memo
         </Link>)}</div> : <div className="empty-note"><strong>你的第一本手帐，还在等一个目的地。</strong><p>先选一座城市，再创建年份影集。没有照片也可以先留好位置。</p></div>}
     </section>
     <section className="journal-section" aria-labelledby="choose-city-title">
-      <div className="section-heading"><h2 id="choose-city-title">选择一座城市</h2><span>已审核的全国城市及同级目的地</span></div>
+      <div className="section-heading"><h2 id="choose-city-title">选择一座城市</h2><span>{query ? '全国城市搜索结果' : '各省级地区入口 · 城市拼音 A–Z'}</span></div>
       <form className="search-form" onSubmit={search}>
         <label className="sr-only" htmlFor="city-search">搜索城市</label>
         <input id="city-search" type="search" maxLength={80} placeholder="搜索城市或所属地区，例如 深圳" value={input} onChange={(event) => setInput(event.target.value)} />
         <button className="quiet-button" type="submit">搜索</button>
-        {query && <button className="quiet-button" type="button" onClick={() => { setInput(''); setQuery('') }}>查看全部</button>}
+        {query && <button className="quiet-button" type="button" onClick={() => { setInput(''); setQuery('') }}>返回省会列表</button>}
       </form>
+      {!query && <p className="field-help">每个省级地区一个入口，展示省会、自治区首府及直辖市、港澳。其他城市可在上方搜索。</p>}
       <CitySearch key={query} query={query} />
       <p className="scope-note">城市搜索独立于地图服务；仅开放已审核映射，空影集不会点亮城市。草湖市等待地图供应商映射，暂未开放。</p>
     </section>
