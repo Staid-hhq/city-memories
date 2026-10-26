@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-10-25。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新：2026-10-26。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -59,7 +59,7 @@
 | [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、启动连接帮助、会话手动核对、退出清理和顶层路由 |
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
-| [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、导航、封面卡与功能样式；含手机触控控件、局部横滚和短屏查看层 |
+| [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、地图高度与状态边线、导航和封面卡；含手机触控控件、局部横滚和短屏查看层 |
 | [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、省会默认入口与全国城市搜索、城市相册/年份影集逐级返回、计数与地图联动 |
 | [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 一城市一卡的相册库、城市聚合筛选/排序分页、条件/返回位置记忆及城市/年份封面卡 |
 | [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹与年份影集统计、最近三本年份影集及相册/选城快捷入口 |
@@ -73,7 +73,7 @@
 | [src/features/photos/MovePhoto.tsx](../frontend/src/features/photos/MovePhoto.tsx) | 目标城市/年份选择、创建目标影集、确认跨影集移动 |
 | [src/features/photos/Duplicates.tsx](../frontend/src/features/photos/Duplicates.tsx) | 本影集同内容照片的分组分页与逐份查看，不自动删除 |
 | [src/features/photos/photos.ts](../frontend/src/features/photos/photos.ts) | 照片、文字、分页和详情的 TypeScript 数据类型 |
-| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 中国全市级 SVG、省市边界层级、南海附图、本人点亮、定位、拖缩和返回视角；触摸滚页与显式移动地图切换 |
+| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 中国全市级 SVG、省界常显与城市点亮/悬停边线、南海附图、定位、拖缩和返回视角；触摸滚页与显式移动地图切换 |
 | [src/features/map/mapGeometry.ts](../frontend/src/features/map/mapGeometry.ts) | 投影、WKT 边界解析、几何路径、坐标和瓦片范围计算 |
 | [src/features/map/mapService.ts](../frontend/src/features/map/mapService.ts) | 静态市界加载、严格身份关联、缓存/取消/失败处理；保留第一版行政请求兼容方法 |
 | [src/features/trash/Trash.tsx](../frontend/src/features/trash/Trash.tsx) | 回收站列表、照片删除确认、原图查看和恢复流程 |
@@ -93,7 +93,7 @@
 | [tests/e2e/editing.spec.ts](../frontend/tests/e2e/editing.spec.ts) | 文字草稿、冲突、离开提醒、拖动和跨页排序 |
 | [tests/e2e/organizing.spec.ts](../frontend/tests/e2e/organizing.spec.ts) | 跨影集移动、重复分组及错误恢复 |
 | [tests/e2e/trash.spec.ts](../frontend/tests/e2e/trash.spec.ts) | 删除确认、回收站、恢复和状态冲突 |
-| [tests/e2e/maps.spec.ts](../frontend/tests/e2e/maps.spec.ts) | 静态几何、全市灰底、桌面及触屏滚页/移动交互、本人统计和请求隔离 |
+| [tests/e2e/maps.spec.ts](../frontend/tests/e2e/maps.spec.ts) | 静态几何、市界按状态显示、桌面及触屏滚页/移动交互、本人统计和请求隔离 |
 | [tests/e2e/map-service.spec.ts](../frontend/tests/e2e/map-service.spec.ts) | 地图请求调度、复用和错误规则 |
 | [tests/e2e/map-live.spec.ts](../frontend/tests/e2e/map-live.spec.ts) | 默认实际公共矢量的 391 项覆盖、零在线地图请求与窄屏检查 |
 | [tests/e2e/journey.spec.ts](../frontend/tests/e2e/journey.spec.ts) | 从注册到导入、整理、恢复、重登的连续流程与双账号检查 |
@@ -222,6 +222,7 @@
 | [reports/2026-10-23-upload-entry-feedback.md](reports/2026-10-23-upload-entry-feedback.md) | V2-04 上传空闲光标与选图提示、批量入口及多选说明的范围和验证 |
 | [reports/2026-10-24-city-album-hierarchy.md](reports/2026-10-24-city-album-hierarchy.md) | V2-04 城市相册/年份影集层级、聚合接口、计数/封面/返回规则、更新和验证 |
 | [reports/2026-10-25-province-city-entries.md](reports/2026-10-25-province-city-entries.md) | V2-04 省会默认入口、城市拼音排序、全目录搜索兼容、更新和验证 |
+| [reports/2026-10-26-map-boundary-visibility.md](reports/2026-10-26-map-boundary-visibility.md) | V2-04 市界按点亮/悬停显示、省级外轮廓常显、地图高度及验证 |
 
 ## 独立验证工具
 

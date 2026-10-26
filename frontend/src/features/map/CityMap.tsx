@@ -10,8 +10,9 @@ import type { ChinaMapData, LocatedCity, MapCity } from './mapService'
 
 export type MapMemory = { read: () => View | undefined; write: (view: View) => void }
 type Size = { width: number; height: number }
-const initialSize: Size = { width: 900, height: 540 }
+const initialSize: Size = { width: 900, height: 640 }
 const sourceUrl = '/map-data/NOTICE.md'
+const isProvinceCity = (city: LocatedCity) => city.unit_kind === 'municipality' || city.unit_kind === 'special-region'
 
 function fitView({ width, height }: Size): View {
   const northwest = project([72, 55], 0), southeast = project([136, 17], 0)
@@ -48,6 +49,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   const [drag, setDrag] = useState<Point>([0, 0])
   const [touchPan, setTouchPan] = useState(false)
   const [hovered, setHovered] = useState<LocatedCity | null>(null)
+  const [focused, setFocused] = useState<LocatedCity | null>(null)
   const [query, setQuery] = useState('')
   const interacted = useRef(!!memory.read())
   const pointer = useRef<{ id: number; start: Point; delta: Point; cityId?: string } | null>(null)
@@ -55,7 +57,13 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   const overview = fitView(size)
   const counts = useMemo(() => new Map(atlas?.items.map(item => [item.city.id, item.photo_count])), [atlas])
   const lit = useMemo(() => new Set(atlas?.items.filter(item => item.lit && item.photo_count > 0).map(item => item.city.id) ?? []), [atlas])
+  const activeCity = hovered ?? focused
   const paths = useMemo(() => ({ outline: fixedPath(data.outline), borders: fixedLines(data.borders), provinceBorders: fixedLines(data.provinceBorders), cities: data.items.filter(city => data.regions[city.id]).map(city => ({ city, path: fixedPath(data.regions[city.id]) })) }), [data])
+  // Draw visible city edges above every area fill; province-level cities already
+  // have their outer edges in the permanent province/coastline layers.
+  const litBoundaries = paths.cities.filter(({ city }) => lit.has(city.id) && !isProvinceCity(city))
+  const visibleBoundaries = paths.cities.filter(({ city }) => !isProvinceCity(city) && (lit.has(city.id) || activeCity?.id === city.id))
+    .sort((a, b) => Number(a.city.id === activeCity?.id) - Number(b.city.id === activeCity?.id))
   const matches = useMemo(() => query.trim() ? data.items.filter(city => `${city.name}${city.parent_name ?? ''}`.includes(query.trim())).slice(0, 8) : [], [data.items, query])
   const photoLabel = (city: LocatedCity) => atlas ? `${counts.get(city.id) ?? 0} 张照片` : '照片统计核对中'
   const cityLabel = (city: LocatedCity) => city.parent_name && city.parent_name !== city.name ? `${city.parent_name} · ${city.name}` : city.name
@@ -134,6 +142,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
         else if (event.key === '-') { event.preventDefault(); zoom(-.5) }
       }}
       onPointerDown={event => {
+        setFocused(null)
         if (pointer.current || event.button !== 0 || (event.pointerType === 'touch' && (!event.isPrimary || !touchPan)) || (event.target as Element).closest('button,a,.china-map-inset')) return
         const cityId = (event.target as Element).closest('[data-city-region]')?.getAttribute('data-city-region') ?? undefined
         pointer.current = { id: event.pointerId, start: [event.clientX, event.clientY], delta: [0, 0], cityId }
@@ -145,27 +154,31 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
         current.delta = [event.clientX - current.start[0], event.clientY - current.start[1]]
         setDrag(current.delta)
         if (Math.hypot(...current.delta) > 4) setHovered(null)
-      }} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel}>
+      }} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel}
+      onPointerLeave={() => { if (!pointer.current) setHovered(null) }}>
       <svg className="china-map-svg" width={size.width} height={size.height} viewBox={`0 0 ${size.width} ${size.height}`} data-map-layer="main" data-ready="true" aria-label="按城市划分的中国足迹地图">
         <g transform={worldTransform(view, size, drag)}>
           <path className="china-map-outline" d={paths.outline} fillRule="nonzero" />
-          {paths.cities.map(({ city, path }) => <path key={city.id} className={`china-city-area${lit.has(city.id) ? ' is-lit' : ''}${hovered?.id === city.id ? ' is-hovered' : ''}`}
-            data-city-region={city.id} data-lit={lit.has(city.id)} d={path} fillRule="evenodd" role="link" tabIndex={0}
+          {paths.cities.map(({ city, path }) => <path key={city.id} className={`china-city-area${lit.has(city.id) ? ' is-lit' : ''}${activeCity?.id === city.id ? ' is-hovered' : ''}`}
+            data-city-region={city.id} data-unit-kind={city.unit_kind} data-lit={lit.has(city.id)} d={path} fillRule="evenodd" role="link" tabIndex={0}
             aria-label={`${cityLabel(city)}，${photoLabel(city)}，打开相册`}
-            onPointerEnter={() => { if (!pointer.current) setHovered(city) }} onPointerLeave={() => { if (!pointer.current) setHovered(null) }}
-            onFocus={() => setHovered(city)} onBlur={() => setHovered(null)}
+            onPointerEnter={event => { if (!pointer.current && event.pointerType !== 'touch') setHovered(city) }} onPointerLeave={() => { if (!pointer.current) setHovered(null) }}
+            onFocus={event => setFocused(event.currentTarget.matches(':focus-visible') ? city : null)} onBlur={() => setFocused(null)}
             onClick={event => { if (event.timeStamp >= ignoreClickUntil.current) navigate(`/cities/${city.id}`) }}
             onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); navigate(`/cities/${city.id}`) } }}><title>{cityLabel(city)} · {photoLabel(city)}</title></path>)}
+          {visibleBoundaries.map(({ city, path }) => <path key={city.id} className={`china-city-boundary${lit.has(city.id) ? ' is-lit' : ''}${activeCity?.id === city.id ? ' is-hovered' : ''}`}
+            data-city-boundary={city.id} d={path} aria-hidden="true" />)}
           <path className="china-province-borders" d={paths.provinceBorders} aria-hidden="true" />
           <path className="china-national-borders" d={paths.borders} />
         </g>
       </svg>
       <div className="china-map-heading" aria-hidden="true"><span>CHINA</span><small>城市里的回忆</small></div>
-      {hovered && <div className="china-map-hover" role="status"><strong>{cityLabel(hovered)}</strong><span>{photoLabel(hovered)}</span></div>}
+      {activeCity && <div className="china-map-hover" role="status"><strong>{cityLabel(activeCity)}</strong><span>{photoLabel(activeCity)}</span></div>}
       <aside className="china-map-inset" aria-label="南海诸岛附图">
         <svg viewBox={`0 0 ${insetSize.width} ${insetSize.height}`} data-map-layer="south" data-ready="true" aria-hidden="true"><g transform={worldTransform(insetView, insetSize)}>
           <path className="china-map-outline" d={paths.outline} fillRule="nonzero" />
           {paths.cities.map(({ city, path }) => <path key={city.id} className={`china-city-area${lit.has(city.id) ? ' is-lit' : ''}`} d={path} fillRule="evenodd" />)}
+          {litBoundaries.map(({ city, path }) => <path key={city.id} className="china-city-boundary is-lit" data-city-boundary={city.id} d={path} aria-hidden="true" />)}
           <path className="china-province-borders" d={paths.provinceBorders} aria-hidden="true" />
           <path className="china-national-borders" d={paths.borders} />
         </g></svg><span>南海诸岛</span>

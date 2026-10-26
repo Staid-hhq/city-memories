@@ -102,13 +102,15 @@ test('地图投影与复合区域保持洞、离岛和坐标验证', () => {
   for (const bad of ['SRID=3857;POLYGON((1 1,2 2,3 3))', 'POLYGON((999 1,2 2,3 3))', 'POLYGON((1 1,2 2))', 'POINT(1 1)', 'POLYGON((NaN 1,2 2,3 3))']) expect(parseBoundary(bad)).toBeNull()
 })
 
-test('全部市界灰底且没有世界瓦片，空影集不点亮，跨窗口导入和换号隔离', async ({ page, context }) => {
+test('完整城市入口灰底且没有世界瓦片，空影集不点亮，跨窗口导入和换号隔离', async ({ page, context }) => {
   const { calls } = await mockMaps(context)
   await login(page, 'Map_Empty')
   await expect(page.locator('[data-city-region]')).toHaveCount(391)
   await expect(litRegions(page)).toHaveCount(0)
   await expect(page.locator('.map-progress')).toHaveText('已点亮 0 座城市')
   await expect(page.locator('.tile-layer, .map-marker')).toHaveCount(0)
+  await page.getByRole('region', { name: '中国城市地图', exact: true }).focus()
+  await page.keyboard.press('Tab')
   await page.locator(`[data-city-region="${sz}"]`).focus()
   await expect(page.locator('.china-map-hover')).toContainText('广东省 · 深圳市')
   await expect(page.locator('.china-map-hover')).toContainText('0 张照片')
@@ -143,11 +145,14 @@ test('全部市界灰底且没有世界瓦片，空影集不点亮，跨窗口�
   expect(calls.configuration).toBe(0)
 })
 
-test('跨城移动、删除末张与恢复只改变本人填色，完整市界不消失', async ({ page, context }) => {
+test('跨城移动、删除末张与恢复联动本人填色与市界，完整城市入口保留', async ({ page, context }) => {
   await mockMaps(context)
   await login(page, 'Map_One')
   await expect(page.locator('[data-city-region]')).toHaveCount(391)
   await expect(page.locator(`[data-city-region="${sz}"]`)).toHaveAttribute('data-lit', 'true')
+  const boundaries = page.locator('[data-map-layer="main"] [data-city-boundary]')
+  await page.mouse.move(8, 80)
+  await expect(boundaries).toHaveAttribute('data-city-boundary', sz)
   const other = await context.newPage(); await other.goto('/')
   const album = (await read(page, `/cities/${sz}/albums`)).items[0]
   const photo = (await read(page, `/albums/${album.id}/photos`)).items[0]
@@ -156,14 +161,113 @@ test('跨城移动、删除末张与恢复只改变本人填色，完整市界�
   await write(other, `/photos/${photo.id}/move`, { target_album_id: target.id, expected_photo_revision: current.revision, expected_source_revision: current.album_revision, expected_target_revision: target.revision })
   await expect(page.locator(`[data-city-region="${sz}"]`)).toHaveAttribute('data-lit', 'false')
   await expect(page.locator(`[data-city-region="${gz}"]`)).toHaveAttribute('data-lit', 'true')
+  await expect(boundaries).toHaveAttribute('data-city-boundary', gz)
   let detail = await read(page, `/photos/${photo.id}`)
   await write(other, `/photos/${photo.id}/trash`, { expected_photo_revision: detail.revision, expected_album_revision: detail.album_revision })
   await expect(litRegions(page)).toHaveCount(0)
   await expect(page.locator('[data-city-region]')).toHaveCount(391)
+  await expect(boundaries).toHaveCount(0)
   detail = await read(page, `/trash/photos/${photo.id}`)
   await write(other, `/trash/photos/${photo.id}/restore`, { expected_photo_revision: detail.revision, expected_album_revision: detail.album_revision })
   await expect(page.locator(`[data-city-region="${gz}"]`)).toHaveAttribute('data-lit', 'true')
+  await expect(boundaries).toHaveAttribute('data-city-boundary', gz)
   await other.close()
+})
+
+test('市界仅在有照片或临时查看时显示，鼠标移开和失焦复原，省界始终保留', async ({ page, context }, info) => {
+  const { state } = await mockMaps(context)
+  state.payload = JSON.parse(readFileSync(new URL('../../public/map-data/china-cities.v1.json', import.meta.url), 'utf8'))
+  await login(page, 'Map_Return')
+  await expect(page.locator('[data-city-region]')).toHaveCount(391)
+  const main = page.locator('[data-map-layer="main"]')
+  const stage = page.getByRole('region', { name: '中国城市地图', exact: true })
+  const area = (id: string) => main.locator(`[data-city-region="${id}"]`)
+  const boundary = (id: string) => main.locator(`[data-city-boundary="${id}"]`)
+  await page.mouse.move(8, 80)
+  await stage.focus()
+  await expect(area(gz)).toHaveAttribute('data-lit', 'false')
+  await expect(area(gz)).toHaveCSS('stroke', 'none')
+  await expect(boundary(gz)).toHaveCount(0)
+  await expect(boundary(sz)).toHaveCount(1)
+  await expect(boundary(sz)).toHaveCSS('pointer-events', 'none')
+  await expect(boundary(sz)).toHaveCSS('fill', 'none')
+  await expect(boundary(sz)).toHaveCSS('vector-effect', 'non-scaling-stroke')
+  await expect(page.locator(`[data-map-layer="south"] [data-city-boundary="${sz}"]`)).toHaveCount(1)
+  const province = main.locator('.china-province-borders')
+  const nation = main.locator('.china-national-borders')
+  const provincePath = await province.getAttribute('d'), nationPath = await nation.getAttribute('d')
+  const provinceStroke = await province.evaluate(element => getComputedStyle(element).stroke)
+  expect(provinceStroke).not.toBe('none')
+  await expect(province).toHaveCSS('pointer-events', 'none')
+  await expect(province).toHaveCSS('vector-effect', 'non-scaling-stroke')
+  expect(await boundary(sz).evaluate(element => !!(element.compareDocumentPosition(element.closest('svg')!.querySelector('.china-province-borders')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true)
+  const plainFill = await area(gz).evaluate(element => getComputedStyle(element).fill)
+  const litFill = await area(sz).evaluate(element => getComputedStyle(element).fill)
+  await stage.screenshot({ path: info.outputPath('city-boundaries-overview.png') })
+  await page.getByLabel('在地图中定位城市', { exact: true }).fill('广州')
+  await page.getByRole('button', { name: '定位广州市', exact: true }).click()
+  await stage.scrollIntoViewIfNeeded()
+  await page.mouse.move(8, 80)
+  await stage.focus()
+  async function hover(id: string) {
+    const point = await area(id).evaluate((element, cityId) => {
+      const path = element as SVGPathElement, box = path.getBBox(), matrix = path.getScreenCTM()!
+      // Use a real, visible interior point, respecting holes and nearby cities.
+      for (const fraction of [.5, .35, .65, .2, .8]) for (const vertical of [.5, .35, .65, .2, .8]) {
+        const local = new DOMPoint(box.x + box.width * fraction, box.y + box.height * vertical)
+        const screen = local.matrixTransform(matrix)
+        if (path.isPointInFill(local) && document.elementFromPoint(screen.x, screen.y)?.closest('[data-city-region]')?.getAttribute('data-city-region') === cityId) return { x: screen.x, y: screen.y }
+      }
+      return null
+    }, id)
+    expect(point, `visible interior point for ${id}`).not.toBeNull()
+    await page.mouse.move(point!.x, point!.y)
+    return point!
+  }
+  await hover(gz)
+  await expect(boundary(gz)).toHaveClass(/is-hovered/)
+  await expect(area(gz)).not.toHaveCSS('fill', plainFill)
+  await expect(page.locator('.china-map-hover')).toContainText('广东省 · 广州市')
+  await stage.screenshot({ path: info.outputPath('city-boundaries-hover.png') })
+  await hover(sz)
+  await expect(boundary(gz)).toHaveCount(0)
+  await expect(area(gz)).toHaveCSS('fill', plainFill)
+  await expect(boundary(sz)).toHaveClass(/is-hovered/)
+  await page.mouse.move(8, 80)
+  await expect(boundary(sz)).not.toHaveClass(/is-hovered/)
+  await expect(area(sz)).toHaveCSS('fill', litFill)
+  await expect(page.locator('.china-map-hover')).toHaveCount(0)
+  await stage.screenshot({ path: info.outputPath('city-boundaries-restored.png') })
+  await stage.focus(); await page.keyboard.press('Tab'); await area(gz).focus()
+  await expect(boundary(gz)).toHaveClass(/is-hovered/)
+  await hover(sz)
+  await page.mouse.move(8, 80)
+  await expect(boundary(gz)).toHaveClass(/is-hovered/) // The visible keyboard focus returns after a pointer preview ends.
+  await stage.focus()
+  await expect(boundary(gz)).toHaveCount(0)
+  for (const city of cities.filter(city => city.unit_kind === 'municipality')) {
+    await page.keyboard.press('Tab'); await area(city.id).focus()
+    await expect(area(city.id)).toHaveAttribute('data-unit-kind', 'municipality')
+    await expect(area(city.id)).toHaveClass(/is-hovered/)
+    await expect(boundary(city.id)).toHaveCount(0)
+    await expect(province).toHaveAttribute('d', provincePath!)
+    await expect(nation).toHaveAttribute('d', nationPath!)
+    await expect(province).toHaveCSS('stroke', provinceStroke)
+    await stage.focus()
+  }
+  await page.keyboard.press('Tab'); await area(gz).focus()
+  const start = await hover(gz)
+  await page.mouse.down()
+  await page.mouse.move(start.x + 48, start.y + 24, { steps: 4 })
+  await page.mouse.up()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(boundary(gz)).toHaveCount(0) // A real mouse drag takes over without leaving a focus-only highlight.
+  await stage.focus()
+  const lineWidth = await boundary(sz).evaluate(element => getComputedStyle(element).strokeWidth)
+  await page.keyboard.press('+')
+  await expect(boundary(sz)).toHaveCSS('stroke-width', lineWidth)
+  await expect(boundary(sz)).toHaveCSS('vector-effect', 'non-scaling-stroke')
+  await expect(province).toHaveCSS('stroke', provinceStroke)
 })
 
 test('小城定位、区域点击、拖动缩放和返回视角，窄屏没有横向溢出', async ({ page, context }) => {
