@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router'
 import { api, isAbort } from '../../shared/api'
 import type { Atlas } from '../albums/types'
 import { project, unproject } from './mapGeometry'
+import { cityView } from './mapCityView'
 import type { Geometry, Point, View } from './mapGeometry'
 import { MapFailure, MapService } from './mapService'
 import type { ChinaMapData, LocatedCity, MapCity } from './mapService'
@@ -13,6 +14,11 @@ type Size = { width: number; height: number }
 const initialSize: Size = { width: 900, height: 640 }
 const sourceUrl = '/map-data/NOTICE.md'
 const isProvinceCity = (city: LocatedCity) => city.unit_kind === 'municipality' || city.unit_kind === 'special-region'
+const cityShortcuts = [
+  { code: '156810000', label: '香港' },
+  { code: '156820000', label: '澳门' },
+  { code: '156440400', label: '珠海' },
+]
 
 function fitView({ width, height }: Size): View {
   const northwest = project([72, 55], 0), southeast = project([136, 17], 0)
@@ -44,12 +50,15 @@ function worldTransform(view: View, size: Size, drag: Point = [0, 0]) {
 function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas; memory: MapMemory }) {
   const navigate = useNavigate()
   const stage = useRef<HTMLDivElement>(null)
+  const citySearch = useRef<HTMLInputElement>(null)
+  const autoFitCity = useRef<LocatedCity | null>(null)
   const [size, setSize] = useState<Size>(initialSize)
   const [view, setView] = useState<View>(() => memory.read() ?? fitView(initialSize))
   const [drag, setDrag] = useState<Point>([0, 0])
   const [touchPan, setTouchPan] = useState(false)
   const [hovered, setHovered] = useState<LocatedCity | null>(null)
   const [focused, setFocused] = useState<LocatedCity | null>(null)
+  const [selectedCity, setSelectedCity] = useState<LocatedCity | null>(null)
   const [query, setQuery] = useState('')
   const interacted = useRef(!!memory.read())
   const pointer = useRef<{ id: number; start: Point; delta: Point; cityId?: string } | null>(null)
@@ -57,7 +66,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   const overview = fitView(size)
   const counts = useMemo(() => new Map(atlas?.items.map(item => [item.city.id, item.photo_count])), [atlas])
   const lit = useMemo(() => new Set(atlas?.items.filter(item => item.lit && item.photo_count > 0).map(item => item.city.id) ?? []), [atlas])
-  const activeCity = hovered ?? focused
+  const activeCity = hovered ?? focused ?? selectedCity
   const paths = useMemo(() => ({ outline: fixedPath(data.outline), borders: fixedLines(data.borders), provinceBorders: fixedLines(data.provinceBorders), cities: data.items.filter(city => data.regions[city.id]).map(city => ({ city, path: fixedPath(data.regions[city.id]) })) }), [data])
   // Draw visible city edges above every area fill; province-level cities already
   // have their outer edges in the permanent province/coastline layers.
@@ -65,6 +74,10 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   const visibleBoundaries = paths.cities.filter(({ city }) => !isProvinceCity(city) && (lit.has(city.id) || activeCity?.id === city.id))
     .sort((a, b) => Number(a.city.id === activeCity?.id) - Number(b.city.id === activeCity?.id))
   const matches = useMemo(() => query.trim() ? data.items.filter(city => `${city.name}${city.parent_name ?? ''}`.includes(query.trim())).slice(0, 8) : [], [data.items, query])
+  const shortcuts = cityShortcuts.flatMap(shortcut => {
+    const city = data.items.find(item => item.provider_code === shortcut.code && data.regions[item.id])
+    return city ? [{ city, label: shortcut.label }] : []
+  })
   const photoLabel = (city: LocatedCity) => atlas ? `${counts.get(city.id) ?? 0} 张照片` : '照片统计核对中'
   const cityLabel = (city: LocatedCity) => city.parent_name && city.parent_name !== city.name ? `${city.parent_name} · ${city.name}` : city.name
 
@@ -75,13 +88,18 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
       if (!width || !height) return
       const next = { width, height }
       setSize(next)
-      if (!interacted.current) setView(fitView(next))
+      const city = autoFitCity.current
+      if (city) {
+        const fitted = cityView(data.regions[city.id], next, fitView(next).zoom, city.center)
+        memory.write(fitted); setView(fitted)
+      } else if (!interacted.current) setView(fitView(next))
     })
     observer.observe(element)
     return () => observer.disconnect()
-  }, [])
+  }, [data, memory])
 
   function change(next: View) {
+    autoFitCity.current = null
     const bounded: View = { center: [Math.max(70, Math.min(140, next.center[0])), Math.max(0, Math.min(60, next.center[1]))], zoom: Math.max(overview.zoom, Math.min(10, next.zoom)) }
     interacted.current = true
     memory.write(bounded); setView(bounded); setHovered(null)
@@ -95,6 +113,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
       const zoom = Math.max(fitView(size).zoom, Math.min(10, view.zoom + (event.deltaY < 0 ? .35 : -.35)))
       if (zoom === view.zoom) return
       const next = { ...view, zoom }
+      autoFitCity.current = null
       interacted.current = true; memory.write(next); setView(next); setHovered(null)
     }
     element.addEventListener('wheel', wheel, { passive: false })
@@ -118,9 +137,16 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
     } else if (current.cityId) navigate(`/cities/${current.cityId}`)
   }
   function locate(city: LocatedCity) {
-    change({ center: city.center, zoom: Math.max(view.zoom, overview.zoom + 2.5) })
+    change(cityView(data.regions[city.id], size, overview.zoom, city.center))
+    autoFitCity.current = city
+    setSelectedCity(city); setFocused(null)
     stage.current?.focus({ preventScroll: true })
-    setHovered(city)
+    stage.current?.scrollIntoView({ block: 'center', behavior: 'instant' })
+  }
+  function closeSelection() {
+    autoFitCity.current = null
+    setSelectedCity(null); setHovered(null); setFocused(null)
+    stage.current?.focus({ preventScroll: true })
   }
 
   const insetSize = { width: 136, height: 174 }
@@ -129,12 +155,17 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
     <div className="map-toolbar" aria-label="地图工具"><div>
       <button type="button" className="quiet-button" onClick={() => zoom(.5)} disabled={view.zoom >= 10} title={view.zoom >= 10 ? '已放大到最大' : '放大地图'} aria-label="放大地图">＋</button>
       <button type="button" className="quiet-button" onClick={() => zoom(-.5)} disabled={view.zoom <= overview.zoom + .001} title={view.zoom <= overview.zoom + .001 ? '已是全国视图' : '缩小地图'} aria-label="缩小地图">−</button>
-      <button type="button" className="quiet-button" onClick={() => change(overview)}>全国视图</button>
+      <button type="button" className="quiet-button" onClick={() => { setSelectedCity(null); setFocused(null); change(overview) }}>全国视图</button>
       <button type="button" className="quiet-button map-touch-toggle" aria-pressed={touchPan} onClick={event => { clearPointer(event.timeStamp); setTouchPan(value => !value); setHovered(null) }}>{touchPan ? '完成移动' : '移动地图'}</button>
     </div><span className="map-pointer-hint">拖动查看 · 滚轮或＋／－缩放</span><span className="map-touch-hint">{touchPan ? '拖动地图 · 完成后点“完成移动”' : '滑动页面 · 点＋／－缩放，移动地图可拖动'}</span></div>
+    <div className="map-city-shortcuts" role="group" aria-label="小区域快捷放大"><span>小区域放大</span>
+      {shortcuts.map(({ city, label }) => <button key={city.id} type="button" className="quiet-button" aria-label={`放大查看${label}`} onClick={() => locate(city)}>{label}<span aria-hidden="true"> ↗</span></button>)}
+      <button type="button" className="map-other-city" onClick={() => citySearch.current?.focus()}>查找其他城市</button>
+    </div>
     <div ref={stage} className={`map-stage china-map-stage${touchPan ? ' is-touch-panning' : ''}`} tabIndex={0} role="region" aria-label="中国城市地图"
       data-zoom={view.zoom} data-center={view.center.join(',')}
       onKeyDown={event => {
+        if (event.key === 'Escape' && selectedCity) { event.preventDefault(); event.stopPropagation(); closeSelection(); return }
         if (event.target !== event.currentTarget) return
         const moves: Record<string, Point> = { ArrowLeft: [-80, 0], ArrowRight: [80, 0], ArrowUp: [0, -80], ArrowDown: [0, 80] }
         if (moves[event.key]) { event.preventDefault(); const center = project(view.center, view.zoom), delta = moves[event.key]; change({ ...view, center: unproject([center[0] + delta[0], center[1] + delta[1]], view.zoom) }) }
@@ -143,7 +174,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
       }}
       onPointerDown={event => {
         setFocused(null)
-        if (pointer.current || event.button !== 0 || (event.pointerType === 'touch' && (!event.isPrimary || !touchPan)) || (event.target as Element).closest('button,a,.china-map-inset')) return
+        if (pointer.current || event.button !== 0 || (event.pointerType === 'touch' && (!event.isPrimary || !touchPan)) || (event.target as Element).closest('button,a,.china-map-inset,[data-map-control]')) return
         const cityId = (event.target as Element).closest('[data-city-region]')?.getAttribute('data-city-region') ?? undefined
         pointer.current = { id: event.pointerId, start: [event.clientX, event.clientY], delta: [0, 0], cityId }
         event.currentTarget.setPointerCapture(event.pointerId)
@@ -156,6 +187,10 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
         if (Math.hypot(...current.delta) > 4) setHovered(null)
       }} onPointerUp={finish} onPointerCancel={cancel} onLostPointerCapture={cancel}
       onPointerLeave={() => { if (!pointer.current) setHovered(null) }}>
+      {selectedCity && <div className="china-map-selection" role="region" aria-label="当前定位城市" data-map-control>
+        <div className="map-selection-heading"><strong title={cityLabel(selectedCity)}>{selectedCity.name}</strong><button type="button" aria-label="关闭城市定位" onClick={closeSelection}>×</button></div>
+        <div className="map-selection-actions"><span>{photoLabel(selectedCity)}</span><Link to={`/cities/${selectedCity.id}`} aria-label={`打开${selectedCity.name}相册`}>打开相册 <span aria-hidden="true">→</span></Link></div>
+      </div>}
       <svg className="china-map-svg" width={size.width} height={size.height} viewBox={`0 0 ${size.width} ${size.height}`} data-map-layer="main" data-ready="true" aria-label="按城市划分的中国足迹地图">
         <g transform={worldTransform(view, size, drag)}>
           <path className="china-map-outline" d={paths.outline} fillRule="nonzero" />
@@ -173,7 +208,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
         </g>
       </svg>
       <div className="china-map-heading" aria-hidden="true"><span>CHINA</span><small>城市里的回忆</small></div>
-      {activeCity && <div className="china-map-hover" role="status"><strong>{cityLabel(activeCity)}</strong><span>{photoLabel(activeCity)}</span></div>}
+      {activeCity && (!selectedCity || activeCity.id !== selectedCity.id) && <div className={`china-map-hover${selectedCity ? ' has-selection' : ''}`} role="status"><strong>{cityLabel(activeCity)}</strong><span>{photoLabel(activeCity)}</span></div>}
       <aside className="china-map-inset" aria-label="南海诸岛附图">
         <svg viewBox={`0 0 ${insetSize.width} ${insetSize.height}`} data-map-layer="south" data-ready="true" aria-hidden="true"><g transform={worldTransform(insetView, insetSize)}>
           <path className="china-map-outline" d={paths.outline} fillRule="nonzero" />
@@ -186,8 +221,8 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
     </div>
     <div className="china-map-footer"><div className="china-map-legend" aria-label="地图图例"><span><i />还未点亮</span><span><i className="is-lit" />有照片的城市</span></div>
       <p className="map-progress" aria-live="polite">{atlas ? `已点亮 ${lit.size} 座城市` : '正在核对照片统计…'}</p></div>
-    <div className="china-map-find"><label htmlFor="map-city-search">定位一座城市</label><input id="map-city-search" aria-label="在地图中定位城市" type="search" placeholder="搜索城市名称" value={query} onChange={event => setQuery(event.target.value)} />
-      <span>小区域可搜索后放大查看，也可使用方向键移动地图。</span></div>
+    <div className="china-map-find"><label htmlFor="map-city-search">定位一座城市</label><input ref={citySearch} id="map-city-search" aria-label="在地图中定位城市" type="search" placeholder="搜索城市名称" value={query} onChange={event => setQuery(event.target.value)} />
+      <span>搜索后按城市范围放大，小区域也可通过城市卡打开相册。</span></div>
     {query.trim() && <div className="china-map-results" aria-label="地图城市搜索结果">{matches.length ? <ul>{matches.map(city => <li key={city.id}><div><strong>{city.name}</strong><small>{city.parent_name ?? '中国'}</small></div>
       <button type="button" className="quiet-button" onClick={() => locate(city)}>定位{city.name}</button><Link to={`/cities/${city.id}`}>打开相册 →</Link></li>)}</ul> : <p>没有找到这座城市，可换一个名称搜索。</p>}</div>}
     <p className="map-attribution">足迹记录用图 · <a href={sourceUrl} target="_blank" rel="noreferrer">市界数据来源</a> · 填色表示本账号的有效照片</p>

@@ -73,8 +73,9 @@
 | [src/features/photos/MovePhoto.tsx](../frontend/src/features/photos/MovePhoto.tsx) | 目标城市/年份选择、创建目标影集、确认跨影集移动 |
 | [src/features/photos/Duplicates.tsx](../frontend/src/features/photos/Duplicates.tsx) | 本影集同内容照片的分组分页与逐份查看，不自动删除 |
 | [src/features/photos/photos.ts](../frontend/src/features/photos/photos.ts) | 照片、文字、分页和详情的 TypeScript 数据类型 |
-| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 中国全市级 SVG、省界常显与城市点亮/悬停边线、南海附图、定位、拖缩和返回视角；触摸滚页与显式移动地图切换 |
+| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 中国全市级 SVG、省界及状态市界、南海附图、小城快捷定位/选中卡、拖缩与返回视角；触摸滚页和移动切换 |
 | [src/features/map/mapGeometry.ts](../frontend/src/features/map/mapGeometry.ts) | 投影、WKT 边界解析、几何路径、坐标和瓦片范围计算 |
+| [src/features/map/mapCityView.ts](../frontend/src/features/map/mapCityView.ts) | 按全部真实市界适配定位视角、信息卡空间预留、最大缩放与缺失/退化回退 |
 | [src/features/map/mapService.ts](../frontend/src/features/map/mapService.ts) | 静态市界加载、严格身份关联、缓存/取消/失败处理；保留第一版行政请求兼容方法 |
 | [src/features/trash/Trash.tsx](../frontend/src/features/trash/Trash.tsx) | 回收站列表、照片删除确认、原图查看和恢复流程 |
 
@@ -95,7 +96,8 @@
 | [tests/e2e/trash.spec.ts](../frontend/tests/e2e/trash.spec.ts) | 删除确认、回收站、恢复和状态冲突 |
 | [tests/e2e/maps.spec.ts](../frontend/tests/e2e/maps.spec.ts) | 静态几何、市界按状态显示、桌面及触屏滚页/移动交互、本人统计和请求隔离 |
 | [tests/e2e/map-service.spec.ts](../frontend/tests/e2e/map-service.spec.ts) | 地图请求调度、复用和错误规则 |
-| [tests/e2e/map-live.spec.ts](../frontend/tests/e2e/map-live.spec.ts) | 默认实际公共矢量的 391 项覆盖、零在线地图请求与窄屏检查 |
+| [tests/e2e/map-city-view.spec.ts](../frontend/tests/e2e/map-city-view.spec.ts) | 港澳珠海及其他小城的真实几何适配、多面/孔洞、视口边距与异常回退 |
+| [tests/e2e/map-live.spec.ts](../frontend/tests/e2e/map-live.spec.ts) | 实际公共矢量 391 项覆盖、小城快捷定位/相册返回、触控与零在线请求检查 |
 | [tests/e2e/journey.spec.ts](../frontend/tests/e2e/journey.spec.ts) | 从注册到导入、整理、恢复、重登的连续流程与双账号检查 |
 | [tests/delivery/local.spec.ts](../frontend/tests/delivery/local.spec.ts) | 空库、真实构建资源、深链接、代理与端口冲突验收 |
 | [tests/scale/scale.spec.ts](../frontend/tests/scale/scale.spec.ts) | 400 张导入、3000 张账号、双账号并发与重复浏览内存 |
@@ -223,6 +225,7 @@
 | [reports/2026-10-24-city-album-hierarchy.md](reports/2026-10-24-city-album-hierarchy.md) | V2-04 城市相册/年份影集层级、聚合接口、计数/封面/返回规则、更新和验证 |
 | [reports/2026-10-25-province-city-entries.md](reports/2026-10-25-province-city-entries.md) | V2-04 省会默认入口、城市拼音排序、全目录搜索兼容、更新和验证 |
 | [reports/2026-10-26-map-boundary-visibility.md](reports/2026-10-26-map-boundary-visibility.md) | V2-04 市界按点亮/悬停显示、省级外轮廓常显、地图高度及验证 |
+| [reports/2026-10-26-small-city-access.md](reports/2026-10-26-small-city-access.md) | V2-04 小城快捷入口、几何适配定位、选中城市卡和验证 |
 
 ## 独立验证工具
 

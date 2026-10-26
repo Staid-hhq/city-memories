@@ -1,7 +1,16 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import type { Page } from '@playwright/test'
 import { joinChinaRegions } from '../../src/features/map/mapService'
 import type { MapCity } from '../../src/features/map/mapService'
+
+async function login(page: Page, name: string) {
+  await page.goto('/login')
+  await page.getByLabel('用户名', { exact: true }).fill(name)
+  await page.getByLabel('密码', { exact: true }).fill('Only for T03 browser tests!')
+  await page.getByRole('button', { name: '登录我的手帐' }).click()
+  await expect(page.getByRole('heading', { name: `你好，${name}` })).toBeVisible()
+}
 
 // Real bundled public geometry, isolated synthetic accounts. No online map key.
 test('正式静态市界覆盖全部入口，实际页面无在线地图请求且窄屏可用', async ({ page, context }, info) => {
@@ -45,4 +54,132 @@ test('正式静态市界覆盖全部入口，实际页面无在线地图请求�
   expect(externalCalls).toBe(0)
   expect(configCalls).toBe(0)
   expect(pageErrors).toBe(0)
+})
+
+test('香港澳门珠海可通过文字放大并打开相册，通用城市定位保持真实范围与返回视角', async ({ page }, info) => {
+  const catalog = JSON.parse(readFileSync(new URL('../../../backend/src/city_memories/city-catalog.json', import.meta.url), 'utf8'))
+  const city = (name: string): MapCity => catalog.cities.find((item: MapCity) => item.name === name)
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await login(page, 'Map_Return')
+  await expect(page.locator('[data-city-region]')).toHaveCount(391)
+  const stage = page.getByRole('region', { name: '中国城市地图', exact: true })
+  const selection = page.getByRole('region', { name: '当前定位城市', exact: true })
+  const province = page.locator('[data-map-layer="main"] .china-province-borders')
+  const provincePath = await province.getAttribute('d')
+  await expect(selection).toHaveCount(0)
+  const overviewZoom = Number(await stage.getAttribute('data-zoom'))
+  for (const [short, name] of [['香港', '香港特别行政区'], ['澳门', '澳门特别行政区'], ['珠海', '珠海市']]) {
+    const target = city(name)
+    const button = page.getByRole('button', { name: `放大查看${short}`, exact: true })
+    const buttonBox = (await button.boundingBox())!
+    expect(buttonBox.width).toBeGreaterThanOrEqual(44)
+    expect(buttonBox.height).toBeGreaterThanOrEqual(44)
+    await button.click()
+    await stage.scrollIntoViewIfNeeded()
+    await expect(selection).toContainText(name)
+    await expect(selection).toContainText('0 张照片')
+    const area = page.locator(`[data-city-region="${target.id}"]`)
+    await expect(area).toHaveAttribute('data-lit', 'false')
+    const zoom = Number(await stage.getAttribute('data-zoom'))
+    expect(zoom).toBeGreaterThan(overviewZoom + 2.5)
+    expect(zoom).toBeLessThanOrEqual(10)
+    const cityBox = (await area.boundingBox())!, mapBox = (await stage.boundingBox())!, cardBox = (await selection.boundingBox())!
+    expect(cityBox.width).toBeGreaterThan(30)
+    expect(cityBox.height).toBeGreaterThan(60)
+    expect(cityBox.x).toBeGreaterThan(mapBox.x)
+    expect(cityBox.x + cityBox.width).toBeLessThan(mapBox.x + mapBox.width)
+    expect(cityBox.y).toBeGreaterThan(mapBox.y)
+    expect(cityBox.y + cityBox.height).toBeLessThan(cardBox.y)
+    const insetBox = (await page.getByRole('complementary', { name: '南海诸岛附图', exact: true }).boundingBox())!
+    expect(cardBox.x + cardBox.width).toBeLessThan(insetBox.x)
+    await expect(province).toHaveAttribute('d', provincePath!)
+    // Moving the pointer away must keep an explicit selection available.
+    await page.mouse.move(8, 80)
+    await expect(selection).toContainText(name)
+    if (short === '香港') {
+      await stage.focus()
+      await page.keyboard.press('Tab')
+      await expect(selection.getByRole('button', { name: '关闭城市定位', exact: true })).toBeFocused()
+      await page.keyboard.press('Tab')
+      await expect(selection.getByRole('link', { name: `打开${name}相册`, exact: true })).toBeFocused()
+      for (const width of [360, 1360]) {
+        await page.setViewportSize({ width, height: width === 360 ? 800 : 940 })
+        await stage.scrollIntoViewIfNeeded()
+        await expect.poll(async () => {
+          const resizedCity = (await area.boundingBox())!, resizedMap = (await stage.boundingBox())!, resizedCard = (await selection.boundingBox())!
+          return resizedCity.x > resizedMap.x && resizedCity.x + resizedCity.width < resizedMap.x + resizedMap.width
+            && resizedCity.y > resizedMap.y && resizedCity.y + resizedCity.height < resizedCard.y
+        }).toBe(true)
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+      }
+    }
+    await stage.screenshot({ path: info.outputPath(`small-city-${short}.png`) })
+    const open = selection.getByRole('link', { name: `打开${name}相册`, exact: true })
+    expect((await open.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    const center = (await stage.getAttribute('data-center'))!, savedZoom = (await stage.getAttribute('data-zoom'))!
+    await open.click()
+    await expect(page).toHaveURL(new RegExp(`/cities/${target.id}$`))
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+    await page.getByRole('link', { name: '← 返回城市入口', exact: true }).click()
+    await expect(stage).toHaveAttribute('data-center', center)
+    await expect(stage).toHaveAttribute('data-zoom', savedZoom)
+  }
+  await page.getByRole('button', { name: '查找其他城市', exact: true }).click()
+  const search = page.getByLabel('在地图中定位城市', { exact: true })
+  await expect(search).toBeFocused()
+  await search.fill('厦门')
+  await page.getByRole('button', { name: '定位厦门市', exact: true }).click()
+  await expect(selection).toContainText('厦门市')
+  await expect(page.locator(`[data-city-region="${city('厦门市').id}"]`)).toHaveAttribute('data-lit', 'false')
+  await page.getByRole('button', { name: '关闭城市定位', exact: true }).click()
+  await expect(selection).toHaveCount(0)
+  await expect(stage).toBeFocused()
+  await page.getByRole('button', { name: '放大查看澳门', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await expect(selection).toContainText('澳门特别行政区')
+  await stage.focus()
+  await page.keyboard.press('Escape')
+  await expect(selection).toHaveCount(0)
+  await page.getByRole('button', { name: '放大查看香港', exact: true }).click()
+  await page.getByRole('button', { name: '全国视图', exact: true }).click()
+  await expect(selection).toHaveCount(0)
+  await expect.poll(async () => Number(await stage.getAttribute('data-zoom'))).toBeCloseTo(overviewZoom, 8)
+  await page.locator('.home-overview-grid').screenshot({ path: info.outputPath('small-city-overview-sidebar.png') })
+  expect(errors).toEqual([])
+})
+
+test('360px触屏可轻点澳门文字入口与相册，定位卡不遮挡城市且页面无横向溢出', async ({ browser, baseURL }, info) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 360, height: 800 }, isMobile: true, hasTouch: true })
+  try {
+    const page = await context.newPage()
+    await login(page, 'Map_Two')
+    await expect(page.locator('[data-city-region]')).toHaveCount(391)
+    const stage = page.getByRole('region', { name: '中国城市地图', exact: true })
+    const button = page.getByRole('button', { name: '放大查看澳门', exact: true })
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    await button.tap()
+    await stage.scrollIntoViewIfNeeded()
+    const selection = page.getByRole('region', { name: '当前定位城市', exact: true })
+    await expect(selection).toContainText('澳门特别行政区')
+    await expect(selection).toContainText('0 张照片')
+    await expect(page.locator('[data-city-region][data-lit="true"]')).toHaveCount(0)
+    const macau = page.getByRole('link', { name: '澳门特别行政区，0 张照片，打开相册', exact: true })
+    const cityBox = (await macau.boundingBox())!, cardBox = (await selection.boundingBox())!
+    expect(cityBox.width).toBeGreaterThan(30)
+    expect(cityBox.height).toBeGreaterThan(60)
+    expect(cityBox.y + cityBox.height).toBeLessThan(cardBox.y)
+    const insetBox = (await page.getByRole('complementary', { name: '南海诸岛附图', exact: true }).boundingBox())!
+    expect(cardBox.x + cardBox.width).toBeLessThan(insetBox.x)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+    await page.screenshot({ path: info.outputPath('small-city-macau-mobile.png') })
+    const center = (await stage.getAttribute('data-center'))!, zoom = (await stage.getAttribute('data-zoom'))!
+    const open = selection.getByRole('link', { name: '打开澳门特别行政区相册', exact: true })
+    expect((await open.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    await open.tap()
+    await expect(page.getByRole('heading', { name: '澳门特别行政区', exact: true })).toBeVisible()
+    await page.getByRole('link', { name: '← 返回城市入口', exact: true }).tap()
+    await expect(stage).toHaveAttribute('data-center', center)
+    await expect(stage).toHaveAttribute('data-zoom', zoom)
+  } finally { await context.close() }
 })

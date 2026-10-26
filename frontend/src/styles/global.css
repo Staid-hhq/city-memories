@@ -473,6 +473,10 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 .china-city-map .map-toolbar { margin-top: 18px; }
 .china-city-map .map-toolbar > span { color: var(--muted); }
 .china-city-map .map-toolbar .quiet-button { padding: 7px 13px; font-size: 12px; }
+.map-city-shortcuts { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin: 10px 0 12px; }
+.map-city-shortcuts > span { margin-right: 4px; color: var(--muted); font-size: 11px; }
+.map-city-shortcuts .quiet-button, .map-city-shortcuts .map-other-city { min-height: 44px; padding: 8px 12px; font-size: 12px; }
+.map-city-shortcuts .map-other-city { border: 0; background: transparent; color: var(--accent); }
 .china-map-stage { height: 590px; border: 1px solid #edf0ed; border-radius: 8px; background: #fff; isolation: isolate; }
 .china-map-stage { touch-action: pan-x pan-y pinch-zoom; }
 .china-map-stage.is-touch-panning { touch-action: none; }
@@ -500,6 +504,14 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 .china-map-hover { position: absolute; bottom: 24px; left: 26px; display: flex; flex-direction: column; gap: 5px; max-width: calc(100% - 195px); padding: 12px 15px; border: 1px solid var(--line); border-radius: 6px; background: #ffffffed; color: var(--ink); box-shadow: 0 4px 16px #2b422a08; pointer-events: none; }
 .china-map-hover > strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .china-map-hover > span { font-size: 11px; color: var(--muted); }
+.china-map-hover.has-selection { top: 18px; right: 18px; bottom: auto; left: auto; }
+.china-map-selection { position: absolute; z-index: 2; bottom: 10px; left: 14px; width: 310px; max-width: calc(100% - 172px); padding: 8px; border: 1px solid #c5d5c9; border-radius: 8px; background: #fff; box-shadow: 0 3px 16px #294c3510; color: var(--ink); }
+.map-selection-heading { display: flex; align-items: center; gap: 4px; }
+.map-selection-heading > strong { flex: 1; min-width: 0; padding-left: 4px; overflow-wrap: anywhere; font-size: 14px; line-height: 1.4; font-weight: 500; }
+.map-selection-heading > button { width: 44px; height: 44px; flex-shrink: 0; padding: 0; border: 0; background: transparent; color: var(--muted); font: 22px/1 sans-serif; }
+.map-selection-actions { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.map-selection-actions > span { padding-left: 4px; color: var(--muted); font-size: 11px; }
+.map-selection-actions > a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 6px 10px; border-radius: 5px; background: var(--surface-soft); font-size: 12px; white-space: nowrap; }
 .china-map-inset { position: absolute; right: 18px; bottom: 18px; width: 118px; overflow: hidden; border: 1px solid #dce4dd; border-radius: 4px; background: #fff; }
 .china-map-inset > svg { display: block; width: 100%; height: auto; overflow: hidden; }
 .china-map-inset > span { display: block; padding: 2px 5px 9px; text-align: center; color: var(--muted); font-size: 10px; letter-spacing: .12em; }
@@ -550,6 +562,13 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
   .china-map-inset > span { padding-bottom: 7px; font-size: 9px; }
   .china-map-hover { left: 12px; bottom: 14px; max-width: calc(100% - 122px); padding: 9px 11px; }
   .china-map-hover > strong { font-size: 12px; }
+  .china-map-hover.has-selection { top: 12px; right: 10px; left: auto; }
+  .china-map-selection { left: 10px; bottom: 10px; max-width: calc(100% - 116px); }
+  .map-selection-heading > strong { font-size: 12px; }
+  .map-selection-actions { align-items: stretch; flex-direction: column; }
+  .map-selection-actions > span { line-height: 14px; font-size: 10px; }
+  .map-city-shortcuts { gap: 6px; }
+  .map-city-shortcuts > span { flex-basis: 100%; }
   .china-map-footer { flex-wrap: wrap; gap: 10px; }
   .china-map-legend { gap: 12px; font-size: 10px; }
   .china-map-find { gap: 9px; }
