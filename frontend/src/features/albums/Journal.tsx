@@ -177,8 +177,7 @@ function Home({ user, service, memory }: { user: User; service: MapService; memo
   const [query, setQuery] = useState('')
   function search(event: FormEvent) { event.preventDefault(); setQuery(input.trim()) }
   return <main ref={main} className="journal-main map-home">
-    <div className="page-heading"><div><p className="eyebrow">YOUR TRAVEL JOURNAL</p><h1>你好，{user.username}</h1>
-      <p className="muted">从一座城市开始，给每一年的回忆留个位置。</p></div><span className="chapter-mark">第一章 / 城市</span></div>
+    <div className="home-welcome"><h1>你好，{user.username}</h1><p>从一座城市开始，收藏每一年的回忆。</p></div>
     <div className="home-overview-grid"><CityMap service={service} memory={memory} atlas={atlas.data} />
       <HomeSidebar atlas={atlas.data} loading={atlas.loading} retryAtlas={refreshAtlas} recent={recent} /></div>
     <section className="journal-section" aria-labelledby="my-cities-title">

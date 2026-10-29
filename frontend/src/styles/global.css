@@ -12,9 +12,9 @@
   text-rendering: optimizeLegibility;
 }
 .journal-main.map-home { max-width: 1520px; padding: 22px 36px 70px; }
-.map-home .page-heading { margin: 12px 0 22px; }
-.map-home .page-heading h1 { font-size: 25px; }
-.map-home .page-heading .eyebrow { margin-bottom: 8px; }
+.home-welcome { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 22px; margin: 0 0 18px; }
+.home-welcome h1 { margin: 0; max-width: 100%; font-size: 22px; line-height: 1.4; overflow-wrap: anywhere; }
+.home-welcome p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
 .city-map { padding: 20px; border: 1px solid #d8c8b0; border-radius: 12px; background: #fffcf5; }
 .city-map .section-heading { margin-bottom: 8px; }
 .map-session-note, .map-progress { color: #736451; font-size: 12px; line-height: 1.8; }
@@ -466,17 +466,32 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 
 /* China-only city regions: public geometry and private photo counts stay separate. */
 .china-city-map { padding: 26px 30px 20px; }
-.china-city-map > .section-heading { align-items: flex-start; }
-.china-city-map .eyebrow { margin: 0 0 9px; font-size: 10px; letter-spacing: .16em; }
+.china-city-map > .section-heading { align-items: center; flex-wrap: nowrap; gap: 12px; }
 .china-city-map h2 { margin: 0; font-size: 24px; font-weight: 500; }
 .china-city-map .map-session-note { margin: 12px 0; color: var(--muted); }
-.china-city-map .map-toolbar { margin-top: 18px; }
-.china-city-map .map-toolbar > span { color: var(--muted); }
-.china-city-map .map-toolbar .quiet-button { padding: 7px 13px; font-size: 12px; }
-.map-city-shortcuts { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin: 10px 0 12px; }
-.map-city-shortcuts > span { margin-right: 4px; color: var(--muted); font-size: 11px; }
-.map-city-shortcuts .quiet-button, .map-city-shortcuts .map-other-city { min-height: 44px; padding: 8px 12px; font-size: 12px; }
-.map-city-shortcuts .map-other-city { border: 0; background: transparent; color: var(--accent); }
+.map-session-feedback { margin-bottom: 12px; }
+.map-session-feedback .quiet-button { min-height: 44px; font-size: 12px; }
+.china-city-map .map-controls { margin: 12px 0; gap: 12px; }
+.map-controls > .map-search-box { position: relative; display: block; flex: 1; min-width: 180px; }
+.map-search-box > input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font: inherit; font-size: 14px; }
+.map-search-box > input:focus { outline: 2px solid #91ad9a; outline-offset: 1px; }
+.map-search-box > input::placeholder { color: var(--muted); }
+.map-controls > .map-zoom-controls { flex-shrink: 0; gap: 8px; }
+.china-city-map .map-controls .quiet-button { min-height: 44px; min-width: 44px; padding: 7px 12px; font-size: 12px; }
+.map-search-popover { position: absolute; top: calc(100% + 8px); left: 0; z-index: 5; width: max(100%, 380px); max-width: calc(100vw - 112px); max-height: min(420px, 55vh); overflow-y: auto; overscroll-behavior: contain; padding: 8px 14px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: 0 8px 28px #2d393118; }
+.map-search-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
+.map-search-heading > button { min-width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--muted); font: 22px/1 sans-serif; }
+.map-city-shortcuts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.map-search-help { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.map-interaction-hint { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
+.map-options { position: relative; flex-shrink: 0; }
+.map-options > summary { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 8px; border-radius: 7px; list-style: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+.map-options > summary::-webkit-details-marker { display: none; }
+.map-options > summary:hover { background: var(--surface-soft); }
+.map-options > summary:focus-visible { outline: 2px solid #91ad9a; outline-offset: 2px; }
+.map-options-panel { position: absolute; top: calc(100% + 4px); right: 0; z-index: 6; width: 220px; max-width: calc(100vw - 80px); padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: 0 8px 28px #2d393118; }
+.map-options-panel .quiet-button { width: 100%; min-height: 44px; font-size: 12px; }
+.map-options-panel p { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .china-map-stage { height: 590px; border: 1px solid #edf0ed; border-radius: 8px; background: #fff; isolation: isolate; }
 .china-map-stage { touch-action: pan-x pan-y pinch-zoom; }
 .china-map-stage.is-touch-panning { touch-action: none; }
@@ -522,20 +537,14 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 .china-map-legend i { width: 9px; height: 9px; border: 1px solid #dce3dc; border-radius: 2px; background: #e7ece6; }
 .china-map-legend i.is-lit { background: #789887; border-color: #789887; }
 .china-map-footer .map-progress { margin: 0; color: var(--muted); font-size: 11px; }
-.china-map-find { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 14px 0 4px; border-top: 1px solid #eef1ee; }
-.china-map-find > label { color: var(--ink); font-size: 12px; }
-.china-map-find > input { width: 205px; max-width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; }
-.china-map-find > input:focus { outline: 2px solid #c2d4c5; outline-offset: 1px; }
-.china-map-find > span { color: var(--muted); font-size: 11px; }
-.china-map-results { margin-top: 12px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; }
+.china-map-results { margin: 0; }
 .china-map-results > p { font-size: 12px; color: var(--muted); }
-.china-map-results ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 25px; }
-.china-map-results li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #eff2ef; }
+.china-map-results ul { list-style: none; padding: 0; margin: 0; }
+.china-map-results li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 12px 0; border-bottom: 1px solid #eff2ef; }
 .china-map-results li > div { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
-.china-map-results strong { font-size: 12px; font-weight: 500; }
-.china-map-results small { font-size: 10px; color: var(--muted); }
-.china-map-results .quiet-button, .china-map-results a { flex-shrink: 0; font-size: 11px; }
-.china-map-results .quiet-button { padding: 6px 9px; }
+.china-map-results strong { font-size: 14px; font-weight: 500; }
+.china-map-results small { font-size: 12px; color: var(--muted); }
+.china-map-results .quiet-button, .china-map-results a { max-width: 100%; min-height: 44px; display: inline-flex; align-items: center; flex-shrink: 0; font-size: 12px; overflow-wrap: anywhere; }
 .china-city-map .map-attribution { margin-top: 15px; color: #879187; }
 @media (min-width: 1450px) {
   .china-map-stage { height: 650px; }
@@ -545,16 +554,14 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
   .china-city-map h2 { font-size: 21px; line-height: 1.6; }
   .china-map-stage { height: 470px; }
   .china-map-heading { top: 20px; left: 18px; }
-  .china-map-results ul { grid-template-columns: minmax(0, 1fr); }
-  .china-map-find > span { flex-basis: 100%; }
+  .map-controls > .map-search-box { flex-basis: 100%; }
+  .map-search-popover { width: 100%; max-width: 100%; }
 }
 @media (max-width: 480px) {
   .china-city-map { padding: 17px 14px; }
   .china-city-map > .section-heading { gap: 12px; }
-  .china-city-map > .section-heading > .quiet-button { padding: 7px 9px; font-size: 11px; }
   .china-city-map h2 { font-size: 19px; }
-  .china-city-map .map-toolbar { margin-top: 12px; }
-  .china-city-map .map-toolbar > span { font-size: 10px; }
+  .home-welcome h1 { font-size: 20px; }
   .china-map-stage { height: 410px; }
   .china-map-heading { top: 16px; left: 14px; }
   .china-map-heading > small { display: none; }
@@ -568,13 +575,8 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
   .map-selection-actions { align-items: stretch; flex-direction: column; }
   .map-selection-actions > span { line-height: 14px; font-size: 10px; }
   .map-city-shortcuts { gap: 6px; }
-  .map-city-shortcuts > span { flex-basis: 100%; }
   .china-map-footer { flex-wrap: wrap; gap: 10px; }
   .china-map-legend { gap: 12px; font-size: 10px; }
-  .china-map-find { gap: 9px; }
-  .china-map-find > label { flex-basis: 100%; }
-  .china-map-find > input { width: 100%; }
-  .china-map-results { padding-inline: 11px; }
   .china-map-results li { flex-wrap: wrap; gap: 10px; }
   .china-map-results li > div { min-width: 100%; }
 }
@@ -584,8 +586,6 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 .home-overview-grid > .city-map { min-width: 0; padding: 22px 24px 18px; }
 .home-overview-grid .china-map-stage { height: 640px; }
 .home-overview-grid .map-toolbar { flex-wrap: wrap; gap: 12px; }
-.home-overview-grid .map-toolbar > span { font-size: 10px; }
-.home-overview-grid .china-map-find > span { flex-basis: 100%; }
 .home-sidebar { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .home-sidebar-panel { padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .home-sidebar h2 { margin: 0; color: var(--ink); font-size: 17px; font-weight: 500; }

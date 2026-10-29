@@ -51,6 +51,8 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   const navigate = useNavigate()
   const stage = useRef<HTMLDivElement>(null)
   const citySearch = useRef<HTMLInputElement>(null)
+  const searchBox = useRef<HTMLDivElement>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
   const autoFitCity = useRef<LocatedCity | null>(null)
   const [size, setSize] = useState<Size>(initialSize)
   const [view, setView] = useState<View>(() => memory.read() ?? fitView(initialSize))
@@ -80,6 +82,15 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   })
   const photoLabel = (city: LocatedCity) => atlas ? `${counts.get(city.id) ?? 0} 张照片` : '照片统计核对中'
   const cityLabel = (city: LocatedCity) => city.parent_name && city.parent_name !== city.name ? `${city.parent_name} · ${city.name}` : city.name
+
+  useEffect(() => {
+    if (!searchOpen) return
+    const dismiss = (event: PointerEvent) => {
+      if (!searchBox.current?.contains(event.target as Node)) setSearchOpen(false)
+    }
+    document.addEventListener('pointerdown', dismiss)
+    return () => document.removeEventListener('pointerdown', dismiss)
+  }, [searchOpen])
 
   useEffect(() => {
     const element = stage.current!
@@ -139,7 +150,7 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   function locate(city: LocatedCity) {
     change(cityView(data.regions[city.id], size, overview.zoom, city.center))
     autoFitCity.current = city
-    setSelectedCity(city); setFocused(null)
+    setSelectedCity(city); setFocused(null); setSearchOpen(false)
     stage.current?.focus({ preventScroll: true })
     stage.current?.scrollIntoView({ block: 'center', behavior: 'instant' })
   }
@@ -152,15 +163,33 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
   const insetSize = { width: 136, height: 174 }
   const insetView: View = { center: [114, 13], zoom: 3.45 }
   return <>
-    <div className="map-toolbar" aria-label="地图工具"><div>
+    <div className="map-toolbar map-controls" aria-label="地图工具">
+      <div ref={searchBox} className="map-search-box" onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSearchOpen(false)
+      }} onKeyDown={event => {
+        if (event.key === 'Escape' && searchOpen) {
+          event.preventDefault(); event.stopPropagation(); citySearch.current?.focus(); setSearchOpen(false)
+        }
+      }}>
+        <label className="sr-only" htmlFor="map-city-search">在地图中定位城市</label>
+        <input ref={citySearch} id="map-city-search" type="search" placeholder="搜索城市，如广州、香港" autoComplete="off" maxLength={80}
+          value={query} onFocus={() => setSearchOpen(true)} onClick={() => setSearchOpen(true)} onChange={event => { setQuery(event.target.value); setSearchOpen(true) }} />
+        {searchOpen && <section className="map-search-popover" aria-label="城市查找">
+          <div className="map-search-heading"><span>{query.trim() ? '搜索结果' : '小区域快捷放大'}</span>
+            <button type="button" aria-label="收起城市查找" onClick={() => { citySearch.current?.focus(); setSearchOpen(false) }}>×</button></div>
+          {query.trim() ? <div className="china-map-results" aria-label="地图城市搜索结果">{matches.length ? <ul>{matches.map(city => <li key={city.id}><div><strong>{city.name}</strong><small>{city.parent_name ?? '中国'}</small></div>
+            <button type="button" className="quiet-button" onClick={() => locate(city)}>定位{city.name}</button><Link to={`/cities/${city.id}`}>打开相册 →</Link></li>)}</ul> : <p role="status">没有找到这座城市，可换一个名称搜索。</p>}</div>
+            : <><div className="map-city-shortcuts" role="group" aria-label="小区域快捷放大">
+              {shortcuts.map(({ city, label }) => <button key={city.id} type="button" className="quiet-button" aria-label={`放大查看${label}`} onClick={() => locate(city)}>{label}<span aria-hidden="true"> ↗</span></button>)}
+            </div><p className="map-search-help">输入城市名称，可放大定位或打开相册。</p></>}
+        </section>}
+      </div>
+      <div className="map-zoom-controls">
       <button type="button" className="quiet-button" onClick={() => zoom(.5)} disabled={view.zoom >= 10} title={view.zoom >= 10 ? '已放大到最大' : '放大地图'} aria-label="放大地图">＋</button>
       <button type="button" className="quiet-button" onClick={() => zoom(-.5)} disabled={view.zoom <= overview.zoom + .001} title={view.zoom <= overview.zoom + .001 ? '已是全国视图' : '缩小地图'} aria-label="缩小地图">−</button>
       <button type="button" className="quiet-button" onClick={() => { setSelectedCity(null); setFocused(null); change(overview) }}>全国视图</button>
       <button type="button" className="quiet-button map-touch-toggle" aria-pressed={touchPan} onClick={event => { clearPointer(event.timeStamp); setTouchPan(value => !value); setHovered(null) }}>{touchPan ? '完成移动' : '移动地图'}</button>
-    </div><span className="map-pointer-hint">拖动查看 · 滚轮或＋／－缩放</span><span className="map-touch-hint">{touchPan ? '拖动地图 · 完成后点“完成移动”' : '滑动页面 · 点＋／－缩放，移动地图可拖动'}</span></div>
-    <div className="map-city-shortcuts" role="group" aria-label="小区域快捷放大"><span>小区域放大</span>
-      {shortcuts.map(({ city, label }) => <button key={city.id} type="button" className="quiet-button" aria-label={`放大查看${label}`} onClick={() => locate(city)}>{label}<span aria-hidden="true"> ↗</span></button>)}
-      <button type="button" className="map-other-city" onClick={() => citySearch.current?.focus()}>查找其他城市</button>
+      </div>
     </div>
     <div ref={stage} className={`map-stage china-map-stage${touchPan ? ' is-touch-panning' : ''}`} tabIndex={0} role="region" aria-label="中国城市地图"
       data-zoom={view.zoom} data-center={view.center.join(',')}
@@ -221,15 +250,12 @@ function MapCanvas({ data, atlas, memory }: { data: ChinaMapData; atlas?: Atlas;
     </div>
     <div className="china-map-footer"><div className="china-map-legend" aria-label="地图图例"><span><i />还未点亮</span><span><i className="is-lit" />有照片的城市</span></div>
       <p className="map-progress" aria-live="polite">{atlas ? `已点亮 ${lit.size} 座城市` : '正在核对照片统计…'}</p></div>
-    <div className="china-map-find"><label htmlFor="map-city-search">定位一座城市</label><input ref={citySearch} id="map-city-search" aria-label="在地图中定位城市" type="search" placeholder="搜索城市名称" value={query} onChange={event => setQuery(event.target.value)} />
-      <span>搜索后按城市范围放大，小区域也可通过城市卡打开相册。</span></div>
-    {query.trim() && <div className="china-map-results" aria-label="地图城市搜索结果">{matches.length ? <ul>{matches.map(city => <li key={city.id}><div><strong>{city.name}</strong><small>{city.parent_name ?? '中国'}</small></div>
-      <button type="button" className="quiet-button" onClick={() => locate(city)}>定位{city.name}</button><Link to={`/cities/${city.id}`}>打开相册 →</Link></li>)}</ul> : <p>没有找到这座城市，可换一个名称搜索。</p>}</div>}
+    <p className="map-interaction-hint"><span className="map-pointer-hint">拖动查看 · 滚轮或＋／－缩放</span><span className="map-touch-hint">{touchPan ? '拖动地图 · 完成后点“完成移动”' : '滑动页面 · 点＋／－缩放，移动地图可拖动'}</span></p>
     <p className="map-attribution">足迹记录用图 · <a href={sourceUrl} target="_blank" rel="noreferrer">市界数据来源</a> · 填色表示本账号的有效照片</p>
   </>
 }
 
-function MapSession({ service, memory, atlas }: { service: MapService; memory: MapMemory; atlas?: Atlas }) {
+function MapSession({ service, memory, atlas, retry }: { service: MapService; memory: MapMemory; atlas?: Atlas; retry: () => void }) {
   const [data, setData] = useState<ChinaMapData>()
   const [message, setMessage] = useState('正在展开中国城市地图…')
   const [failed, setFailed] = useState(false)
@@ -238,19 +264,38 @@ function MapSession({ service, memory, atlas }: { service: MapService; memory: M
     void api<MapCity[]>('/map/cities', { signal: controller.signal }).then(cities => service.loadChinaMap(cities, controller.signal)).then(result => {
       if (controller.signal.aborted) return
       setData(result)
-      setMessage(result.missing || result.missingRegions ? `部分城市资料仍待核对：${result.missing} 个城市位置、${result.missingRegions} 个市界暂不可用，仍可使用下方城市搜索。` : '每一块城市区域，都可以收藏一段回忆。')
+      setMessage(result.missing || result.missingRegions ? `部分城市资料仍待核对：${result.missing} 个城市位置、${result.missingRegions} 个市界暂不可用，仍可使用城市搜索。` : '')
     }).catch(error => {
       if (!controller.signal.aborted && !isAbort(error)) { setFailed(true); setMessage(error instanceof MapFailure ? error.message : '地图暂时未能展开，可以重新核对，或使用下方城市搜索。') }
     })
     return () => { controller.abort(); service.cancel() }
   }, [service])
-  return <><p className="map-session-note" role={failed ? 'alert' : undefined}>{message}</p>{data && <MapCanvas {...{ data, memory, atlas }} />}</>
+  return <>{message && <div className="map-session-feedback"><p className="map-session-note" role={failed ? 'alert' : 'status'}>{message}</p>
+    {(failed || data) && <button type="button" className="quiet-button" onClick={retry}>重新核对地图</button>}</div>}{data && <MapCanvas {...{ data, memory, atlas }} />}</>
 }
 
 export function CityMap(props: { service: MapService; memory: MapMemory; atlas?: Atlas }) {
   const [attempt, setAttempt] = useState(0)
-  return <section className="city-map china-city-map" aria-labelledby="city-map-title"><div className="section-heading"><div><p className="eyebrow">YOUR CITY FOOTPRINTS</p><h2 id="city-map-title">走过的城市，留下的光影</h2></div>
-    <button type="button" className="quiet-button" onClick={() => { props.service.cancel(); props.service.resetConfiguration(); setAttempt(value => value + 1) }}>重新核对地图</button></div>
-    <MapSession key={attempt} {...props} />
+  const options = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      if (options.current && !options.current.contains(event.target as Node)) options.current.open = false
+    }
+    document.addEventListener('pointerdown', dismiss)
+    return () => document.removeEventListener('pointerdown', dismiss)
+  }, [])
+  function retry() { props.service.cancel(); props.service.resetConfiguration(); setAttempt(value => value + 1) }
+  return <section className="city-map china-city-map" aria-labelledby="city-map-title"><div className="section-heading"><h2 id="city-map-title">走过的城市，留下的光影</h2>
+    <details ref={options} className="map-options" onBlur={event => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false
+    }} onKeyDown={event => {
+      if (event.key === 'Escape' && event.currentTarget.open) { event.preventDefault(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus() }
+    }}><summary aria-label="更多地图选项">更多 <span aria-hidden="true">···</span></summary>
+      <div className="map-options-panel"><button type="button" className="quiet-button" onClick={() => {
+        if (options.current) { options.current.open = false; options.current.querySelector('summary')?.focus() }
+        retry()
+      }}>重新核对地图</button><p>地图未完整显示时，可重新加载。</p></div>
+    </details></div>
+    <MapSession key={attempt} {...props} retry={retry} />
   </section>
 }

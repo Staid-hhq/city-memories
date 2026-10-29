@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-10-26。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新：2026-10-30。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -60,7 +60,7 @@
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、地图高度与状态边线、导航和封面卡；含手机触控控件、局部横滚和短屏查看层 |
-| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、省会默认入口与全国城市搜索、城市相册/年份影集逐级返回、计数与地图联动 |
+| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、紧凑首页问候、省会默认入口与全国城市搜索、城市相册/年份影集逐级返回、计数与地图联动 |
 | [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 一城市一卡的相册库、城市聚合筛选/排序分页、条件/返回位置记忆及城市/年份封面卡 |
 | [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹与年份影集统计、最近三本年份影集及相册/选城快捷入口 |
 | [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、城市相册聚合、年份影集和个人地图统计类型，不依赖页面组件 |
@@ -73,7 +73,7 @@
 | [src/features/photos/MovePhoto.tsx](../frontend/src/features/photos/MovePhoto.tsx) | 目标城市/年份选择、创建目标影集、确认跨影集移动 |
 | [src/features/photos/Duplicates.tsx](../frontend/src/features/photos/Duplicates.tsx) | 本影集同内容照片的分组分页与逐份查看，不自动删除 |
 | [src/features/photos/photos.ts](../frontend/src/features/photos/photos.ts) | 照片、文字、分页和详情的 TypeScript 数据类型 |
-| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 中国全市级 SVG、省界及状态市界、南海附图、小城快捷定位/选中卡、拖缩与返回视角；触摸滚页和移动切换 |
+| [src/features/map/CityMap.tsx](../frontend/src/features/map/CityMap.tsx) | 中国全市级 SVG、省界及状态市界、南海附图、顶部搜索/缩放与更多工具、小城快捷定位/选中卡、拖缩与返回视角；触摸滚页和移动切换 |
 | [src/features/map/mapGeometry.ts](../frontend/src/features/map/mapGeometry.ts) | 投影、WKT 边界解析、几何路径、坐标和瓦片范围计算 |
 | [src/features/map/mapCityView.ts](../frontend/src/features/map/mapCityView.ts) | 按全部真实市界适配定位视角、信息卡空间预留、最大缩放与缺失/退化回退 |
 | [src/features/map/mapService.ts](../frontend/src/features/map/mapService.ts) | 静态市界加载、严格身份关联、缓存/取消/失败处理；保留第一版行政请求兼容方法 |
@@ -87,7 +87,7 @@
 | [tests/e2e/albums.spec.ts](../frontend/tests/e2e/albums.spec.ts) | 城市搜索、空影集、年份和账号隔离 |
 | [tests/e2e/library.spec.ts](../frontend/tests/e2e/library.spec.ts) | 城市相册/多个年份影集层级、分页/逐级返回、空态/失败/换号隔离、跨页封面选择和冲突核对 |
 | [tests/e2e/library-filters.spec.ts](../frontend/tests/e2e/library-filters.spec.ts) | 城市聚合筛选/排序及全市统计、完整年份选项、分页返回及失败/迟到请求/账号隔离 |
-| [tests/e2e/home-sidebar.spec.ts](../frontend/tests/e2e/home-sidebar.spec.ts) | 首页双栏/窄屏、本人统计和最近相册、错误/空态/换号及刷新联动 |
+| [tests/e2e/home-sidebar.spec.ts](../frontend/tests/e2e/home-sidebar.spec.ts) | 首页首屏与双栏/窄屏、本人统计和最近相册、错误/空态/换号及刷新联动 |
 | [tests/e2e/uploads.spec.ts](../frontend/tests/e2e/uploads.spec.ts) | 单图校验、保存、取消、失败和原字节核对 |
 | [tests/e2e/photos.spec.ts](../frontend/tests/e2e/photos.spec.ts) | 分页、按需原图、查看层、返回位置和授权 |
 | [tests/e2e/batches.spec.ts](../frontend/tests/e2e/batches.spec.ts) | 队列纯规则与批量上传、拆批、重试、恢复流程 |
@@ -97,7 +97,7 @@
 | [tests/e2e/maps.spec.ts](../frontend/tests/e2e/maps.spec.ts) | 静态几何、市界按状态显示、桌面及触屏滚页/移动交互、本人统计和请求隔离 |
 | [tests/e2e/map-service.spec.ts](../frontend/tests/e2e/map-service.spec.ts) | 地图请求调度、复用和错误规则 |
 | [tests/e2e/map-city-view.spec.ts](../frontend/tests/e2e/map-city-view.spec.ts) | 港澳珠海及其他小城的真实几何适配、多面/孔洞、视口边距与异常回退 |
-| [tests/e2e/map-live.spec.ts](../frontend/tests/e2e/map-live.spec.ts) | 实际公共矢量 391 项覆盖、小城快捷定位/相册返回、触控与零在线请求检查 |
+| [tests/e2e/map-live.spec.ts](../frontend/tests/e2e/map-live.spec.ts) | 实际公共矢量 391 项覆盖、搜索展开与小城快捷定位/相册返回、更多工具、触控与零在线请求检查 |
 | [tests/e2e/journey.spec.ts](../frontend/tests/e2e/journey.spec.ts) | 从注册到导入、整理、恢复、重登的连续流程与双账号检查 |
 | [tests/delivery/local.spec.ts](../frontend/tests/delivery/local.spec.ts) | 空库、真实构建资源、深链接、代理与端口冲突验收 |
 | [tests/scale/scale.spec.ts](../frontend/tests/scale/scale.spec.ts) | 400 张导入、3000 张账号、双账号并发与重复浏览内存 |
@@ -226,6 +226,7 @@
 | [reports/2026-10-25-province-city-entries.md](reports/2026-10-25-province-city-entries.md) | V2-04 省会默认入口、城市拼音排序、全目录搜索兼容、更新和验证 |
 | [reports/2026-10-26-map-boundary-visibility.md](reports/2026-10-26-map-boundary-visibility.md) | V2-04 市界按点亮/悬停显示、省级外轮廓常显、地图高度及验证 |
 | [reports/2026-10-26-small-city-access.md](reports/2026-10-26-small-city-access.md) | V2-04 小城快捷入口、几何适配定位、选中城市卡和验证 |
+| [reports/2026-10-30-home-map-round-one.md](reports/2026-10-30-home-map-round-one.md) | V2-04 首页第一轮：欢迎区收紧、地图搜索/缩放集中、小城入口与更多工具及验证 |
 
 ## 独立验证工具
 

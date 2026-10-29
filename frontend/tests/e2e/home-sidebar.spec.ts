@@ -95,6 +95,19 @@ test('首页地图与旅行侧栏左右排列，最近整理按真实更新时�
   const stageBox = (await page.getByRole('region', { name: '中国城市地图', exact: true }).boundingBox())!
   expect(stageBox.height).toBeGreaterThan(600)
   expect(stageBox.height).toBeLessThan(700)
+  await page.setViewportSize({ width: 1699, height: 935 })
+  await page.evaluate(() => window.scrollTo(0, 0))
+  const firstScreenMap = (await page.getByRole('region', { name: '中国城市地图', exact: true }).boundingBox())!
+  const firstScreenSearch = (await page.getByLabel('在地图中定位城市', { exact: true }).boundingBox())!
+  const firstScreenZoom = (await page.getByRole('button', { name: '放大地图', exact: true }).boundingBox())!
+  expect(firstScreenMap.y).toBeLessThanOrEqual(300)
+  expect(firstScreenMap.height).toBe(640)
+  expect(firstScreenMap.y + firstScreenMap.height).toBeLessThanOrEqual(935)
+  expect(firstScreenSearch.y + firstScreenSearch.height).toBeLessThan(firstScreenMap.y)
+  expect(Math.abs(firstScreenSearch.y - firstScreenZoom.y)).toBeLessThanOrEqual(4)
+  console.info('首页首屏尺寸', JSON.stringify({ viewport: '1699x935', mapTop: firstScreenMap.y, mapHeight: firstScreenMap.height }))
+  await page.screenshot({ path: info.outputPath('home-round-one-desktop.png') })
+  await page.setViewportSize({ width: 1360, height: 940 })
   await page.locator('.home-overview-grid').screenshot({ path: info.outputPath('home-sidebar-overview.png') })
   await page.screenshot({ path: info.outputPath('home-sidebar-desktop.png'), fullPage: true })
   await panel.locator('.recent-album').first().click()
@@ -151,7 +164,10 @@ test('首页地图与旅行侧栏左右排列，最近整理按真实更新时�
     const left = (await map.boundingBox())!, right = (await panel.boundingBox())!
     expect(right.y).toBeGreaterThanOrEqual(left.y + left.height - 1)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
-    if (width === 360) await page.screenshot({ path: info.outputPath('home-sidebar-mobile.png'), fullPage: true })
+    if (width === 360) {
+      await page.screenshot({ path: info.outputPath('home-sidebar-mobile.png'), fullPage: true })
+      await page.screenshot({ path: info.outputPath('home-round-one-mobile.png') })
+    }
   }
 })
 
