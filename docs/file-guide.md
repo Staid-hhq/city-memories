@@ -39,7 +39,7 @@
 | [playwright.config.ts](../frontend/playwright.config.ts) | 默认 Edge 测试及隔离服务配置，可覆盖测试端口避开日常实例 |
 | [playwright.delivery.config.ts](../frontend/playwright.delivery.config.ts) | 构建版空库验收及独立测试端口，复用连续流程 |
 | [playwright.scale.config.ts](../frontend/playwright.scale.config.ts) | 显式启用的重量级规模测试配置 |
-| [scripts/test-e2e.mjs](../frontend/scripts/test-e2e.mjs) | 默认既有业务/地图/连续流程/首页与相册四组运行，各自重建隔离服务 |
+| [scripts/test-e2e.mjs](../frontend/scripts/test-e2e.mjs) | 默认既有业务/导入/地图/连续流程/首页与相册五组运行，各自重建隔离服务，避免测试登录累计限流 |
 | [scripts/test-scale.mjs](../frontend/scripts/test-scale.mjs) | 先规模浏览器测试，再执行离线维护与哈希审计 |
 
 ### 公共地图资产
@@ -60,14 +60,14 @@
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、地图高度与状态边线、导航和封面卡；含手机触控控件、局部横滚和短屏查看层 |
-| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录后的导航外壳、紧凑首页问候、省会默认入口与全国城市搜索、城市相册/年份影集逐级返回、计数与地图联动 |
+| [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录导航、紧凑首页与选城、城市/年份逐级返回、图库优先与统一添加入口、旧单张任务访问兼容、计数和地图联动 |
 | [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 一城市一卡的相册库、城市聚合筛选/排序分页、条件/返回位置记忆及城市/年份封面卡 |
 | [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹与年份影集统计、最近三本年份影集及相册/选城快捷入口 |
 | [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、城市相册聚合、年份影集和个人地图统计类型，不依赖页面组件 |
-| [src/features/imports/UploadPanel.tsx](../frontend/src/features/imports/UploadPanel.tsx) | 单张原图上传、校验、确认保存与失败状态 |
-| [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 批量导入页面、任务执行、重选、重试和恢复查询；提供待确认列表横滚提示并保留返回来源 |
+| [src/features/imports/UploadPanel.tsx](../frontend/src/features/imports/UploadPanel.tsx) | 旧 ?import= 单张任务恢复、原图校验/保存、重试/取消，更新查询参数保留返回来源 |
+| [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 统一添加照片页面，单张/多张/拖入共用核对；队列执行、重选重试和恢复，保留返回来源 |
 | [src/features/imports/importQueue.ts](../frontend/src/features/imports/importQueue.ts) | 文件编号/年份解析、批次拆分、队列数据和提交规则 |
-| [src/features/photos/PhotoGallery.tsx](../frontend/src/features/photos/PhotoGallery.tsx) | 照片分页、手机短屏查看层及完整文件名、前后浏览、排序与封面选择 |
+| [src/features/photos/PhotoGallery.tsx](../frontend/src/features/photos/PhotoGallery.tsx) | 图库分页与空态引导、卡片更多操作、完整文件名/像素原图层、前后浏览、排序和封面选择 |
 | [src/features/photos/OriginalImage.tsx](../frontend/src/features/photos/OriginalImage.tsx) | 视野附近按需取原图，取消请求和释放 Blob URL/图片资源 |
 | [src/features/photos/NoteEditor.tsx](../frontend/src/features/photos/NoteEditor.tsx) | 照片文字编辑、草稿离开提醒和版本冲突处理 |
 | [src/features/photos/MovePhoto.tsx](../frontend/src/features/photos/MovePhoto.tsx) | 目标城市/年份选择、创建目标影集、确认跨影集移动 |
@@ -88,9 +88,9 @@
 | [tests/e2e/library.spec.ts](../frontend/tests/e2e/library.spec.ts) | 城市相册/多个年份影集层级、分页/逐级返回、空态/失败/换号隔离、跨页封面选择和冲突核对 |
 | [tests/e2e/library-filters.spec.ts](../frontend/tests/e2e/library-filters.spec.ts) | 城市聚合筛选/排序及全市统计、完整年份选项、分页返回及失败/迟到请求/账号隔离 |
 | [tests/e2e/home-sidebar.spec.ts](../frontend/tests/e2e/home-sidebar.spec.ts) | 首页首屏与双栏/窄屏、本人统计和最近相册、错误/空态/换号及刷新联动 |
-| [tests/e2e/uploads.spec.ts](../frontend/tests/e2e/uploads.spec.ts) | 单图校验、保存、取消、失败和原字节核对 |
+| [tests/e2e/uploads.spec.ts](../frontend/tests/e2e/uploads.spec.ts) | 统一入口单张流程、暂存/保存及原字节、图库布局；旧单张任务恢复、取消、失败和账号隔离 |
 | [tests/e2e/photos.spec.ts](../frontend/tests/e2e/photos.spec.ts) | 分页、按需原图、查看层、返回位置和授权 |
-| [tests/e2e/batches.spec.ts](../frontend/tests/e2e/batches.spec.ts) | 队列纯规则与批量上传、拆批、重试、恢复流程 |
+| [tests/e2e/batches.spec.ts](../frontend/tests/e2e/batches.spec.ts) | 队列纯规则、统一文件选择/拖入核对、批量上传、拆批、重试和恢复流程 |
 | [tests/e2e/editing.spec.ts](../frontend/tests/e2e/editing.spec.ts) | 文字草稿、冲突、离开提醒、拖动和跨页排序 |
 | [tests/e2e/organizing.spec.ts](../frontend/tests/e2e/organizing.spec.ts) | 跨影集移动、重复分组及错误恢复 |
 | [tests/e2e/trash.spec.ts](../frontend/tests/e2e/trash.spec.ts) | 删除确认、回收站、恢复和状态冲突 |
@@ -227,6 +227,7 @@
 | [reports/2026-10-26-map-boundary-visibility.md](reports/2026-10-26-map-boundary-visibility.md) | V2-04 市界按点亮/悬停显示、省级外轮廓常显、地图高度及验证 |
 | [reports/2026-10-26-small-city-access.md](reports/2026-10-26-small-city-access.md) | V2-04 小城快捷入口、几何适配定位、选中城市卡和验证 |
 | [reports/2026-10-30-home-map-round-one.md](reports/2026-10-30-home-map-round-one.md) | V2-04 首页第一轮：欢迎区收紧、地图搜索/缩放集中、小城入口与更多工具及验证 |
+| [reports/2026-10-30-photo-upload-round-two.md](reports/2026-10-30-photo-upload-round-two.md) | V2-04 第二轮：图库优先、统一单多张/拖入入口、旧任务恢复、卡片更多操作及验证 |
 
 ## 独立验证工具
 

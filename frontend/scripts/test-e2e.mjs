@@ -8,8 +8,10 @@ import { fileURLToPath } from 'node:url'
 const cli = fileURLToPath(new URL('../node_modules/@playwright/test/cli.js', import.meta.url))
 const tests = readdirSync(new URL('../tests/e2e/', import.meta.url)).filter(name => name.endsWith('.spec.ts')).sort()
 const args = process.argv.slice(2)
+const imports = ['batches.spec.ts', 'uploads.spec.ts']
 const groups = args.length ? [args] : [
-  tests.filter(name => !name.startsWith('map') && !name.startsWith('journey') && !name.startsWith('library') && !name.startsWith('home-sidebar')).map(name => `tests/e2e/${name}`),
+  tests.filter(name => !imports.includes(name) && !name.startsWith('map') && !name.startsWith('journey') && !name.startsWith('library') && !name.startsWith('home-sidebar')).map(name => `tests/e2e/${name}`),
+  imports.map(name => `tests/e2e/${name}`),
   tests.filter(name => name.startsWith('map')).map(name => `tests/e2e/${name}`),
   tests.filter(name => name.startsWith('journey')).map(name => `tests/e2e/${name}`),
   tests.filter(name => name.startsWith('library') || name.startsWith('home-sidebar')).map(name => `tests/e2e/${name}`),

@@ -80,7 +80,7 @@ export function UploadPanel({ albumId, cityName, year, onSaved }: Props) {
         })
         applyBatch(current)
         const createdId = current.id
-        setSearch((value) => { value.set('import', createdId); return value }, { replace: true })
+        setSearch((value) => { const next = new URLSearchParams(value); next.set('import', createdId); return next }, { replace: true, state: location.state })
       }
       setWorking('正在传输并校验原图…')
       const body = new FormData()
@@ -127,7 +127,7 @@ export function UploadPanel({ albumId, cityName, year, onSaved }: Props) {
     setBatch(null); setReceipt(null); setFile(null); setError(''); setReview(false); setUnresolved(false)
     requestKey.current = crypto.randomUUID()
     if (input.current) input.current.value = ''
-    setSearch((value) => { value.delete('import'); return value }, { replace: true })
+    setSearch((value) => { const next = new URLSearchParams(value); next.delete('import'); return next }, { replace: true, state: location.state })
   }
   async function cancel() {
     if (!batch) { reset(); setNotice('已清除本页的导入入口。'); return }
@@ -171,6 +171,6 @@ export function UploadPanel({ albumId, cityName, year, onSaved }: Props) {
     {working && <OperationFeedback tone="progress" title={working}><p>请等待当前操作完成，保存成功后才会出现在影集。</p></OperationFeedback>}
     {error && <OperationFeedback tone="error" title={review ? '影集有更新，请先重新核对' : '导入操作需要处理'}><p>{error}</p></OperationFeedback>}
     {notice && !receipt && !staged && !working && !error && <OperationFeedback title={notice.startsWith('已取消') ? '本次导入已取消' : '导入提示'}><p>{notice}</p></OperationFeedback>}
-    <p className="scope-note">重新打开本页可查询此次导入；未传完的文件需重新选择。一次添加多张时可使用上方“批量导入原图”。</p>
+    <p className="scope-note">这是上次未关闭的单张导入。重新打开本页可查询此次导入；未传完的文件需重新选择。新照片可使用上方“添加照片”，一次选择一张或多张。</p>
   </section>
 }

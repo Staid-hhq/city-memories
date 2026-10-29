@@ -22,7 +22,7 @@ async function album(page: Page, year: number) {
   await page.getByRole('button', { name: '创建或进入影集' }).click()
   await expect(page.getByRole('heading', { name: `${year} 年`, exact: true })).toBeVisible()
   const id = page.url().split('/albums/')[1]
-  const batchEntry = page.getByRole('link', { name: '一次上传多张照片', exact: true })
+  const batchEntry = page.getByRole('link', { name: '添加照片', exact: true })
   await expect(batchEntry).toHaveAttribute('href', `/albums/${id}/import`)
   await batchEntry.click()
   await expect(page).toHaveURL(new RegExp(`/albums/${id}/import$`))
@@ -42,6 +42,34 @@ async function names(page: Page, id: string) {
   return (await response.json()).data.items.map((item: { original_filename: string }) => item.original_filename)
 }
 const job = (page: Page, index: number) => page.locator(`[data-job-index="${index}"]`)
+
+test('拖入多张原图与文件选择共用核对流程，不自动上传或改变年份', async ({ page }, info) => {
+  const id = await album(page, 2059)
+  await page.getByLabel('选择照片', { exact: true }).setInputFiles(photo('old-selection.png'))
+  await page.getByLabel('我已核对全部文件的城市、年份和顺序').check()
+  const transfer = await page.evaluateHandle((base64) => {
+    const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0))
+    const data = new DataTransfer()
+    for (const name of ['24-1.png', '24-2.png']) data.items.add(new File([bytes], name, { type: 'image/png' }))
+    return data
+  }, png.toString('base64'))
+  const dropzone = page.locator('.import-dropzone')
+  await dropzone.dispatchEvent('dragover', { dataTransfer: transfer })
+  await expect(dropzone).toHaveAttribute('data-dragging', 'true')
+  await dropzone.dispatchEvent('drop', { dataTransfer: transfer })
+  await transfer.dispose()
+  await expect(page.getByRole('heading', { name: '核对 2 张照片', exact: true })).toBeVisible()
+  await expect(page.locator('.queue-table tbody tr')).toHaveCount(2)
+  await expect(page.locator('.queue-table')).not.toContainText('old-selection.png')
+  await expect(page.locator('.queue-table tbody tr').first()).toContainText('2059 年')
+  await expect(page.getByText(/文件名年份与当前影集不同/)).toBeVisible()
+  await expect(page.getByLabel('我已核对全部文件的城市、年份和顺序')).not.toBeChecked()
+  expect(await names(page, id)).toEqual([])
+  await page.screenshot({ path: info.outputPath('unified-add-photos-desktop.png'), fullPage: true })
+  await page.setViewportSize({ width: 360, height: 800 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
+  await page.screenshot({ path: info.outputPath('unified-add-photos-mobile.png'), fullPage: true })
+})
 
 test('编号纯规则：数字顺序、重复编号稳定、无编号不强排和非法年份', () => {
   expect(filenameNumbering('24-10.jpg')).toEqual({ year: 2024, order: 10 })
@@ -77,8 +105,8 @@ test('400/401/3000 拆批计划保持手动顺序，不代表真实大图性能�
 test('城市跨年份核对、未知年份手动指定、独立失败与刷新恢复', async ({ page }, testInfo) => {
   await login(page)
   await page.goto(`/cities/${city}`)
-  await page.getByRole('link', { name: /批量导入原图/ }).click()
-  await page.getByLabel('选择多张原图').setInputFiles([photo('24-10.png'), photo('24-2.png'), photo('25-1.png', Buffer.from('not an image')), photo('unknown.png')])
+  await page.getByRole('link', { name: /添加照片/ }).click()
+  await page.getByLabel('选择照片').setInputFiles([photo('24-10.png'), photo('24-2.png'), photo('25-1.png', Buffer.from('not an image')), photo('unknown.png')])
   await page.getByLabel('我已核对全部文件的城市、年份和顺序').check()
   await expect(page.getByRole('button', { name: '确认队列', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: '未识别项设为未标年份' }).click()
@@ -110,7 +138,7 @@ test('城市跨年份核对、未知年份手动指定、独立失败与刷新�
 
 test('固定影集不改归属、数字排序后手动调整、并发完成不乱序、重名保留', async ({ page }) => {
   const id = await album(page, 2050)
-  await expect(page.getByLabel('选择多张原图')).toHaveAttribute('multiple', '')
+  await expect(page.getByLabel('选择照片')).toHaveAttribute('multiple', '')
   await expect(page.getByText(/Ctrl/)).toContainText('Shift')
   await expect(page.getByText(/Ctrl/)).toContainText('Ctrl+A')
   const completion: string[] = []
@@ -125,7 +153,7 @@ test('固定影集不改归属、数字排序后手动调整、并发完成不�
     completion.push(route.request().url()); parallel--
     await route.fulfill({ response })
   })
-  await page.getByLabel('选择多张原图').setInputFiles([photo('24-10.png'), photo('24-2.png'), photo('24-1.png'), photo('24-9.png'), photo('24-2.png')])
+  await page.getByLabel('选择照片').setInputFiles([photo('24-10.png'), photo('24-2.png'), photo('24-1.png'), photo('24-9.png'), photo('24-2.png')])
   await expect(page.getByText(/文件名年份与当前影集不同/)).toBeVisible()
   await expect(page.getByText(/发现重复编号/)).toBeVisible()
   await expect(page.locator('.queue-table tbody tr strong')).toHaveText(['24-1.png', '24-2.png', '24-2.png', '24-9.png', '24-10.png'])
@@ -142,7 +170,7 @@ test('固定影集不改归属、数字排序后手动调整、并发完成不�
 
 test('创建、上传、提交响应丢失后恢复和重试不重复入库', async ({ page }) => {
   const id = await album(page, 2051)
-  await page.getByLabel('选择多张原图').setInputFiles([photo('51-1.png'), photo('51-2.png')])
+  await page.getByLabel('选择照片').setInputFiles([photo('51-1.png'), photo('51-2.png')])
   await confirm(page)
   await page.route('**/api/v1/albums/*/imports', async (route) => { await route.fetch(); await route.abort('failed') })
   await upload(page)
@@ -177,7 +205,7 @@ test('逐项重试与明确选择部分保存，失败文件不能悄悄入库',
     if (once) { once = false; await route.fulfill({ status: 429, headers: { 'Retry-After': '2' }, json: { error: { code: 'UPLOAD_BUSY', message: '请稍后重试' } } }); return }
     await route.continue()
   })
-  await page.getByLabel('选择多张原图').setInputFiles([photo('52-1.png'), photo('52-2.png', Buffer.from('not an image')), photo('52-3.png')])
+  await page.getByLabel('选择照片').setInputFiles([photo('52-1.png'), photo('52-2.png', Buffer.from('not an image')), photo('52-3.png')])
   await confirm(page); await upload(page)
   await expect(job(page, 0).getByRole('button', { name: '保存本批全部照片', exact: true })).toBeDisabled()
   expect(await names(page, id)).toEqual([])
@@ -201,7 +229,7 @@ test('停止传输、查询暂存、取消批次，以及账号退出后隔离�
     await held
     await route.fulfill({ response }).catch(() => {})
   })
-  await page.getByLabel('选择多张原图').setInputFiles([photo('53-1.png'), photo('53-2.png'), photo('53-3.png')])
+  await page.getByLabel('选择照片').setInputFiles([photo('53-1.png'), photo('53-2.png'), photo('53-3.png')])
   await confirm(page)
   await page.getByRole('button', { name: '上传队列 / 重试未完成项', exact: true }).click()
   await expect.poll(() => seen).toBe(2)
@@ -228,7 +256,7 @@ test('停止传输、查询暂存、取消批次，以及账号退出后隔离�
 test('影集并发更新要求重新核对，过期批次仍可取消清理', async ({ page }) => {
   await album(page, 2054)
   await page.setViewportSize({ width: 1024, height: 820 })
-  await page.getByLabel('选择多张原图').setInputFiles([photo('54-1.png'), photo('54-2.png')])
+  await page.getByLabel('选择照片').setInputFiles([photo('54-1.png'), photo('54-2.png')])
   await confirm(page); await upload(page)
   await page.route('**/api/v1/imports/*/commit', (route) => route.fulfill({ status: 409, json: { error: { code: 'ALBUM_CHANGED', message: '影集已有更新，请重新核对后保存' } } }))
   await job(page, 0).getByRole('button', { name: '保存本批全部照片', exact: true }).click()
@@ -254,7 +282,7 @@ test('401 张小型合成 PNG 真实上传拆成两批，后批不能先保存',
   test.setTimeout(120_000)
   const id = await album(page, 2055)
   const count = 401
-  await page.getByLabel('选择多张原图').setInputFiles(Array.from({ length: count }, (_, index) => photo(`55-${index + 1}.png`)))
+  await page.getByLabel('选择照片').setInputFiles(Array.from({ length: count }, (_, index) => photo(`55-${index + 1}.png`)))
   await expect(page.locator('.queue-table tbody tr')).toHaveCount(50)
   await confirm(page)
   await expect(page.locator('.import-job')).toHaveCount(2)
@@ -290,7 +318,7 @@ test('上传中退出取消在途请求，晚到响应不污染下一账号', as
     await held
     await route.fulfill({ status: 200, json: { data: { state: 'staged' } } }).catch(() => {})
   })
-  await page.getByLabel('选择多张原图').setInputFiles([photo('56-1.png'), photo('56-2.png')])
+  await page.getByLabel('选择照片').setInputFiles([photo('56-1.png'), photo('56-2.png')])
   await confirm(page)
   await page.getByRole('button', { name: '上传队列 / 重试未完成项', exact: true }).click()
   await expect.poll(() => entered).toBe(2)

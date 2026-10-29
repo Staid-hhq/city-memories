@@ -250,7 +250,7 @@ function CityPage({ cityId, memory }: { cityId: string; memory: PageMemory }) {
     <Link className="back-link" to={cityAlbumOrigin ?? '/'}>{cityAlbumOrigin ? '← 返回我的相册' : '← 返回城市入口'}</Link>
     {result.loading ? <p role="status">正在翻开城市手帐…</p> : !result.data ? <LoadError error={result.error} retry={result.retry} /> : <>
       <div className="page-heading"><div><p className="eyebrow">{result.data.city.parent_name ?? result.data.city.name} · 城市相册</p><h1>{result.data.city.name}</h1><p className="muted">这座城市的每一年，都有一个影集。未标年份收在最后。</p></div><span className="chapter-mark">第二章 / 年份影集</span></div>
-      {result.data.city.can_create && <Link className="batch-entry" to={`/cities/${cityId}/import`} state={location.state}>批量导入原图 <span>核对年份，分组放入影集 →</span></Link>}
+      {result.data.city.can_create && <Link className="batch-entry" to={`/cities/${cityId}/import`} state={location.state}>添加照片 <span>可选一张或多张，按年份放入影集 →</span></Link>}
       <div className="years-layout"><section aria-labelledby="years-title"><div className="section-heading"><h2 id="years-title">我的年份影集</h2><span>从新到旧</span></div>
         <Paged initial={result.data} path={path} memory={memory}>{(items) => items.length ? <div className="album-grid">{items.map((album) => <AlbumCard key={album.id} album={album} origin={`/cities/${cityId}`} cityAlbumOrigin={cityAlbumOrigin} onOpen={() => memory.write({ ...memory.read(), scrollY: window.scrollY })} />)}</div> : <div className="empty-note"><strong>这座城市，还没有你的年份影集。</strong><p>在右侧选一个年份，或留下“未标年份”的位置。</p></div>}</Paged>
       </section><NewAlbum city={result.data.city} cityAlbumOrigin={cityAlbumOrigin} /></div>
@@ -267,6 +267,9 @@ function AlbumPage({ albumId }: { albumId: string }) {
 
 function AlbumContent({ initial }: { initial: Album }) {
   const location = useLocation()
+  // Old bookmarked single-photo imports remain recoverable in this visit.
+  // New imports always use the shared single/multiple-photo entrance.
+  const [resumeLegacyImport] = useState(() => new URLSearchParams(location.search).has('import'))
   const [origin] = useState<unknown>(() => location.state?.albumOrigin)
   const [cityAlbumOrigin] = useState(() => location.state?.cityAlbumOrigin === '/albums' ? '/albums' : undefined)
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [initial.id])
@@ -287,12 +290,13 @@ function AlbumContent({ initial }: { initial: Album }) {
     void api<Album>(`/albums/${initial.id}`, { signal: controller.signal }).then(setAlbum)
       .catch((reason) => { if (!isAbort(reason)) setError('图片已保存，但影集数量刷新失败，请重新打开影集。') })
   }, [initial.id])
-  return <main className="journal-main">
+  return <main className="journal-main album-page">
     <Link className="back-link" to={origin === '/albums' ? '/albums' : origin === '/' ? '/' : `/cities/${album.city.id}`} state={cityAlbumOrigin ? { cityAlbumOrigin } : undefined}>{origin === '/albums' ? '← 返回我的相册' : origin === '/' ? '← 返回首页' : `← 返回${album.city.name}年份影集`}</Link>
-    <div className="page-heading"><div><p className="eyebrow">{album.city.name} · 私人影集</p><h1>{album.year === null ? '未标年份' : `${album.year} 年`}</h1><p className="muted">{album.photo_count} 张照片 · 已保存的年份影集</p></div><span className="chapter-mark">第三章 / 影集</span></div>
+    <div className="page-heading album-heading"><div><p className="eyebrow">{album.city.name} · 私人影集</p><h1>{album.year === null ? '未标年份' : `${album.year} 年`}</h1><p className="muted">{album.photo_count} 张照片 · 已保存的年份影集</p></div>
+      <Link className="primary-button add-photos" to={`/albums/${album.id}/import`} state={location.state}>添加照片</Link>
+    </div>
     {error && <p className="form-error" role="alert">{error}</p>}
-    <Link className="batch-entry" to={`/albums/${album.id}/import`} state={location.state}>批量导入原图 <span>全部加入当前影集 →</span></Link>
-    <UploadPanel albumId={album.id} cityName={album.city.name} year={album.year} onSaved={saved} />
+    {resumeLegacyImport && <UploadPanel albumId={album.id} cityName={album.city.name} year={album.year} onSaved={saved} />}
     <PhotoGallery key={refreshKey} albumId={album.id} savedPhotoId={savedPhotoId} onRead={readPhotos} coverPhotoId={album.cover_photo_id} onAlbumChanged={setAlbum} />
   </main>
 }
@@ -306,7 +310,7 @@ function TrashPhotoRoute({ action }: { action: 'trash' | 'restore' }) { const { 
 function ImportPage({ cityId, albumId }: { cityId?: string; albumId?: string }) {
   const location = useLocation()
   const result = useResource<Album | CityAlbums>(albumId ? `/albums/${albumId}` : `/cities/${cityId}/albums`)
-  if (result.loading) return <main className="journal-main"><p role="status">正在打开批量导入…</p></main>
+  if (result.loading) return <main className="journal-main"><p role="status">正在打开添加照片…</p></main>
   if (!result.data) return <main className="journal-main"><LoadError error={result.error} retry={result.retry} /></main>
   const data = result.data
   return <main className="journal-main"><Link className="back-link" to={albumId ? `/albums/${albumId}` : `/cities/${cityId}`} state={location.state}>← 返回{albumId ? '年份影集' : '城市手帐'}</Link>

@@ -127,14 +127,18 @@ test('完整城市入口灰底且没有世界瓦片，空影集不点亮，跨�
     canvas.getContext('2d')!.fillRect(0, 0, 16, 16)
     return canvas.toDataURL('image/png').split(',')[1]
   }), 'base64')
-  await other.locator('input[type=file]').setInputFiles({ name: 'synthetic-map-test.png', mimeType: 'image/png', buffer: png })
-  await other.getByRole('button', { name: '上传并校验', exact: true }).click()
-  await other.getByRole('button', { name: '保存到影集', exact: true }).click()
+  const albumPath = new URL(other.url()).pathname
+  await other.getByRole('link', { name: '添加照片', exact: true }).click()
+  await other.getByLabel('选择照片', { exact: true }).setInputFiles({ name: 'synthetic-map-test.png', mimeType: 'image/png', buffer: png })
+  await other.getByLabel('我已核对全部文件的城市、年份和顺序').check()
+  await other.getByRole('button', { name: '确认队列', exact: true }).click()
+  await other.getByRole('button', { name: '上传队列 / 重试未完成项', exact: true }).click()
+  await other.getByRole('button', { name: '保存本批全部照片', exact: true }).click()
   await expect(page.locator(`[data-city-region="${sz}"]`)).toHaveAttribute('data-lit', 'true')
   await expect(page.locator('.map-progress')).toHaveText('已点亮 1 座城市')
   await page.locator(`[data-city-region="${sz}"]`).focus()
   await expect(page.locator('.china-map-hover')).toContainText('1 张照片')
-  const photo = (await read(other, `/albums/${other.url().split('/albums/')[1].split('?')[0]}/photos`)).items[0]
+  const photo = (await read(other, `${albumPath}/photos`)).items[0]
   await other.close()
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
   await login(page, 'Map_Two')

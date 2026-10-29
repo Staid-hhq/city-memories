@@ -146,15 +146,15 @@ test('跨分页更换封面、刷新后保持、并发冲突核对与恢复自�
   await page.getByRole('button', { name: '关闭原图', exact: true }).click()
   await page.reload()
   await expect(page.locator('.back-link')).toHaveAttribute('href', `/cities/${shenzhen}`)
-  await page.getByRole('link', { name: '批量导入原图 全部加入当前影集 →', exact: true }).click()
+  await page.getByRole('link', { name: '添加照片', exact: true }).click()
   await page.reload()
-  await page.getByLabel('选择多张原图', { exact: true }).setInputFiles({ name: 'origin-check.png', mimeType: 'image/png', buffer: Buffer.from('synthetic navigation file') })
+  await page.getByLabel('选择照片', { exact: true }).setInputFiles({ name: 'origin-check.png', mimeType: 'image/png', buffer: Buffer.from('synthetic navigation file') })
   await page.getByLabel('我已核对全部文件的城市、年份和顺序').check()
   await page.getByRole('button', { name: '确认队列', exact: true }).click()
   await expect(page).toHaveURL(/\?queue=/)
   await page.getByRole('link', { name: '查看这个影集 ↗', exact: true }).click()
   await expect(page.locator('.back-link')).toHaveAttribute('href', `/cities/${shenzhen}`)
-  await page.getByRole('link', { name: '批量导入原图 全部加入当前影集 →', exact: true }).click()
+  await page.getByRole('link', { name: '添加照片', exact: true }).click()
   await page.getByRole('link', { name: '← 返回年份影集', exact: true }).click()
   await expect(page.locator('.back-link')).toHaveAttribute('href', `/cities/${shenzhen}`)
   await page.getByRole('button', { name: '更换封面', exact: true }).click()
@@ -221,6 +221,7 @@ test('跨分页更换封面、刷新后保持、并发冲突核对与恢复自�
     ['移动照片：journey-01.png', '移动到其他影集', '← 返回原影集'],
     ['删除照片：journey-01.png', '确认移入回收站', '← 返回影集，取消删除'],
   ]) {
+    if (entry.startsWith('移动照片') || entry.startsWith('删除照片')) await page.getByRole('button', { name: '更多照片操作：journey-01.png', exact: true }).click()
     await page.getByRole('link', { name: entry, exact: true }).click()
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
     await page.getByRole('link', { name: back, exact: true }).click()

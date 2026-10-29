@@ -48,6 +48,7 @@ test('重复页明确选择一份删除，核对原图文字、取消及恢复�
   expect((await read(page, `/albums/${album.id}`)).photo_count).toBe(4)
   await page.getByRole('link', { name: '← 返回影集，取消删除', exact: true }).click()
   await expect(page.locator('.photo-card')).toHaveCount(4)
+  await page.locator(`[data-photo-id="${id}"]`).getByRole('button', { name: /更多照片操作/ }).click()
   await page.locator(`[data-photo-id="${id}"]`).getByRole('link', { name: /删除照片/ }).click()
   await page.setViewportSize({ width: 1024, height: 900 })
   await expect(page.locator('.lifecycle-image img')).toBeVisible()

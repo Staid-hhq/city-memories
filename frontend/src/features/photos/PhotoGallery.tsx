@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import { api, ApiError, errorMessage, isAbort } from '../../shared/api'
 import { OperationFeedback } from '../../shared/OperationFeedback'
@@ -9,6 +9,39 @@ import type { Album } from '../albums/types'
 
 const changed = (error: unknown) => error instanceof ApiError && error.code === 'ALBUM_CHANGED'
 type CoverFeedback = { tone: 'progress' | 'success' | 'warning'; title: string; message: string; detail?: string; needsReview?: boolean }
+
+function PhotoActions({ albumId, photo, disabled }: { albumId: string; photo: Photo; disabled: boolean }) {
+  const location = useLocation()
+  const [expanded, setExpanded] = useState(false)
+  const panelId = useId()
+  const container = useRef<HTMLDivElement | null>(null)
+  const trigger = useRef<HTMLButtonElement | null>(null)
+  const open = expanded && !disabled
+  useEffect(() => {
+    if (!open) return
+    function closeOutside(event: PointerEvent) {
+      if (event.target instanceof Node && !container.current?.contains(event.target)) setExpanded(false)
+    }
+    document.addEventListener('pointerdown', closeOutside)
+    return () => document.removeEventListener('pointerdown', closeOutside)
+  }, [open])
+  return <div className="photo-more" ref={container}
+    onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setExpanded(false) }}
+    onKeyDown={(event) => {
+      if (event.key === 'Escape' && open) {
+        event.preventDefault(); event.stopPropagation(); setExpanded(false)
+        trigger.current?.focus({ preventScroll: true })
+      }
+    }}>
+    <button className="quiet-button photo-more-trigger" ref={trigger} disabled={disabled}
+      aria-label={`更多照片操作：${photo.original_filename}`} aria-expanded={open} aria-controls={panelId}
+      onClick={() => setExpanded(!open)}><span aria-hidden="true">⋯</span></button>
+    {open && <div className="photo-more-panel" id={panelId} role="group" aria-label={`${photo.original_filename}的操作`}>
+      <Link className="move-link" to={`/albums/${albumId}/move/${photo.id}`} state={location.state} aria-label={`移动照片：${photo.original_filename}`}>移动到其他影集</Link>
+      <Link className="trash-link" to={`/albums/${albumId}/trash/${photo.id}`} state={location.state} aria-label={`删除照片：${photo.original_filename}`}>移入回收站</Link>
+    </div>}
+  </div>
+}
 
 export function PhotoViewer({ photoId, albumId, initialRevision, close, navigate, onNoteSaved }: {
   photoId: string; albumId: string; initialRevision?: number; close: () => void; navigate: (id: string) => void; onNoteSaved: (note: Note) => void
@@ -241,7 +274,7 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
   }
   return <section className="photo-section" ref={section} tabIndex={-1} aria-labelledby="photos-title">
     <div className="section-heading"><h2 id="photos-title">影集里的照片</h2><span>{data ? `已读取 ${data.items.length} / ${data.photo_count} 张` : '按保存顺序浏览'}</span></div>
-    <div className="gallery-tools"><p className="scope-note">原图按需读取；点开查看完整画面，不生成缩略图。</p>
+    <div className="gallery-tools"><p className="scope-note">点开照片，查看原图和文字记录。</p>
       <div className="gallery-buttons"><Link className="quiet-button" to={`/albums/${albumId}/duplicates`} state={location.state}>查看重复照片</Link>{savedPhotoId && <button className="quiet-button" disabled={busy || coverBusy} onClick={() => open(savedPhotoId)}>查看刚保存的照片</button>}
         {!!data?.items.length && <><button className="quiet-button" disabled={busy || coverBusy} onClick={() => { setChoosingCover(!choosingCover); setSorting(false) }}>{choosingCover ? '完成封面选择' : '更换封面'}</button>
           <button className="quiet-button" disabled={busy || coverBusy} onClick={() => { setSorting(!sorting); setChoosingCover(false) }}>{sorting ? '完成排序' : '整理顺序'}</button></>}</div></div>
@@ -256,17 +289,18 @@ export function PhotoGallery({ albumId, savedPhotoId, onRead, coverPhotoId, onAl
     {error !== undefined && <div className="load-error" role="alert"><p>{errorMessage(error)}</p>
       {(!data || changed(error) || orderBlocked) && <button className="quiet-button" disabled={busy} onClick={refresh}>重新加载照片列表</button>}</div>}
     {!data && busy && <p role="status">正在读取照片列表…</p>}
-    {data && data.items.length === 0 && <div className="album-empty compact-empty"><h3>位置已经留好，故事慢慢填满。</h3><p>选好一张照片，确认保存后就能在这里重新打开。</p></div>}
+    {data && data.items.length === 0 && <div className="album-empty photo-empty"><h3>把这座城市的第一段回忆放进来。</h3><p>一次选择一张或多张照片，核对后保存到这个年份影集。</p><Link className="primary-button add-photos" to={`/albums/${albumId}/import`} state={location.state}>选择第一张照片</Link></div>}
     {data && <div className="photo-grid">{data.items.map((photo, index) => <article className={`photo-card${dropTarget === photo.id ? ' drop-target' : ''}`} key={photo.id} data-photo-id={photo.id}
       onDragOver={(event) => { if (dragged.current && sorting && !busy && !orderBlocked) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDropTarget(photo.id) } }}
       onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget(null) }}
       onDrop={(event) => { event.preventDefault(); const source = dragged.current; dragged.current = null; setDropTarget(null); if (source && sorting) void reorder(source, 'before', photo.id) }}>
       <button className="photo-open" disabled={busy || coverBusy} onClick={() => open(photo.id)} aria-label={`查看原图：${photo.original_filename}`}>
         <OriginalImage photoId={photo.id} alt={`原图：${photo.original_filename}`} suspended={!!photoId} />
-        <span className="photo-caption"><strong>{photo.original_filename}</strong><small>{photo.width} × {photo.height}{photo.has_note ? ' · 有文字记录' : ''}</small></span>
       </button>
-      <Link className="move-link" to={`/albums/${albumId}/move/${photo.id}`} state={location.state} aria-label={`移动照片：${photo.original_filename}`}>移动到其他影集 →</Link>
-      <Link className="trash-link" to={`/albums/${albumId}/trash/${photo.id}`} state={location.state} aria-label={`删除照片：${photo.original_filename}`}>移入回收站</Link>
+      <div className="photo-card-footer">
+        <span className="photo-card-label">第 {index + 1} 张{photo.has_note && <span className="photo-note-indicator">有文字记录</span>}</span>
+        <PhotoActions albumId={albumId} photo={photo} disabled={busy || coverBusy} />
+      </div>
       {sorting && <div className="photo-order-controls">
         <button className="drag-handle quiet-button" draggable={!busy && !orderBlocked} disabled={busy || orderBlocked} aria-label={`拖动排序：${photo.original_filename}`} title="拖到目标照片上方"
           onDragStart={(event) => { dragged.current = photo; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('application/x-city-memories-photo', photo.id) }}

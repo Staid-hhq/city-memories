@@ -17,6 +17,7 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
   const jobsRef = useRef<Job[]>([])
   const [jobs, setJobs] = useState<Job[]>([])
   const [draft, setDraft] = useState<Draft[]>([])
+  const [dragging, setDragging] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [locked, setLocked] = useState(!!initialQueue)
   const [busy, setBusy] = useState<string | null>(initialQueue ? '恢复队列' : null)
@@ -247,12 +248,18 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
   const total = jobs.reduce((count, job) => count + job.entries.length, 0)
   const saved = jobs.reduce((count, job) => count + (job.batch?.result?.photo_ids.length ?? 0), 0)
   return <section className="batch-import" aria-labelledby="batch-title">
-    <div className="page-heading"><div><p className="eyebrow">IMPORT YOUR MEMORIES</p><h1 id="batch-title">批量导入原图</h1>
-      <p className="muted">{cityName}{albumId ? ` / ${yearLabel(year ?? null)} · 固定归属` : ' · 按核对后的年份分组'}</p></div><span className="chapter-mark">核对 → 上传 → 保存</span></div>
-    <p className="scope-note">JPEG、PNG、静态 WebP；单张最多 50 MiB / 8000 万像素。保留原始字节，不改源文件。每批最多 400 张，超出自动拆批；同影集依次保存，不改变已有照片顺序。</p>
+    <div className="page-heading import-heading"><div><h1 id="batch-title">添加照片</h1>
+      <p className="muted">保存到：{cityName}{albumId ? ` / ${yearLabel(year ?? null)}` : ' · 按核对后的年份分组'}</p></div><span className="chapter-mark">选择与核对 → 上传 → 保存</span></div>
+    <p className="scope-note">一张或多张都可以，保留原图。上传校验完成后，确认保存才会加入影集。</p>
+    <details className="import-help"><summary>支持的格式与上传说明</summary><p className="scope-note">JPEG、PNG、静态 WebP；单张最多 50 MiB / 8000 万像素。保留原始字节，不改源文件。每批最多 400 张，超出自动拆批；同影集依次保存，不改变已有照片顺序。</p></details>
     {!locked ? <>
-      <div className="file-picker"><label htmlFor="batch-files">选择多张原图</label><input ref={input} id="batch-files" type="file" multiple accept={accept} aria-describedby="batch-selection-help" onChange={(event) => choose(Array.from(event.target.files ?? []))} />
-        <p className="field-help" id="batch-selection-help">可一次选择多张。在电脑文件窗口中，按住 Ctrl 点选、Shift 连选，或 Ctrl+A 全选。</p>
+      <div className="file-picker import-dropzone" data-dragging={dragging || undefined}
+        onDragOver={(event) => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDragging(true) } }}
+        onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false) }}
+        onDrop={(event) => { event.preventDefault(); setDragging(false); const files = Array.from(event.dataTransfer.files); if (files.length) { choose(files); if (input.current) input.current.value = '' } }}>
+        <label htmlFor="batch-files">选择照片</label><input ref={input} id="batch-files" type="file" multiple accept={accept} aria-describedby="batch-selection-help" onChange={(event) => choose(Array.from(event.target.files ?? []))} />
+        <p className="field-help" id="batch-selection-help">也可将照片拖到这里。单张、多张均支持；在文件窗口中按住 Ctrl 点选、Shift 连选，或 Ctrl+A 全选。</p>
+        {!!draft.length && <p className="field-help">再次选择或拖入会替换下方待确认列表，尚未上传任何文件。</p>}
       </div>
       {!!draft.length && <>
         <div className="section-heading"><h2>核对 {draft.length} 张照片</h2><span>全有编号时按数字排序；其他情况保留选择顺序</span></div>
@@ -331,7 +338,7 @@ export function BatchImport({ cityId, cityName, albumId, year }: Props) {
     {busy && <OperationFeedback tone="progress" title={`正在${busy}…`}><p>上传和校验不代表保存；请以各批下方的保存结果为准。</p></OperationFeedback>}
     {error && <OperationFeedback tone="error" title="队列操作需要处理"><p>{error}</p></OperationFeedback>}
     {notice && !busy && !error && <OperationFeedback tone={notice.startsWith('传输已停止') || jobs.some((job) => job.error || job.entries.some((entry) => entry.error)) ? 'warning' : 'info'} title="队列提示"><p>{notice}</p></OperationFeedback>}
-    <p className="scope-note">地址仅保存随机队列标识，不保存文件名或照片。刷新后只恢复已登记批次；本机文件需重选，不是断点续传。上传可停止后查询/取消；保存结果不明时先查询，避免另开队列重复导入。</p>
+    <details className="import-help"><summary>离开或刷新后，如何继续上传？</summary><p className="scope-note">保留当前页面地址，可重新打开并查询已经登记的导入。尚未登记或传完的原图需要重新选择；重新选择后会从头传输。上传可停止或取消，保存结果不明时先查询状态，避免另开一次导入造成重复。</p></details>
   </section>
 }
 

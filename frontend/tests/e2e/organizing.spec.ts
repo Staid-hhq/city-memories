@@ -24,6 +24,7 @@ async function enter(page: Page, year: number) {
   return { album, photos }
 }
 async function startMove(page: Page, id: string) {
+  await page.locator(`[data-photo-id="${id}"]`).getByRole('button', { name: /更多照片操作/ }).click()
   await page.locator(`[data-photo-id="${id}"]`).getByRole('link', { name: /移动照片/ }).click()
   await expect(page.getByLabel('目标城市', { exact: true })).toBeVisible()
 }
@@ -180,7 +181,7 @@ test('未保存文字阻止进入移动页，目标年份超过一页仍可选�
   const { album, photos } = await enter(page, 2075)
   const auth = await headers(page)
   for (let year = 2100; year < 2126; year++) await page.request.post(`/api/v1/cities/${guangzhou}/albums`, { headers: auth, data: { year } })
-  await page.locator(`[data-photo-id="${photos[0].id}"]`).getByRole('button').click()
+  await page.locator(`[data-photo-id="${photos[0].id}"]`).getByRole('button', { name: /^查看原图：/ }).click()
   await page.getByLabel('照片文字', { exact: true }).fill('尚未保存的移动前草稿')
   await page.getByRole('dialog').getByRole('link', { name: '移动到其他影集', exact: true }).click()
   await expect(page.getByText('还有未保存文字。要继续编辑，还是放弃草稿并离开？')).toBeVisible()

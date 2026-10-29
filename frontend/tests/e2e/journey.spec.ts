@@ -86,8 +86,8 @@ test('T14 新账号连续流程：空影集→批量原图→文字排序→重�
     })
 
     await test.step('批量核对并保存两种合成原图、三份独立照片', async () => {
-      await page.getByRole('link', { name: /批量导入原图/ }).click()
-      await page.getByLabel('选择多张原图').setInputFiles([
+      await page.getByRole('link', { name: /添加照片/ }).click()
+      await page.getByLabel('选择照片').setInputFiles([
         { name: '26-2.png', mimeType: 'image/png', buffer: orange },
         { name: '26-1.png', mimeType: 'image/png', buffer: green },
         { name: '26-3.png', mimeType: 'image/png', buffer: green },
@@ -134,6 +134,7 @@ test('T14 新账号连续流程：空影集→批量原图→文字排序→重�
     })
 
     await test.step('跨城新建目标影集、移动原 ID 与文字；另一账号不能读取或修改', async () => {
+      await card(page, id).getByRole('button', { name: /更多照片操作/ }).click()
       await card(page, id).getByRole('link', { name: /移动照片/ }).click()
       const select = page.getByLabel('目标城市', { exact: true })
       await expect(select).toBeVisible()
@@ -171,6 +172,7 @@ test('T14 新账号连续流程：空影集→批量原图→文字排序→重�
     })
 
     await test.step('删除最后一张仍保留空影集，回收站原图受隔离并可恢复', async () => {
+      await card(page, id).getByRole('button', { name: /更多照片操作/ }).click()
       await card(page, id).getByRole('link', { name: /删除照片/ }).click()
       await page.getByRole('button', { name: '确认移入回收站', exact: true }).click()
       await expect(page.getByText(/已移入回收站。只删除了选中的这一份/)).toBeVisible()

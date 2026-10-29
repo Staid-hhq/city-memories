@@ -148,8 +148,8 @@ test('T15 400 张原图页面导入、3000 张账号规模、双账号并发和�
 
     if (!resume) {
       await test.step('400 张不同原图在真实页面核对、上传和提交', async () => {
-        await page.getByRole('link', { name: /批量导入原图/ }).click()
-        await page.getByLabel('选择多张原图').setInputFiles(first400.map(item => path.join(results, 'fixtures-3400', item.name)))
+        await page.getByRole('link', { name: /添加照片/ }).click()
+        await page.getByLabel('选择照片').setInputFiles(first400.map(item => path.join(results, 'fixtures-3400', item.name)))
         await expect(page.getByText('核对 400 张照片', { exact: true })).toBeVisible()
         await page.getByLabel('我已核对全部文件的城市、年份和顺序').check()
         await page.getByRole('button', { name: '确认队列', exact: true }).click()
@@ -186,7 +186,7 @@ test('T15 400 张原图页面导入、3000 张账号规模、双账号并发和�
         }
         timings.ui400PaginationMs = performance.now() - started
         await expect(page.locator('.photo-card')).toHaveCount(400)
-        expect(await page.locator('.photo-caption strong').allTextContents()).toEqual(first400.map(item => item.name))
+        expect(await page.locator('.photo-open').evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label')?.replace('查看原图：', '')))).toEqual(first400.map(item => item.name))
         const ids = await page.locator('.photo-card').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-photo-id')))
         expect(new Set(ids).size).toBe(400)
         expect(await page.locator('.photo-grid img').count()).toBeLessThanOrEqual(18)

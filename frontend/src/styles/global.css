@@ -211,6 +211,30 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .photo-caption { display: block; padding: 16px 6px 8px; }
 .photo-caption strong { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .photo-caption small { display: block; color: #93816c; margin-top: 7px; font-size: 11px; }
+.album-heading, .import-heading { margin-bottom: 26px; }
+.album-heading .eyebrow { margin-bottom: 8px; }
+.album-heading .muted { margin-bottom: 0; }
+.add-photos { width: auto; min-width: 128px; min-height: 44px; margin: 0; justify-content: center; text-decoration: none; flex-shrink: 0; }
+.add-photos:hover { text-decoration: none; }
+.photo-empty { padding: 56px 24px; text-align: center; }
+.photo-empty .add-photos { display: inline-flex; margin-top: 16px; }
+.photo-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 4px 0; }
+.photo-card-label { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--muted); }
+.photo-note-indicator { color: var(--accent); }
+.photo-more { position: relative; }
+.photo-more-trigger { min-width: 44px; min-height: 44px; padding: 0; font-size: 24px; line-height: 1; }
+.photo-more-panel { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 5; min-width: 176px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px #263f2e18; background: var(--surface); }
+.photo-more-panel .move-link, .photo-more-panel .trash-link { display: flex; align-items: center; margin: 0; min-height: 44px; padding: 10px 12px; border-radius: 5px; text-decoration: none; }
+.photo-more-panel a:hover { background: var(--surface-soft); }
+.import-help { margin: 16px 0 24px; }
+.import-help summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.import-dropzone { padding: 32px; border-color: #b5c8ba; }
+.import-dropzone[data-dragging] { background: #e8f0ea; border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .album-heading .add-photos { width: 100%; }
+  .photo-empty { padding: 32px 18px; }
+  .import-dropzone { padding: 24px 18px; }
+}
 .gallery-end { text-align: center; margin: 32px 0; color: #9a8873; font-size: 13px; }
 .photo-viewer { width: min(1180px, 94vw); max-width: 94vw; max-height: 94vh; padding: 24px 32px; color: #584939; border: 1px solid #d9c8b1; border-radius: 14px; background: #fffcf5; }
 .photo-viewer::backdrop { background: #302c27bd; }
