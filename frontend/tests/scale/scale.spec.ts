@@ -119,8 +119,8 @@ test('T15 400 张原图页面导入、3000 张账号规模、双账号并发和�
     if (!resume) {
       await page.goto('/register')
       await page.getByLabel('用户名', { exact: true }).fill('Scale_One')
-      await page.getByLabel('密码', { exact: true }).fill('Only for isolated T15 synthetic tests!')
-      await page.getByLabel('确认密码', { exact: true }).fill('Only for isolated T15 synthetic tests!')
+      await page.getByLabel('密码', { exact: true }).fill('E2E_T15_2026!')
+      await page.getByLabel('确认密码', { exact: true }).fill('E2E_T15_2026!')
       await page.getByRole('button', { name: '创建账号', exact: true }).click()
       await expect(page).toHaveURL(/\/login$/)
     } else {
@@ -128,7 +128,7 @@ test('T15 400 张原图页面导入、3000 张账号规模、双账号并发和�
       await page.goto('/login')
       await page.getByLabel('用户名', { exact: true }).fill('Scale_One')
     }
-    await page.getByLabel('密码', { exact: true }).fill('Only for isolated T15 synthetic tests!')
+    await page.getByLabel('密码', { exact: true }).fill('E2E_T15_2026!')
     await page.getByRole('button', { name: '登录我的手帐', exact: true }).click()
     await expect(page.getByRole('heading', { name: '你好，Scale_One' })).toBeVisible()
     console.log(`T15 actual Edge ${browser.version()}, fixture bytes ${JSON.stringify(corpus.summary)}`)

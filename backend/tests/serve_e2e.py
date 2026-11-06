@@ -32,7 +32,7 @@ if __name__ == "__main__":
         # still exercise the unchanged registration quota with their own users.
         engine = build_engine(Settings(data_dir=Path(directory), _env_file=None))
         with Session(engine) as db, db.begin():
-            password_hash = PasswordHash.recommended().hash("Only for T03 browser tests!")
+            password_hash = PasswordHash.recommended().hash("E2E_T03_2026!")
             for username in (
                 "Albums_One", "Albums_Two", "Photos_One", "Photos_Two", "Batch_One", "Batch_Two",
                 "Editing_One", "Organize_One", "Organize_Two",
@@ -45,6 +45,21 @@ if __name__ == "__main__":
                         username=username,
                         username_key=username.lower(),
                         password_hash=password_hash,
+                        created_at=1_800_000_000_000,
+                    )
+                )
+            # Pre-policy accounts exercise login compatibility without passing
+            # through the stricter registration policy or consuming its quota.
+            for username, legacy_password in (
+                ("Legacy_Traveler", "  测试专用的旅行短句 password 2026  "),
+                ("Legacy_Long", "Legacy_2026!" + "x" * 116),
+            ):
+                db.add(
+                    User(
+                        id=str(uuid4()),
+                        username=username,
+                        username_key=username.lower(),
+                        password_hash=PasswordHash.recommended().hash(legacy_password),
                         created_at=1_800_000_000_000,
                     )
                 )

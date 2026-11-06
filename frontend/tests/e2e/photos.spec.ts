@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 async function login(page: Page, username = 'Photos_One') {
   await page.goto('/login')
   await page.getByLabel('用户名', { exact: true }).fill(username)
-  await page.getByLabel('密码', { exact: true }).fill('Only for T03 browser tests!')
+  await page.getByLabel('密码', { exact: true }).fill('E2E_T03_2026!')
   await page.getByRole('button', { name: '登录我的手帐' }).click()
   await expect(page.getByRole('heading', { name: `你好，${username}` })).toBeVisible()
 }

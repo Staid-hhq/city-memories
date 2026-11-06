@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
-const password = 'Only for UI tests 2026!'
+const password = 'UiTest_2026!'
 
-async function register(page: Page, username: string) {
+async function register(page: Page, username: string, registrationPassword = password) {
   await page.goto('/register')
   await page.getByLabel('用户名', { exact: true }).fill(username)
-  await page.getByLabel('密码', { exact: true }).fill(password)
-  await page.getByLabel('确认密码', { exact: true }).fill(password)
+  await page.getByLabel('密码', { exact: true }).fill(registrationPassword)
+  await page.getByLabel('确认密码', { exact: true }).fill(registrationPassword)
   await page.getByRole('button', { name: '创建账号' }).click()
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByText('账号已创建，请使用新密码登录。')).toBeVisible()
@@ -19,6 +19,212 @@ async function login(page: Page, username: string, loginPassword = password) {
   await page.getByRole('button', { name: '登录我的手帐' }).click()
   await expect(page.getByRole('heading', { name: `你好，${username}` })).toBeVisible()
 }
+
+function trackCredentialRequests(page: Page) {
+  const requests: string[] = []
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname
+    if (['/api/v1/auth/csrf', '/api/v1/auth/register', '/api/v1/auth/login'].includes(path)) requests.push(path)
+  })
+  return requests
+}
+
+test('注册密码长度和字符在提交前分类校验，不截断、不修改输入或发送请求', async ({ page }) => {
+  const requests = trackCredentialRequests(page)
+  await page.route('**/api/v1/auth/register', route => route.fulfill({
+    status: 400, contentType: 'application/json', body: JSON.stringify({ error: { code: 'TEST_UNEXPECTED_REQUEST', message: '合成测试：此输入不应提交' } }),
+  }))
+  await page.goto('/register')
+  await page.getByLabel('用户名', { exact: true }).fill('Ui_Validation')
+  const input = page.getByLabel('密码', { exact: true })
+  const confirmation = page.getByLabel('确认密码', { exact: true })
+  await expect(page.getByText('密码为 8–16 位，支持英文字母、数字和英文符号，不支持中文或空格。', { exact: true })).toBeVisible()
+  for (const field of [input, confirmation]) {
+    expect(await field.getAttribute('maxlength')).toBeNull()
+    expect(await field.getAttribute('minlength')).toBeNull()
+  }
+  for (const value of ['', 'Ab_2026', 'Ab_2026!123456789']) {
+    await input.fill(value)
+    await confirmation.fill(value)
+    await page.getByRole('button', { name: '创建账号', exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText('密码长度须为 8–16 位。')
+    await expect(input).toHaveValue(value)
+  }
+  for (const value of ['ab中文12!x', ' abcdefgh', 'abcdefgh ', 'abc\tdefgh', 'abc\u00a0defgh', 'abc\u3000defgh', 'abcd\u200bEF!', 'abcédef!', 'abcdef🙂!', 'abcdＡB12']) {
+    await input.fill(value)
+    await confirmation.fill(value)
+    await page.getByRole('button', { name: '创建账号', exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText('密码仅支持英文字母、数字和英文半角符号，不支持中文、空格或其他字符。')
+    await expect(input).toHaveValue(value)
+  }
+  expect(requests).toEqual([])
+})
+
+test('注册拒绝有界常见密码，确认密码按同规则检查后再核对一致性', async ({ page }) => {
+  const requests = trackCredentialRequests(page)
+  await page.route('**/api/v1/auth/register', route => route.fulfill({
+    status: 400, contentType: 'application/json', body: JSON.stringify({ error: { code: 'TEST_UNEXPECTED_REQUEST', message: '合成测试：此输入不应提交' } }),
+  }))
+  await page.goto('/register')
+  await page.getByLabel('用户名', { exact: true }).fill('Ui_Weak')
+  const input = page.getByLabel('密码', { exact: true })
+  const confirmation = page.getByLabel('确认密码', { exact: true })
+  const common = [
+    '12345678', '123456789', '1234567890', '87654321', '00000000', '11111111', '88888888',
+    'password', 'password1', 'password123', 'password123!', 'qwertyui', 'qwertyuiop', 'qwerty123',
+    'abcd1234', 'abc12345', 'iloveyou', 'welcome1', 'admin123', 'admin12345', 'letmein1', 'changeme', 'cijianji',
+    'PaSsWoRd', 'CIJIANJI',
+  ]
+  for (const value of common) {
+    await input.fill(value)
+    await confirmation.fill(value)
+    await page.getByRole('button', { name: '创建账号', exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText('该密码过于常见，请换一个不易猜到的密码。')
+    await expect(input).toHaveValue(value)
+  }
+  await input.fill(password)
+  for (const [value, message] of [
+    ['', '确认密码长度须为 8–16 位。'],
+    ['Ab_2026', '确认密码长度须为 8–16 位。'],
+    ['Ab_2026!123456789', '确认密码长度须为 8–16 位。'],
+    ['ab中文12!x', '确认密码仅支持英文字母、数字和英文半角符号，不支持中文、空格或其他字符。'],
+    ['PASSWORD', '确认密码过于常见，请换一个不易猜到的密码。'],
+    ['uitest_2026!', '两次输入的密码不一致，请重新核对。'],
+  ]) {
+    await confirmation.fill(value)
+    await page.getByRole('button', { name: '创建账号', exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText(message)
+    await expect(confirmation).toHaveValue(value)
+  }
+  expect(requests).toEqual([])
+})
+
+test('密码与确认密码独立显隐，键盘可用且切换账号入口清空并隐藏', async ({ page }, testInfo) => {
+  const requests = trackCredentialRequests(page)
+  await page.route('**/api/v1/auth/register', route => route.fulfill({
+    status: 400, contentType: 'application/json', body: JSON.stringify({ error: { code: 'TEST_UNEXPECTED_REQUEST', message: '合成测试：显隐按钮不应提交' } }),
+  }))
+  await page.goto('/register')
+  await page.getByLabel('用户名', { exact: true }).fill('Ui_Visibility')
+  const input = page.getByLabel('密码', { exact: true })
+  const confirmation = page.getByLabel('确认密码', { exact: true })
+  await input.fill(password)
+  await confirmation.fill(password)
+  for (const field of [input, confirmation]) {
+    await expect(field).toHaveAttribute('type', 'password')
+    await expect(field).toHaveAttribute('autocomplete', 'new-password')
+  }
+  const showPassword = page.getByRole('button', { name: '显示密码', exact: true })
+  await expect(showPassword).toHaveAttribute('type', 'button')
+  await expect(showPassword).toHaveAttribute('aria-controls', 'password')
+  await expect(showPassword).toHaveAttribute('aria-pressed', 'false')
+  await input.focus()
+  await input.press('Tab')
+  await expect(showPassword).toBeFocused()
+  await page.keyboard.press('Enter')
+  const hidePassword = page.getByRole('button', { name: '隐藏密码', exact: true })
+  await expect(hidePassword).toBeFocused()
+  await expect(hidePassword).toHaveAttribute('aria-pressed', 'true')
+  await expect(input).toHaveAttribute('type', 'text')
+  await expect(input).toHaveValue(password)
+  await expect(confirmation).toHaveAttribute('type', 'password')
+  await page.keyboard.press('Space')
+  await expect(input).toHaveAttribute('type', 'password')
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await confirmation.focus()
+  await confirmation.press('Tab')
+  const showConfirmation = page.getByRole('button', { name: '显示确认密码', exact: true })
+  await expect(showConfirmation).toBeFocused()
+  await expect(showConfirmation).toHaveAttribute('type', 'button')
+  await expect(showConfirmation).toHaveAttribute('aria-controls', 'password-confirm')
+  await expect(showConfirmation).toHaveAttribute('aria-pressed', 'false')
+  await page.keyboard.press('Space')
+  await expect(page.getByRole('button', { name: '隐藏确认密码', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(confirmation).toHaveAttribute('type', 'text')
+  await expect(confirmation).toHaveValue(password)
+  await expect(input).toHaveAttribute('type', 'password')
+  await page.getByRole('link', { name: '登录', exact: true }).click()
+  await expect(input).toHaveValue('')
+  await expect(input).toHaveAttribute('type', 'password')
+  await expect(input).toHaveAttribute('autocomplete', 'current-password')
+  await expect(page.getByText('请输入密码', { exact: true })).toBeVisible()
+  await expect(confirmation).toHaveCount(0)
+  await input.fill('  旧密码专用短句 2026  ')
+  await page.getByRole('button', { name: '显示密码', exact: true }).click()
+  await page.getByRole('link', { name: '注册', exact: true }).click()
+  for (const field of [input, confirmation]) {
+    await expect(field).toHaveValue('')
+    await expect(field).toHaveAttribute('type', 'password')
+  }
+  expect(requests).toEqual([])
+  await page.screenshot({ path: testInfo.outputPath('register-password-controls.png'), fullPage: true })
+})
+
+test('登录只限制 8–128 个字符，保留 Unicode、空格及原始大小写', async ({ page }) => {
+  const requests = trackCredentialRequests(page)
+  const submitted: string[] = []
+  await page.route('**/api/v1/auth/login', route => {
+    submitted.push(route.request().postDataJSON().password as string)
+    return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { code: 'INVALID_CREDENTIALS', message: '合成测试已收到登录请求' } }) })
+  })
+  await page.goto('/login')
+  await page.getByLabel('用户名', { exact: true }).fill('Ui_LegacyValidation')
+  const input = page.getByLabel('密码', { exact: true })
+  for (const value of ['', '1234567', 'x'.repeat(129)]) {
+    await input.fill(value)
+    await page.getByRole('button', { name: '登录我的手帐', exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText('密码长度须为 8–128 个字符。')
+    await expect(input).toHaveValue(value)
+  }
+  expect(requests).toEqual([])
+  for (const value of [' 旧密码短句 A ', '🙂'.repeat(128), 'PaSsWoRd']) {
+    await input.fill(value)
+    await page.getByRole('button', { name: '登录我的手帐', exact: true }).click()
+    await expect(page.getByRole('alert')).toHaveText('合成测试已收到登录请求')
+    await expect.poll(() => submitted.at(-1)).toBe(value)
+    await expect(input).toHaveValue(value)
+  }
+})
+
+test('旧版 Unicode 空格密码与 128 字符密码仍可实际登录', async ({ page }) => {
+  for (const [username, legacyPassword] of [
+    ['Legacy_Traveler', '  测试专用的旅行短句 password 2026  '],
+    ['Legacy_Long', `Legacy_2026!${'x'.repeat(116)}`],
+  ]) {
+    await page.goto('/login')
+    await login(page, username, legacyPassword)
+    await page.getByRole('button', { name: '退出登录', exact: true }).click()
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByLabel('密码', { exact: true })).toHaveValue('')
+    await expect(page.getByLabel('密码', { exact: true })).toHaveAttribute('type', 'password')
+  }
+})
+
+test('320px 窄屏密码框与显隐按钮不横向溢出，触控目标至少 44px', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 800 })
+  await page.goto('/register')
+  await expect(page.getByRole('heading', { name: '创建你的手帐', exact: true })).toBeVisible()
+  await page.getByLabel('密码', { exact: true }).fill('~UiTest_2026!abC')
+  await page.getByLabel('确认密码', { exact: true }).fill('~UiTest_2026!abC')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  for (const name of ['显示密码', '显示确认密码']) {
+    const button = page.getByRole('button', { name, exact: true })
+    const box = await button.boundingBox()
+    expect(box).not.toBeNull()
+    expect(box!.width).toBeGreaterThanOrEqual(44)
+    expect(box!.height).toBeGreaterThanOrEqual(44)
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(320)
+  }
+  for (const name of ['密码', '确认密码']) {
+    const box = await page.getByLabel(name, { exact: true }).boundingBox()
+    expect(box).not.toBeNull()
+    expect(box!.width).toBeGreaterThan(0)
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(320)
+  }
+  await page.screenshot({ path: testInfo.outputPath('register-password-controls-320.png'), fullPage: true })
+})
 
 test('实际 Edge 注册、错误密码、网络失败、重名、重载和退出', async ({ page, context }, testInfo) => {
   const errors: string[] = []
@@ -66,23 +272,25 @@ test('实际 Edge 注册、错误密码、网络失败、重名、重载和退�
   expect(errors).toEqual([])
 })
 
-test('两个独立账号与多窗口退出、换号不残留', async ({ page, context, browser }) => {
-  await register(page, 'Ui_Alpha')
-  await login(page, 'Ui_Alpha')
+test('8 位与 16 位新密码可注册登录，两个账号多窗口退出、换号不残留', async ({ page, context, browser }) => {
+  const shortestPassword = '!aB_09~x'
+  const longestPassword = '~UiTest_2026!abC'
+  await register(page, 'Ui_Alpha', shortestPassword)
+  await login(page, 'Ui_Alpha', shortestPassword)
   const sibling = await context.newPage()
   await sibling.goto('/')
   await expect(sibling.getByRole('heading', { name: '你好，Ui_Alpha' })).toBeVisible()
   const separate = await browser.newContext({ baseURL: new URL(page.url()).origin })
   const other = await separate.newPage()
   try {
-    await register(other, 'Ui_Beta')
-    await login(other, 'Ui_Beta')
+    await register(other, 'Ui_Beta', longestPassword)
+    await login(other, 'Ui_Beta', longestPassword)
     await page.getByRole('button', { name: '退出登录' }).click()
     await expect(sibling).toHaveURL(/\/login$/)
     await expect(sibling.getByText('Ui_Alpha', { exact: true })).toHaveCount(0)
     await other.reload()
     await expect(other.getByRole('heading', { name: '你好，Ui_Beta' })).toBeVisible()
-    await login(page, 'Ui_Beta')
+    await login(page, 'Ui_Beta', longestPassword)
     await expect(sibling.getByRole('heading', { name: '你好，Ui_Beta' })).toBeVisible()
     await expect(page.getByText('Ui_Alpha', { exact: true })).toHaveCount(0)
   } finally {
@@ -94,7 +302,7 @@ test('退出中或退出失败不因页面恢复重显私人内容，可重试�
   await page.goto('/register')
   await page.getByLabel('用户名', { exact: true }).fill('Ui_Recovery')
   await page.getByLabel('密码', { exact: true }).fill(password)
-  await page.getByLabel('确认密码', { exact: true }).fill('Different test password')
+  await page.getByLabel('确认密码', { exact: true }).fill('Other_2026!')
   await page.getByRole('button', { name: '创建账号' }).click()
   await expect(page.getByRole('alert')).toContainText('两次输入的密码不一致')
   await register(page, 'Ui_Recovery')
@@ -236,7 +444,7 @@ test('连接等待中可手动重连，旧响应不回写；会话读取超时�
 
 test('后台会话核对失败保留编辑草稿，非 JSON 的 403 保留私人页而 401 立即隐藏', async ({ page }) => {
   await page.goto('/login')
-  await login(page, 'Editing_One', 'Only for T03 browser tests!')
+  await login(page, 'Editing_One', 'E2E_T03_2026!')
   const response = await page.request.get('/api/v1/cities/a03b8f10-06dd-4b56-aef1-33cfc3696301/albums')
   expect(response.ok()).toBeTruthy()
   const album = (await response.json()).data.items.find((item: { year: number }) => item.year === 2062)

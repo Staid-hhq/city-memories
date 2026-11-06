@@ -23,6 +23,7 @@ from city_memories.imports import router as imports_router
 from city_memories.maps import router as maps_router
 from city_memories.maps import seed_reviewed_cities
 from city_memories.organizing import router as organizing_router
+from city_memories.passwords import PASSWORD_ERRORS
 from city_memories.photos import router as photos_router
 from city_memories.trash import router as trash_router
 
@@ -68,8 +69,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return error_response(request, error)
 
     @app.exception_handler(RequestValidationError)
-    async def handle_validation_error(request: Request, _error: RequestValidationError):
+    async def handle_validation_error(request: Request, error: RequestValidationError):
         # 不回显 Pydantic 的 input / 请求体，避免在错误响应中泄露密码。
+        if request.url.path == "/api/v1/auth/register":
+            for detail in error.errors():
+                if password_error := PASSWORD_ERRORS.get(detail.get("type")):
+                    return error_response(request, ApiError(422, *password_error))
         return error_response(
             request,
             ApiError(

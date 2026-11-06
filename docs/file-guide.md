@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-11-06。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新：2026-11-07。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -58,6 +58,7 @@
 | [src/vite-env.d.ts](../frontend/src/vite-env.d.ts) | Vite 客户端的 TypeScript 类型声明 |
 | [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、启动连接帮助、会话手动核对、退出清理和顶层路由 |
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
+| [src/shared/passwords.ts](../frontend/src/shared/passwords.ts) | 新注册密码与确认密码的长度、可见 ASCII 和有限常见弱密码校验，与登录兼容规则分离 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、共享字体/字号/圆角、侧栏大封面、地图高度与状态边线；含手机控件、局部横滚和短屏查看层 |
 | [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录导航、紧凑首页与选城、城市/年份逐级返回、图库优先与统一添加入口、旧单张任务访问兼容、计数和地图联动 |
@@ -123,6 +124,7 @@
 | [src/city_memories/errors.py](../backend/src/city_memories/errors.py) | 统一业务错误及 API 响应格式 |
 | [src/city_memories/boundary.py](../backend/src/city_memories/boundary.py) | 请求边界：CSRF、请求体限制、安全缓存头和异常转换 |
 | [src/city_memories/auth.py](../backend/src/city_memories/auth.py) | 密码哈希、会话、CSRF、注册登录与限流 |
+| [src/city_memories/passwords.py](../backend/src/city_memories/passwords.py) | 新注册密码错误分类、可见 ASCII 及有限常见弱密码表，不改变旧账号登录密码 |
 | [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市相册聚合、省会/全目录视图分页、城市/年份影集查找及年份选项、本人封面/统计和独立签名游标 |
 | [src/city_memories/province_centers.py](../backend/src/city_memories/province_centers.py) | 各省级地区默认城市的稳定业务 ID 与明确拼音排序键，不改城市目录或状态 |
 | [src/city_memories/imports.py](../backend/src/city_memories/imports.py) | 导入批次、上传租约、内容接收、幂等提交、取消及队列查询 |
@@ -232,6 +234,7 @@
 | [reports/v2/operation-feedback.md](reports/v2/operation-feedback.md) | 2026-10-23 操作进度、结果核对与上传空闲入口提示，两项独立验证 |
 | [reports/v2/map-interaction.md](reports/v2/map-interaction.md) | 2026-10-26 市界/画布、小城定位与选中入口，两轮几何和交互证据 |
 | [reports/v2/ui-refinement.md](reports/v2/ui-refinement.md) | 2026-10-30～11-06 首页、照片上传、侧栏视觉三轮整理，保留分轮结果与未测范围 |
+| [reports/v2/2026-11-07-account-password.md](reports/v2/2026-11-07-account-password.md) | 账号密码规则、旧密码登录兼容、显隐输入及隔离验证 |
 
 ### 维护报告
 

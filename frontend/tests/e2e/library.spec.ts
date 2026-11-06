@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 
 const shenzhen = 'a03b8f10-06dd-4b56-aef1-33cfc3696301'
 const guangzhou = 'a03b8f10-06dd-4b56-aef1-33cfc3696302'
-const password = 'Only for T03 browser tests!'
+const password = 'E2E_T03_2026!'
 
 async function login(page: Page, username: string) {
   await page.goto('/login')

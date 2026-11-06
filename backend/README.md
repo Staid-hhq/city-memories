@@ -22,6 +22,7 @@ FastAPI、SQLAlchemy 与 Alembic 工程，采用 Python `src` 布局。以下命
 | --- | --- |
 | [main.py](src/city_memories/main.py)、[config.py](src/city_memories/config.py) | 应用工厂、生命周期与配置 |
 | [auth.py](src/city_memories/auth.py)、[boundary.py](src/city_memories/boundary.py)、[errors.py](src/city_memories/errors.py) | 会话、CSRF、来源/频率限制及统一错误边界 |
+| [passwords.py](src/city_memories/passwords.py) | 新注册密码规则、固定错误和有限常见弱密码表；不限制旧密码登录字符 |
 | [models.py](src/city_memories/models.py)、[database.py](src/city_memories/database.py)、`migrations/` | 数据模型、连接及迁移链 |
 | [albums.py](src/city_memories/albums.py)、[province_centers.py](src/city_memories/province_centers.py) | 城市/年份影集、城市聚合、封面和省会视图 |
 | [imports.py](src/city_memories/imports.py)、[storage.py](src/city_memories/storage.py) | 导入、暂存、原图存储与恢复状态 |

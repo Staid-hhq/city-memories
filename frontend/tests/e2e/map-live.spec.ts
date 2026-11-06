@@ -7,7 +7,7 @@ import type { MapCity } from '../../src/features/map/mapService'
 async function login(page: Page, name: string) {
   await page.goto('/login')
   await page.getByLabel('用户名', { exact: true }).fill(name)
-  await page.getByLabel('密码', { exact: true }).fill('Only for T03 browser tests!')
+  await page.getByLabel('密码', { exact: true }).fill('E2E_T03_2026!')
   await page.getByRole('button', { name: '登录我的手帐' }).click()
   await expect(page.getByRole('heading', { name: `你好，${name}` })).toBeVisible()
 }
@@ -29,7 +29,7 @@ test('正式静态市界覆盖全部入口，实际页面无在线地图请求�
   page.on('request', request => { if (new URL(request.url()).pathname === '/api/v1/map/config') configCalls++ })
   await page.goto('/login')
   await page.getByLabel('用户名', { exact: true }).fill('Map_Return')
-  await page.getByLabel('密码', { exact: true }).fill('Only for T03 browser tests!')
+  await page.getByLabel('密码', { exact: true }).fill('E2E_T03_2026!')
   await page.getByRole('button', { name: '登录我的手帐' }).click()
   await expect(page.locator('[data-city-region]')).toHaveCount(391)
   await expect(page.locator('[data-city-region][data-lit="true"]')).toHaveCount(1)

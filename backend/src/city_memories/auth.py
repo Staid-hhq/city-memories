@@ -17,7 +17,16 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request, Response
 from pwdlib import PasswordHash
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
+from pydantic_core import PydanticCustomError
 from sqlalchemy import Engine, select, update
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.exc import IntegrityError
@@ -26,6 +35,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from city_memories.config import Settings
 from city_memories.errors import ApiError
 from city_memories.models import AuthRateLimit, LoginSession, User
+from city_memories.passwords import PASSWORD_ERRORS, registration_password_issue
 
 COOKIE_NAME = "city_memories_session"
 ANONYMOUS_TTL = 60 * 60 * 1000
@@ -37,7 +47,7 @@ HOUR = 60 * 60 * 1000
 class Credentials(BaseModel):
     model_config = ConfigDict(extra="forbid")
     username: str = Field(min_length=3, max_length=32)
-    password: SecretStr = Field(min_length=15, max_length=128)
+    password: SecretStr = Field(min_length=8, max_length=128)
 
     @field_validator("username")
     @classmethod
@@ -48,12 +58,22 @@ class Credentials(BaseModel):
 
 
 class Registration(Credentials):
-    password_confirm: SecretStr = Field(min_length=15, max_length=128)
+    password: SecretStr = Field(min_length=8, max_length=16)
+    password_confirm: SecretStr = Field(min_length=8, max_length=16)
+
+    @field_validator("password", "password_confirm", mode="before")
+    @classmethod
+    def registration_password(cls, value: object, info: ValidationInfo) -> object:
+        raw = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if isinstance(raw, str) and (issue := registration_password_issue(raw)):
+            error_type = f"{info.field_name}_{issue}"
+            raise PydanticCustomError(error_type, PASSWORD_ERRORS[error_type][1])
+        return value
 
     @model_validator(mode="after")
     def passwords_match(self) -> "Registration":
         if self.password.get_secret_value() != self.password_confirm.get_secret_value():
-            raise ValueError("两次输入的密码不一致")
+            raise PydanticCustomError("password_mismatch", PASSWORD_ERRORS["password_mismatch"][1])
         return self
 
 

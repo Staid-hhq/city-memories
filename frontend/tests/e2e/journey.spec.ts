@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 
 // These accounts exist only in serve_e2e.py's temporary database. All writes
 // in the owner journey use the real UI; API reads independently verify results.
-const password = 'Only for isolated T14 journey!'
+const password = 'E2E_T14_2026!'
 const guangzhou = 'a03b8f10-06dd-4b56-aef1-33cfc3696302'
 const note = 'T14 合成旅行记录 🌅\n文字跟随原图，不随顺序或城市丢失。'
 const card = (page: Page, id: string) => page.locator(`[data-photo-id="${id}"]`)

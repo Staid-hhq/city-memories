@@ -4,7 +4,7 @@ import type { City, CityAlbum } from '../../src/features/albums/types'
 
 const shenzhen = 'a03b8f10-06dd-4b56-aef1-33cfc3696301'
 const guangzhou = 'a03b8f10-06dd-4b56-aef1-33cfc3696302'
-const password = 'Only for T03 browser tests!'
+const password = 'E2E_T03_2026!'
 type AlbumPage = { items: CityAlbum[]; next_cursor: string | null }
 
 async function login(page: Page, username: string) {

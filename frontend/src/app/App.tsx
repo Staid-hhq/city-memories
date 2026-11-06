@@ -4,6 +4,7 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-r
 import { api, ApiError, clearSessionState, errorMessage, isAbort, setCsrfToken } from '../shared/api'
 import type { LoginResult, User } from '../shared/api'
 import { OperationFeedback } from '../shared/OperationFeedback'
+import { registrationPasswordError } from '../shared/passwords'
 import { Journal } from '../features/albums/Journal'
 
 type SessionState =
@@ -55,6 +56,8 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
   const [username, setUsername] = useState<string>(location.state?.registeredUsername ?? '')
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const notice = location.state?.registeredUsername ? '账号已创建，请使用新密码登录。' : ''
@@ -69,12 +72,15 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
       setError('用户名须为 3–32 位英文字母、数字或下划线。')
       return
     }
-    if ([...password].length < 15 || [...password].length > 128) {
-      setError('密码需要 15–128 个字符，可以使用空格和中文。')
-      return
-    }
-    if (register && password !== confirmation) {
-      setError('两次输入的密码不一致，请重新核对。')
+    if (register) {
+      const passwordError = registrationPasswordError(password) ?? registrationPasswordError(confirmation, true)
+      if (passwordError) { setError(passwordError); return }
+      if (password !== confirmation) {
+        setError('两次输入的密码不一致，请重新核对。')
+        return
+      }
+    } else if ([...password].length < 8 || [...password].length > 128) {
+      setError('密码长度须为 8–128 个字符。')
       return
     }
     setBusy(true)
@@ -132,22 +138,32 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
         <p className="eyebrow">{register ? '一段新的旅程' : '好久不见，旅人'}</p>
         <h2 id="auth-title">{register ? '创建你的手帐' : '翻开你的手帐'}</h2>
         <p className="auth-description">{register ? '给自己的旅行回忆，留一个专属的位置。' : '用你的账号登录，回到自己的旅行记忆。'}</p>
-        <form onSubmit={submit} aria-busy={busy}>
+        <form onSubmit={submit} aria-busy={busy} noValidate>
           <label htmlFor="username">用户名</label>
           <input id="username" name="username" autoComplete="username" required maxLength={32}
             value={username} onChange={(event) => setUsername(event.target.value)}
             aria-describedby="username-help" disabled={busy} placeholder="例如 slow_traveler" />
           <p id="username-help" className="field-help">3–32 位英文字母、数字或下划线，不区分大小写。</p>
           <label htmlFor="password">密码</label>
-          <input id="password" name="password" type="password" required disabled={busy}
-            autoComplete={register ? 'new-password' : 'current-password'} value={password}
-            onChange={(event) => setPassword(event.target.value)} aria-describedby="password-help" />
-          <p id="password-help" className="field-help">15–128 个字符，可使用空格或中文短句。</p>
+          <div className="password-field">
+            <input id="password" name="password" type={showPassword ? 'text' : 'password'} required disabled={busy}
+              autoComplete={register ? 'new-password' : 'current-password'} autoCapitalize="none" spellCheck={false} value={password}
+              onChange={(event) => setPassword(event.target.value)} aria-describedby="password-help" />
+            <button className="quiet-button password-toggle" type="button" disabled={busy}
+              aria-label={showPassword ? '隐藏密码' : '显示密码'} aria-pressed={showPassword} aria-controls="password"
+              onClick={() => setShowPassword(value => !value)}>{showPassword ? '隐藏' : '显示'}</button>
+          </div>
+          <p id="password-help" className="field-help">{register ? '密码为 8–16 位，支持英文字母、数字和英文符号，不支持中文或空格。' : '请输入密码'}</p>
           {register && <>
             <label htmlFor="password-confirm">确认密码</label>
-            <input id="password-confirm" name="password_confirm" type="password" required disabled={busy}
-              autoComplete="new-password" value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)} />
+            <div className="password-field">
+              <input id="password-confirm" name="password_confirm" type={showConfirmation ? 'text' : 'password'} required disabled={busy}
+                autoComplete="new-password" autoCapitalize="none" spellCheck={false} value={confirmation}
+                onChange={(event) => setConfirmation(event.target.value)} aria-describedby="password-help" />
+              <button className="quiet-button password-toggle" type="button" disabled={busy}
+                aria-label={showConfirmation ? '隐藏确认密码' : '显示确认密码'} aria-pressed={showConfirmation} aria-controls="password-confirm"
+                onClick={() => setShowConfirmation(value => !value)}>{showConfirmation ? '隐藏' : '显示'}</button>
+            </div>
           </>}
           {error && <p className="form-error" role="alert">{error}</p>}
           {notice && <p role="status">{notice}</p>}

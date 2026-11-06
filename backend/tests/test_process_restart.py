@@ -73,7 +73,7 @@ def test_real_process_restart_preserves_login_and_revocation(tmp_path, monkeypat
         port = listener.getsockname()[1]
     origin = f"http://127.0.0.1:{port}"
     environment = os.environ | {"CITY_MEMORIES_ALLOWED_ORIGINS": f'["{origin}"]'}
-    credentials = {"username": "Restart_Traveler", "password": "A temporary restart test password"}
+    credentials = {"username": "Restart_Traveler", "password": "Restart_2026!"}
     with httpx.Client(base_url=origin) as client:
 
         def headers():

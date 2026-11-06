@@ -5,7 +5,7 @@ const city = 'a03b8f10-06dd-4b56-aef1-33cfc3696301'
 async function login(page: Page, name = 'Trash_One') {
   await page.goto('/login')
   await page.getByLabel('用户名', { exact: true }).fill(name)
-  await page.getByLabel('密码', { exact: true }).fill('Only for T03 browser tests!')
+  await page.getByLabel('密码', { exact: true }).fill('E2E_T03_2026!')
   await page.getByRole('button', { name: '登录我的手帐' }).click()
   await expect(page.getByRole('heading', { name: `你好，${name}` })).toBeVisible()
 }

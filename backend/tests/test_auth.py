@@ -2,21 +2,23 @@ import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 
-from city_memories.auth import ANONYMOUS_TTL, COOKIE_NAME, LOGIN_TTL, LOGIN_WINDOW
+from city_memories.auth import ANONYMOUS_TTL, COOKIE_NAME, LOGIN_TTL, LOGIN_WINDOW, Registration
 from city_memories.config import Settings, get_settings
 from city_memories.main import create_app
 from city_memories.models import AuthRateLimit, LoginSession, User
 
-PASSWORD = "  测试专用的旅行短句 password 2026  "
-WRONG_PASSWORD = "This is a wrong test password"
+PASSWORD = "UiTest_2026!"
+WRONG_PASSWORD = "Wrong_Pass2026!"
 ORIGIN = "http://testserver"
 
 
@@ -86,8 +88,153 @@ def test_registration_hash_and_private_response(environment):
         user = db.scalar(select(User))
         assert user.password_hash.startswith("$argon2id$")
         assert app.state.auth.passwords.verify(PASSWORD, user.password_hash)
-        assert not app.state.auth.passwords.verify(PASSWORD.strip(), user.password_hash)
+        assert not app.state.auth.passwords.verify(PASSWORD.swapcase(), user.password_hash)
         assert PASSWORD not in user.password_hash
+
+
+@pytest.mark.parametrize(
+    "password",
+    ["Abc!2345", "Abcdefgh1234!@#$", "riverbank", "TRAVELER", "90274635", "!@#$%^&*"],
+)
+def test_registration_accepts_boundaries_without_requiring_character_mixtures(
+    environment, password
+):
+    app, client, _, _ = environment
+    response = register(client, password=password)
+    assert response.status_code == 201
+    assert login(client, password=password).status_code == 200
+    with app.state.auth.sessions() as db:
+        user = db.scalar(select(User))
+        assert app.state.auth.passwords.verify(password, user.password_hash)
+        if password.swapcase() != password:
+            assert not app.state.auth.passwords.verify(password.swapcase(), user.password_hash)
+
+
+@pytest.mark.parametrize("field", ["password", "password_confirm"])
+@pytest.mark.parametrize(
+    ("password", "issue"),
+    [
+        ("Ab!1234", "LENGTH"),
+        ("Abcdefgh1234!@#$%", "LENGTH"),
+        ("Abcdefg中", "CHARACTERS"),
+        (" Abcdefg", "CHARACTERS"),
+        ("Abcdefg ", "CHARACTERS"),
+        ("Abcdefg\t", "CHARACTERS"),
+        ("Abcdefg\n", "CHARACTERS"),
+        ("Abcdefg\u00a0", "CHARACTERS"),
+        ("Abcdefg！", "CHARACTERS"),
+        ("Abcdefg😀", "CHARACTERS"),
+        ("Abcdefg\x7f", "CHARACTERS"),
+        ("PaSsWoRd123!", "COMMON"),
+    ],
+)
+def test_registration_password_errors_identify_field_without_echoing_input(
+    environment, field, password, issue
+):
+    app, client, _, _ = environment
+    payload = {"username": "Traveler", "password": PASSWORD, "password_confirm": PASSWORD}
+    payload[field] = password
+    response = client.post("/api/v1/auth/register", headers=csrf(client), json=payload)
+    assert response.status_code == 422
+    error = response.json()["error"]
+    prefix = "PASSWORD_CONFIRM" if field == "password_confirm" else "PASSWORD"
+    label = "确认密码" if field == "password_confirm" else "密码"
+    messages = {
+        "LENGTH": f"{label}长度须为 8–16 位。",
+        "CHARACTERS": (
+            f"{label}仅支持英文字母、数字和英文半角符号，不支持中文、空格或其他字符。"
+        ),
+        "COMMON": (
+            "确认密码过于常见，请换一个不易猜到的密码。"
+            if field == "password_confirm"
+            else "该密码过于常见，请换一个不易猜到的密码。"
+        ),
+    }
+    assert error["code"] == f"{prefix}_{issue}"
+    assert error["message"] == messages[issue]
+    assert set(error) == {"code", "message", "request_id"}
+    assert error["request_id"] == response.headers["x-request-id"]
+    assert PASSWORD not in response.text
+    assert password not in response.text
+    with app.state.auth.sessions() as db:
+        assert db.scalar(select(func.count()).select_from(User)) == 0
+
+
+@pytest.mark.parametrize(
+    "password",
+    [
+        "12345678", "123456789", "1234567890", "87654321", "00000000", "11111111",
+        "88888888", "password", "password1", "password123", "password123!", "qwertyui",
+        "qwertyuiop", "qwerty123", "abcd1234", "abc12345", "iloveyou", "welcome1",
+        "admin123", "admin12345", "letmein1", "changeme", "cijianji",
+    ],
+)
+def test_registration_rejects_bounded_common_passwords_case_insensitively(password):
+    for candidate in (password, password.upper()):
+        with pytest.raises(ValidationError) as caught:
+            Registration(username="Traveler", password=candidate, password_confirm=PASSWORD)
+        assert caught.value.errors()[0]["type"] == "password_common"
+
+
+def test_common_password_check_matches_only_whole_password():
+    data = Registration(
+        username="Traveler", password="MyPassword123!", password_confirm="MyPassword123!"
+    )
+    assert data.password.get_secret_value() == "MyPassword123!"
+
+
+def test_registration_mismatch_has_fixed_safe_error(environment):
+    _, client, _, _ = environment
+    response = client.post(
+        "/api/v1/auth/register",
+        headers=csrf(client),
+        json={"username": "Traveler", "password": PASSWORD, "password_confirm": WRONG_PASSWORD},
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "PASSWORD_MISMATCH"
+    assert response.json()["error"]["message"] == "两次输入的密码不一致，请重新核对。"
+    assert PASSWORD not in response.text and WRONG_PASSWORD not in response.text
+
+
+@pytest.mark.parametrize(
+    "password",
+    [
+        " " + "旅" * 14 + "x ",  # 17 Unicode code points, including surrounding spaces.
+        " " + "旅" * 125 + "x ",  # 128 code points; beyond the new registration maximum.
+        "  测试专用的旅行短句 password 2026  ",
+        "Legacy_Pass2026!?",
+    ],
+)
+def test_existing_password_hashes_login_unchanged_outside_registration_policy(
+    environment, password
+):
+    app, client, _, now = environment
+    original_hash = app.state.auth.passwords.hash(password)
+    with app.state.auth.sessions.begin() as db:
+        db.add(
+            User(
+                id=str(uuid4()),
+                username="LegacyTraveler",
+                username_key="legacytraveler",
+                password_hash=original_hash,
+                created_at=now[0],
+            )
+        )
+    assert login(client, "LegacyTraveler", password).status_code == 200
+    for changed in {password.strip(), password.swapcase(), password[:16]} - {password}:
+        assert login(client, "LegacyTraveler", changed).status_code == 401
+    with app.state.auth.sessions() as db:
+        assert db.scalar(select(User.password_hash)) == original_hash
+
+
+@pytest.mark.parametrize("password", ["x" * 7, "旅" * 129])
+def test_login_password_length_remains_bounded_without_echoing_input(environment, password):
+    _, client, _, _ = environment
+    response = login(client, password=password)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_FAILED"
+    assert set(response.json()["error"]) == {"code", "message", "request_id"}
+    assert password not in response.text
 
 
 def test_duplicate_username_never_overwrites(environment):

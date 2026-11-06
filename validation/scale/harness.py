@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent / "results"
 FIXTURES = ROOT / "fixtures-3400"
 ORIGIN = "http://127.0.0.1:8000"
 CITY = "a03b8f10-06dd-4b56-aef1-33cfc3696301"
-PASSWORD = "Only for isolated T15 synthetic tests!"
+PASSWORD = "E2E_T15_2026!"
 
 
 def stats(values):

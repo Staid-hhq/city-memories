@@ -1,6 +1,6 @@
 # 此间集数据与接口契约
 
-更新：2026-11-06。本文只描述当前实现；结构以[模型](../../backend/src/city_memories/models.py)与[迁移链](../../backend/migrations/versions/c7e9a162b4d8_add_album_cover_preference.py)为准，HTTP schema 由[路由](../../backend/src/city_memories/main.py)生成 OpenAPI。运行结构和地图来源见[技术架构](tech-stack.md)，操作步骤见[功能指南](../guides/user-guide.md)。
+更新：2026-11-07。本文只描述当前实现；结构以[模型](../../backend/src/city_memories/models.py)与[迁移链](../../backend/migrations/versions/c7e9a162b4d8_add_album_cover_preference.py)为准，HTTP schema 由[路由](../../backend/src/city_memories/main.py)生成 OpenAPI。运行结构和地图来源见[技术架构](tech-stack.md)，操作步骤见[功能指南](../guides/user-guide.md)。
 
 第一版各任务与第二版子项的验证保留在[报告索引](../reports/README.md)，不在契约中重复测试条数。V2-04、第二版整体验收与 T17 仍待安排。
 
@@ -73,7 +73,9 @@ erDiagram
 | GET /auth/me | 当前会话 | UserView |
 | POST /auth/logout | 撤销当前会话 | 204 |
 
-UserView 为 `id, username, created_at`。用户名为 3–32 位英文字母、数字或下划线，唯一键转小写；密码 15–128 字符，允许 Unicode/空格，不 trim 或截断；确认密码不入库。登录错误统一为账号或密码不正确。
+UserView 为 `id, username, created_at`。用户名为 3–32 位英文字母、数字或下划线，唯一键转小写。新注册的密码和确认密码均为 8–16 个字符，仅允许可见 ASCII（`!` 至 `~`），拒绝中文、空格、emoji、全角及控制字符；确认密码不入库。前后端使用相同的有限常见弱密码表，按完整密码忽略大小写比对，不要求字符种类混合；实际密码不转换大小写、不 trim、不删除字符、不截断。长度、字符、常见弱密码和两次不一致分别返回固定错误代码与提示，不回显输入或校验异常。
+
+登录接受 8–128 个 Unicode 码点，继续支持已有中文、空格、长密码和旧规则密码；不对登录套用注册字符或弱密码限制。错误凭据统一为账号或密码不正确。已有密码哈希不重置、不迁移，本轮没有修改/找回密码接口。注册/登录的显隐按钮仅改变输入框显示，保留粘贴、自动填充及密码管理器支持；切换入口恢复隐藏并清除密码。交付证据见[账号密码规则与输入体验](../reports/v2/2026-11-07-account-password.md)。
 
 匿名会话 1 小时，登录会话绝对有效期 7 天；登录撤销旧会话，退出/过期立即拒绝旧凭据。CSRF Token 在同一会话内稳定，避免多窗口互相失效。凭据不进入 URL 或日志；来源头只按可信部署配置处理，本地启动禁用代理来源头。
 
