@@ -20,19 +20,19 @@ uv run uvicorn city_memories.main:app --reload --host 127.0.0.1 --port 8000 --no
 
 `/api/v1/auth/csrf`、`register`、`login`、`me`、`logout` 已实现。修改请求必须携带当前会话 Cookie、可信的 Origin/Referer 和 `X-CSRF-Token`；密码、Token、数据库路径不出现在错误响应里。OpenAPI 由运行服务的 `/docs` 提供。
 
-T03 新增 `/api/v1/cities`、`/me/atlas`、`/cities/{city_id}/albums`（GET/POST）和 `/albums/{album_id}`；均要求登录，具体影集必须属于会话本人。迁移 `b61e24f803a7` 加入三个公共城市映射，详情和已测边界见 [T03 记录](../docs/reports/t03-albums-verification.md)。年份为严格整数 1–9999 或 null，重复创建返回原影集；城市与年份列表有签名游标分页，不能用私人游标跨账号读取。
+T03 新增 `/api/v1/cities`、`/me/atlas`、`/cities/{city_id}/albums`（GET/POST）和 `/albums/{album_id}`；均要求登录，具体影集必须属于会话本人。迁移 `b61e24f803a7` 加入三个公共城市映射，详情和已测边界见 [T03 记录](../docs/reports/v1/t03-albums-verification.md)。年份为严格整数 1–9999 或 null，重复创建返回原影集；城市与年份列表有签名游标分页，不能用私人游标跨账号读取。
 
-T04 新增创建导入、逐文件接收、状态查询、提交和取消，以及 `/photos/{photo_id}/original`。沿用现有表和依赖，不新增迁移。先校验权限再读取 multipart；实际格式、大小、像素和 SHA256 均由服务端核验。原始字节不重编码，文件先就绪、照片记录和幂等收据再通过短事务一起保存。详细请求格式、50 MiB/8000 万像素限制、租约和失败恢复边界见 [接口契约](../docs/architecture/data-api-design.md#6-导入协议与失败恢复) 与 [T04 记录](../docs/reports/t04-originals-verification.md)。
+T04 新增创建导入、逐文件接收、状态查询、提交和取消，以及 `/photos/{photo_id}/original`。沿用现有表和依赖，不新增迁移。先校验权限再读取 multipart；实际格式、大小、像素和 SHA256 均由服务端核验。原始字节不重编码，文件先就绪、照片记录和幂等收据再通过短事务一起保存。详细请求格式、50 MiB/8000 万像素限制、租约和失败恢复边界见 [接口契约](../docs/architecture/data-api-design.md#6-导入协议与失败恢复) 与 [T04 记录](../docs/reports/v1/t04-originals-verification.md)。
 
 当前仅支持单实例：全局最多同时接收/解码两张，接收租约 15 分钟，未提交批次 24 小时过期。启动时把上次中断的 receiving 项标为可重试失败；不自动提交照片。取消只清除该批次未发布的系统副本，删除失败及崩溃遗留文件由 T10 后台重试清理；不要手动清空原图目录。
 
-T05 新增 `GET /albums/{album_id}/photos` 和 `GET /photos/{photo_id}`，均在 `/api/v1` 下。照片分页默认 24、最多 100，签名游标绑定账号、影集、影集版本和上次位置；数据变化返回 409/ALBUM_CHANGED，不能拼接旧页。详情提供同影集的前后照片、序号及只读文字，可附 album_id、expected_album_revision 检查浏览上下文。权限、版本、数量和资料来自同一数据库读取快照，不含存储键、完整哈希或其他账号数据。见 [T05 记录](../docs/reports/t05-browsing-verification.md)。
+T05 新增 `GET /albums/{album_id}/photos` 和 `GET /photos/{photo_id}`，均在 `/api/v1` 下。照片分页默认 24、最多 100，签名游标绑定账号、影集、影集版本和上次位置；数据变化返回 409/ALBUM_CHANGED，不能拼接旧页。详情提供同影集的前后照片、序号及只读文字，可附 album_id、expected_album_revision 检查浏览上下文。权限、版本、数量和资料来自同一数据库读取快照，不含存储键、完整哈希或其他账号数据。见 [T05 记录](../docs/reports/v1/t05-browsing-verification.md)。
 
-T06 新增 `GET /api/v1/imports/queue/{queue_id}?after=-1`：按当前账号和随机队列 UUID 查询已登记批次，每页最多 25 批。已有 Idempotency-Key 使用 `<队列 UUID>_<六位批次顺序>`；不另建上传通道或表。返回 `items, next_index`，每个批次追加 `queue_index, city_id, year`，包括可显式取消清理的过期状态，不输出路径或哈希。批量前端继续使用原逐文件接收和显式提交协议；见 [T06 记录](../docs/reports/t06-batch-import-verification.md)。
+T06 新增 `GET /api/v1/imports/queue/{queue_id}?after=-1`：按当前账号和随机队列 UUID 查询已登记批次，每页最多 25 批。已有 Idempotency-Key 使用 `<队列 UUID>_<六位批次顺序>`；不另建上传通道或表。返回 `items, next_index`，每个批次追加 `queue_index, city_id, year`，包括可显式取消清理的过期状态，不输出路径或哈希。批量前端继续使用原逐文件接收和显式提交协议；见 [T06 记录](../docs/reports/v1/t06-batch-import-verification.md)。
 
-T07 新增 `PATCH /api/v1/photos/{photo_id}/note` 和 `POST /api/v1/albums/{album_id}/reorder`。文字最多 2000 个 Unicode 字符、可空，JSON 实际字节上限 64 KiB；只改变照片 revision。排序 JSON 上限 16 KiB，在完整有效影集内按照片/锚点移动，两阶段位置更新和影集 revision 处于同一事务；不改照片 ID、文字、revision 或原图。均要求本人资源、CSRF 和匹配版本，冲突返回 409，相同内容/位置不增加版本。复用现有表，无新依赖或迁移；详见 [接口契约](../docs/architecture/data-api-design.md) 和 [T07 记录](../docs/reports/t07-editing-verification.md)。
+T07 新增 `PATCH /api/v1/photos/{photo_id}/note` 和 `POST /api/v1/albums/{album_id}/reorder`。文字最多 2000 个 Unicode 字符、可空，JSON 实际字节上限 64 KiB；只改变照片 revision。排序 JSON 上限 16 KiB，在完整有效影集内按照片/锚点移动，两阶段位置更新和影集 revision 处于同一事务；不改照片 ID、文字、revision 或原图。均要求本人资源、CSRF 和匹配版本，冲突返回 409，相同内容/位置不增加版本。复用现有表，无新依赖或迁移；详见 [接口契约](../docs/architecture/data-api-design.md) 和 [T07 记录](../docs/reports/v1/t07-editing-verification.md)。
 
-T08 新增 `POST /api/v1/photos/{photo_id}/move` 和 `GET /api/v1/albums/{album_id}/duplicates`。移动要求本人有效照片与本人源/目标影集，以及照片、源影集、目标影集的三个版本；JSON 上限 16 KiB，事务内追加目标末尾并更新三者版本，原 ID、文字、原图和导入收据不变。重复查询仅按本影集有效照片的 SHA256 分组，默认 24、最多 100 **条照片**，大组可跨页，返回代表照片 UUID 而非哈希；游标绑定账号、影集、版本。原影集移空仍保留，相同内容不自动删除或合并；无新依赖或迁移。详见 [T08 记录](../docs/reports/t08-organizing-verification.md)。
+T08 新增 `POST /api/v1/photos/{photo_id}/move` 和 `GET /api/v1/albums/{album_id}/duplicates`。移动要求本人有效照片与本人源/目标影集，以及照片、源影集、目标影集的三个版本；JSON 上限 16 KiB，事务内追加目标末尾并更新三者版本，原 ID、文字、原图和导入收据不变。重复查询仅按本影集有效照片的 SHA256 分组，默认 24、最多 100 **条照片**，大组可跨页，返回代表照片 UUID 而非哈希；游标绑定账号、影集、版本。原影集移空仍保留，相同内容不自动删除或合并；无新依赖或迁移。详见 [T08 记录](../docs/reports/v1/t08-organizing-verification.md)。
 
 ```powershell
 uv run ruff check .
@@ -45,7 +45,7 @@ uv run python -m pytest -q
 
 ## T09 回收站与恢复
 
-新增 `POST /api/v1/photos/{id}/trash`、`GET /api/v1/trash/photos`、`GET /api/v1/trash/photos/{id}`、`GET /api/v1/trash/photos/{id}/original`、`POST /api/v1/trash/photos/{id}/restore`。修改需照片/影集版本与 CSRF，JSON 16 KiB；写锁后检查归属、状态、版本与时间，两者同事务更新。30×24 小时内可查看并恢复到删除时所在影集末尾，保留原字节/文字/ID，空影集保留；期限相等或 purging 返回 410。分页默认 24、最多 100，游标绑定账号和未到期成员 ID/版本摘要；日期用 Unix 毫秒整数，剩余时长用毫秒。无新依赖/迁移。到期物理清理由下述 T10 实现；记录已清除后再次查询返回 404，不恢复也不重建。见 [T09 记录](../docs/reports/t09-trash-verification.md)。
+新增 `POST /api/v1/photos/{id}/trash`、`GET /api/v1/trash/photos`、`GET /api/v1/trash/photos/{id}`、`GET /api/v1/trash/photos/{id}/original`、`POST /api/v1/trash/photos/{id}/restore`。修改需照片/影集版本与 CSRF，JSON 16 KiB；写锁后检查归属、状态、版本与时间，两者同事务更新。30×24 小时内可查看并恢复到删除时所在影集末尾，保留原字节/文字/ID，空影集保留；期限相等或 purging 返回 410。分页默认 24、最多 100，游标绑定账号和未到期成员 ID/版本摘要；日期用 Unix 毫秒整数，剩余时长用毫秒。无新依赖/迁移。到期物理清理由下述 T10 实现；记录已清除后再次查询返回 404，不恢复也不重建。见 [T09 记录](../docs/reports/v1/t09-trash-verification.md)。
 
 ## T10 到期清理及故障恢复
 
@@ -68,7 +68,7 @@ T10 交付时沿用既有表、依赖和迁移头 `b61e24f803a7`；当前 API �
 
 日志只给汇总计数，不输出异常文本、文件名、路径、账号或密钥。若持续出现 `Private-data cleanup incomplete; will retry`，先检查磁盘空间、目录权限和文件占用；解除故障后等待下一轮，必要时正常停止并重启服务。不要手动清空 originals、改库或延长期限；数据损坏/丢失不保证自动恢复，独立备份与恢复工具已在下述 T11 提供。
 
-每轮数据库变更和文件检查有数量上限；目录名称仍会完整枚举排序。T15 已用 3400 份有效合成原图执行 30 轮清理核对，未测数千份过期积压的删除性能。详见 [T10 交付记录](../docs/reports/t10-cleanup-verification.md) 与 [T15 规模记录](../docs/reports/t15-scale-verification.md)。
+每轮数据库变更和文件检查有数量上限；目录名称仍会完整枚举排序。T15 已用 3400 份有效合成原图执行 30 轮清理核对，未测数千份过期积压的删除性能。详见 [T10 交付记录](../docs/reports/v1/t10-cleanup-verification.md) 与 [T15 规模记录](../docs/reports/v1/t15-scale-verification.md)。
 
 ## T11 一致备份与恢复工具
 
@@ -80,23 +80,23 @@ T10 交付时沿用既有表、依赖和迁移头 `b61e24f803a7`；当前 API �
 
 目标父目录须存在，最终目录必须不存在、位于 Git 工作区外且与来源不互相包含；不覆盖、不合并、不递归删除任何目录，拒绝链接/网络路径。操作日志只有汇总计数和固定错误，不输出私人字段。备份本身仍含照片、文字、账号及密码哈希，须保密；不内置加密，不自动判断物理介质独立性，不创建定时任务或删除旧备份。
 
-备份格式保持 v1；V2-01 工具兼容旧迁移 `b61e24f803a7` 和新迁移 `c7e9a162b4d8` 的创建、校验与恢复，保留源 schema，不自动升级备份或恢复结果。旧版本恢复目录在启动新版应用前须显式执行 Alembic 升级；不要在备份目录本身迁移。实际使用时的独立介质、频率和保留策略仍需确定。完整命令与升级顺序见 [操作说明](../docs/guides/backup-restore.md)；T11 的历史结果见 [T11 交付记录](../docs/reports/t11-backup-verification.md)，本轮兼容验证见 [V2-01 记录](../docs/reports/2026-10-21-v2-album-library.md)。
+备份格式保持 v1；V2-01 工具兼容旧迁移 `b61e24f803a7` 和新迁移 `c7e9a162b4d8` 的创建、校验与恢复，保留源 schema，不自动升级备份或恢复结果。旧版本恢复目录在启动新版应用前须显式执行 Alembic 升级；不要在备份目录本身迁移。实际使用时的独立介质、频率和保留策略仍需确定。完整命令与升级顺序见 [操作说明](../docs/guides/backup-restore.md)；T11 的历史结果见 [T11 交付记录](../docs/reports/v1/t11-backup-verification.md)，本轮兼容验证见 [V2-01 记录](../docs/reports/v2/2026-10-21-v2-album-library.md)。
 
 ## T13 第一版地图配置与城市目录
 
-本节保留第一版在线地图配置。V2-02/V2-03 的正式前端已改用随应用提供的公共市界，不再请求 `/map/config` 或在线瓦片；无需为新图填写 Key。城市业务目录、稳定 UUID 和 `/me/atlas` 的本人统计继续复用，不新增数据库迁移。数据来源及当前验证见[中国地图记录](../docs/reports/2026-10-22-china-city-map.md)。
+本节保留第一版在线地图配置。V2-02/V2-03 的正式前端已改用随应用提供的公共市界，不再请求 `/map/config` 或在线瓦片；无需为新图填写 Key。城市业务目录、稳定 UUID 和 `/me/atlas` 的本人统计继续复用，不新增数据库迁移。数据来源及当前验证见[中国地图记录](../docs/reports/v2/2026-10-22-china-city-map.md)。
 
 新增登录必需的 `GET /api/v1/map/cities`（已审核业务身份及供应商代码）和同源 `GET /api/v1/map/config`（绘图 Key、来源信息及可用状态），均不缓存。没有服务器瓦片代理；本人照片统计仍用 `/me/atlas`。391 项开放、草湖市 1 项 pending；启动只补缺，保留原三城 UUID 和所有已有停用/人工修订记录，不改影集归属。
 
 根目录私有 `.env` 或环境变量可设置 `CITY_MEMORIES_MAP_KEY`；也可设置 `CITY_MEMORIES_MAP_KEY_FILE`，指向含 `TIANDITU_KEY=占位符` 的受保护本地配置文件。不要同时复制真实值到源码。另需 `CITY_MEMORIES_MAP_REVIEW_NUMBER`、`CITY_MEMORIES_MAP_REVIEW_DATE`，由官方实际服务核对后配置；缺失则只使用文字入口。本机已引用现有 Key 文件，仓库只提供 `.env.example`。
 
-浏览器 Key 对已登录浏览器可见，上线须复核域名限制和使用条件；此接口不是保护服务端秘密的通用渠道。配置错误不会在响应中回显 Key 或文件路径。详见 [T13 交付](../docs/reports/t13-map-verification.md)、[目录审核](../docs/reference/t13-city-catalog.md)。后端全量 257 项及 Ruff 通过，无新增迁移或依赖。
+浏览器 Key 对已登录浏览器可见，上线须复核域名限制和使用条件；此接口不是保护服务端秘密的通用渠道。配置错误不会在响应中回显 Key 或文件路径。详见 [T13 交付](../docs/reports/v1/t13-map-verification.md)、[目录审核](../docs/reference/t13-city-catalog.md)。后端全量 257 项及 Ruff 通过，无新增迁移或依赖。
 
 ## V2-01 独立相册与封面偏好
 
 新增 `GET /api/v1/me/albums`，返回本人跨城市的 `{items, next_cursor}` 相册列表，分页默认 24、最多 100。`sort=year` 为默认排序，按年份倒序、未标年份最后，同年按稳定 ID 排列；原有无过滤年份游标 scope 保持不变。V2-04 首页增加 `sort=recent`，按 `updated_at DESC, id ASC` 排列，签名游标同时绑定当前账号和排序，不能跨账号或排序复用。各项沿用 `AlbumView`，有效照片数量与封面按本人资源计算。
 
-首页最近整理读取 `sort=recent&limit=3`。这里的更新时间包括相册创建、照片导入、移动、排序、回收/恢复及封面改变；照片文字编辑只更新照片版本，不改变相册最近整理时间。此排序复用现有字段，不增加迁移、依赖或锁文件变更，接口与隔离验证见[首页改善记录](../docs/reports/2026-10-23-home-map-sidebar.md)。
+首页最近整理读取 `sort=recent&limit=3`。这里的更新时间包括相册创建、照片导入、移动、排序、回收/恢复及封面改变；照片文字编辑只更新照片版本，不改变相册最近整理时间。此排序复用现有字段，不增加迁移、依赖或锁文件变更，接口与隔离验证见[首页改善记录](../docs/reports/v2/2026-10-23-home-map-sidebar.md)。
 
 新增 `PATCH /api/v1/albums/{id}/cover`，JSON 为 `{photo_id: null|string, expected_revision: int}`，成功返回更新后的 `AlbumView`。修改需要当前会话、CSRF 和本人影集；手选照片须仍属于该影集且有效，版本不匹配返回 `409 / ALBUM_CHANGED`。`photo_id: null` 恢复自动封面；当前手选照片无效时展示会回退到影集顺序中的第一张有效照片，无有效照片时为空。封面偏好不修改照片 ID、原图字节、文字或顺序。
 
@@ -107,7 +107,7 @@ T10 交付时沿用既有表、依赖和迁移头 `b61e24f803a7`；当前 API �
 if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动新版服务' }
 ```
 
-本轮仅升级合成测试库，未读取或迁移真实数据库、照片和 `.env`；依赖与锁文件保持不变。备份工具接受旧/新 schema 并保持源版本；旧库或旧恢复目录启动新版前仍要按上述命令显式升级。实现、验证进度和第二版剩余任务见 [V2-01 记录](../docs/reports/2026-10-21-v2-album-library.md)。
+本轮仅升级合成测试库，未读取或迁移真实数据库、照片和 `.env`；依赖与锁文件保持不变。备份工具接受旧/新 schema 并保持源版本；旧库或旧恢复目录启动新版前仍要按上述命令显式升级。实现、验证进度和第二版剩余任务见 [V2-01 记录](../docs/reports/v2/2026-10-21-v2-album-library.md)。
 
 ## V2-04 相册筛选与年份选项
 
@@ -124,7 +124,7 @@ if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动新版服务' }
 
 新增需登录的 `GET /api/v1/me/albums/options`，返回 `{years: (number|null)[]}`：从本人的全部相册去重，数字年份倒序、null 最后，没有相册时为空数组。不受当前搜索词、年份条件或列表首 24 条限制，不返回其他账号的选项。
 
-本次沿用现有表、更新时间字段和依赖，没有迁移或锁文件变更。正常停止并重新启动项目以加载接口，重建前端后 `Ctrl+F5` 刷新；已完成 V2-01 升级时不用再次迁移。验证、近期排序口径和使用边界见[相册查找记录](../docs/reports/2026-10-23-album-library-filters.md)。
+本次沿用现有表、更新时间字段和依赖，没有迁移或锁文件变更。正常停止并重新启动项目以加载接口，重建前端后 `Ctrl+F5` 刷新；已完成 V2-01 升级时不用再次迁移。验证、近期排序口径和使用边界见[相册查找记录](../docs/reports/v2/2026-10-23-album-library-filters.md)。
 
 ## V2-04 城市相册与年份影集层级
 
@@ -134,10 +134,10 @@ if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动新版服务' }
 
 城市封面取年份倒序（未标年份最后）中首个有有效照片的影集，再沿用该影集的手选/自动封面规则；最新年份为空时继续寻找较早有照片的年份，无有效照片时封面为 null。不新增城市封面偏好，不修改年份影集既有偏好。原 `/me/albums`、年份选项、创建影集、导入和封面修改接口保持兼容。
 
-更新时正常停止项目、重建前端、正常启动，再 `Ctrl+F5`，以加载只读聚合接口；仅构建前端不能加载该接口。已完成 V2-01 升级时不重复迁移；本轮没有新表、依赖或锁文件变更，不读取或迁移用户真实资料。实际验证与使用边界见[城市相册层级记录](../docs/reports/2026-10-24-city-album-hierarchy.md)。
+更新时正常停止项目、重建前端、正常启动，再 `Ctrl+F5`，以加载只读聚合接口；仅构建前端不能加载该接口。已完成 V2-01 升级时不重复迁移；本轮没有新表、依赖或锁文件变更，不读取或迁移用户真实资料。实际验证与使用边界见[城市相册层级记录](../docs/reports/v2/2026-10-24-city-album-hierarchy.md)。
 
 ## V2-04 省会默认入口
 
 `GET /api/v1/cities` 增加 `view=all|province-centers`，默认 `all` 保留原全国城市搜索和名称分页。`province-centers` 从既有已审核目录按稳定业务 ID 选择 34 个省级地区的省会、首府、直辖市/港澳本身及台北，先筛选并按明确拼音键、城市 ID 排序，再分页；重庆使用 `chongqing`，长春、长沙使用 `changchun`、`changsha`。返回仍为 `{items, next_cursor}`，每项沿用 `CityView`，默认 24、最多 100；首页用 `limit=100` 一次读取完整列表。
 
-两种视图都只返回 active 且 verified 的城市，沿用 `q` 的首尾空白清理及城市/所属地区字面包含匹配；省会视图的签名游标绑定该视图与规范化查询，不能与全目录或其他搜索词混用。手工暂停或待审核的入口不会被重新开放，既有地图目录及影集归属继续使用原业务 ID。选项和排序放在 `province_centers.py`，不新增表、迁移、依赖或目录种子。更新时正常重启后端以加载参数，并重建前端后刷新；实际验证见[省会默认入口记录](../docs/reports/2026-10-25-province-city-entries.md)。
+两种视图都只返回 active 且 verified 的城市，沿用 `q` 的首尾空白清理及城市/所属地区字面包含匹配；省会视图的签名游标绑定该视图与规范化查询，不能与全目录或其他搜索词混用。手工暂停或待审核的入口不会被重新开放，既有地图目录及影集归属继续使用原业务 ID。选项和排序放在 `province_centers.py`，不新增表、迁移、依赖或目录种子。更新时正常重启后端以加载参数，并重建前端后刷新；实际验证见[省会默认入口记录](../docs/reports/v2/2026-10-25-province-city-entries.md)。

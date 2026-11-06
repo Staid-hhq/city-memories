@@ -56,7 +56,7 @@ npm run start:local
 
 ## 3. 新机器/首次准备或更新后
 
-这一节不是每天都要执行。准备 Node 24、Python 3.13、uv 和 Edge；沿用 `package-lock.json` / `uv.lock`，不要为启动项目更新全部依赖或安装到全局。T16 的已验证版本见 [验收记录](../reports/t16-local-delivery-verification.md)。
+这一节不是每天都要执行。准备 Node 24、Python 3.13、uv 和 Edge；沿用 `package-lock.json` / `uv.lock`，不要为启动项目更新全部依赖或安装到全局。T16 的已验证版本见 [验收记录](../reports/v1/t16-local-delivery-verification.md)。
 
 先正常停止已有服务。若使用的是有资料的目录，先按第 7 节做一致备份；不要边运行边迁移、切目录或同步虚拟环境。
 
@@ -123,7 +123,7 @@ if ($LASTEXITCODE -ne 0) { throw '前端构建失败' }
 
 配置改变后重启后端。环境变量只在设置它的终端及其子进程生效；不同终端可能指向不同数据目录，切换前务必核对。不要在启动命令中明文填写密码或 Key。
 
-当前中国市级地图使用随应用加载的公共矢量，无须在线地图 Key；历史受保护的地图配置无需为本轮更新修改。391 个入口已审核，草湖市暂未开放。地图加载失败可重新核对，下方城市搜索与私人影集入口仍可使用；本人资料读取仍要求本机后端可用。固定来源和边界见[中国地图记录](../reports/2026-10-22-china-city-map.md)，正式使用条件属于 T17。
+当前中国市级地图使用随应用加载的公共矢量，无须在线地图 Key；历史受保护的地图配置无需为本轮更新修改。391 个入口已审核，草湖市暂未开放。地图加载失败可重新核对，下方城市搜索与私人影集入口仍可使用；本人资料读取仍要求本机后端可用。固定来源和边界见[中国地图记录](../reports/v2/2026-10-22-china-city-map.md)，正式使用条件属于 T17。
 
 ## 6. 正常停止与常见问题
 
@@ -163,4 +163,4 @@ if ($LASTEXITCODE -ne 0) { throw '前端构建失败' }
 - 尚未交付：公开 HTTPS 网站、跨电脑访问、手机专门适配、域名/主机/费用方案、真实介质备份策略；T17 待安排。没有购买服务、开防火墙或创建开机启动。
 - 此次构建保留在本机 `frontend/dist`，GitHub 保存可复现源码、锁文件及手册；不上传原图、数据目录、真实地图响应、运行记录或构建中的私有配置。
 
-常规检查在 backend 执行 `uv run python -m pytest -q`、`uv run ruff check .`；frontend 执行 `npm run lint`、`npm run build`、`npm run test:e2e`。构建版空库验收在 frontend 执行 `npm run test:delivery`，使用独立可见 Edge、空测试库与合成图片，不使用你的账号。详见 [T16 验收记录](../reports/t16-local-delivery-verification.md) 及 [隔离验收工具](../../validation/local-delivery/README.md)。
+常规检查在 backend 执行 `uv run python -m pytest -q`、`uv run ruff check .`；frontend 执行 `npm run lint`、`npm run build`、`npm run test:e2e`。构建版空库验收在 frontend 执行 `npm run test:delivery`，使用独立可见 Edge、空测试库与合成图片，不使用你的账号。详见 [T16 验收记录](../reports/v1/t16-local-delivery-verification.md) 及 [隔离验收工具](../../validation/local-delivery/README.md)。

@@ -1,76 +1,41 @@
 # 文档索引
 
-当前进度（2026-11-06）：T01–T16、V2-01 白色界面/独立相册及 V2-02/V2-03 中国市级地图已完成；V2-04 已完成首页双栏、地图交互、相册查找、卡片排版、操作反馈、连接提示、手机端细节、省市边界层级、上传入口、城市相册层级、省会默认入口、市界按状态显示、小城市可见与点击和首页第一轮精简子项。第二轮照片页精简与统一添加照片已完成，build/lint、84 项前端回归和 2 项构建版交付检查通过；第三轮侧栏与视觉整理已完成，构建、Lint、84 项前端回归和 2 项最终构建交付检查通过；V2-04 与第二版整体验收、T17 部署仍待安排。
+更新：2026-11-06。先按用途查找；逐文件说明在[文件导航](file-guide.md)，任务状态统一维护在[开发计划](planning/development-plan.md)。
 
-普通年份影集现在先展示图库，顶部“添加照片”支持选择一张、多张或拖入；卡片移动/删除收进更多面板，旧单张任务可用原 `?import=` 链接恢复。进度以[开发计划](planning/development-plan.md)为准，当前范围与验证状态见[首页侧栏与视觉整理](reports/2026-11-06-sidebar-visual-round-three.md)，照片页上一轮证据见[照片页精简与统一添加照片](reports/2026-10-30-photo-upload-round-two.md)，首页上一轮证据见[首页精简与地图工具整理](reports/2026-10-30-home-map-round-one.md)。本轮为纯前端更新，已加载此前接口时构建后刷新即可。日常操作以[功能指南](guides/user-guide.md)为准；历史报告保留当时的环境、失败过程与限制，不因归档而视为全部重新验收。
+## 常用入口
 
-第三轮将右侧足迹、最近影集和选城入口分出层级：第一本影集使用大横封面，长城市名可换行，去掉重复英文和说明；常用字号、圆角、按钮与普通文字边线统一到现有灰绿主题。
+| 用途 | 文档 |
+| --- | --- |
+| 启动与停止 | [PyCharm 启动](guides/ide-startup.md) |
+| 安装、升级和排障 | [本地使用手册](guides/local-first-release.md) |
+| 导入、浏览和整理照片 | [功能使用指南](guides/user-guide.md) |
+| 备份与恢复 | [备份操作说明](guides/backup-restore.md) |
+| 阅读前后端代码 | [前端说明](../frontend/README.md)、[后端说明](../backend/README.md)、[文件导航](file-guide.md) |
 
-2026-11-06 已审计并清理无引用原型图标及本地合成测试产物/缓存，详情见[开发计划第 41 节](planning/development-plan.md)。历史报告保留，旧截图和测试运行目录已清理，必要时用现有验证脚本重新生成。
-
-## 按目的阅读
-
-产品名已统一为「此间集」，英文展示为 `CIJIANJI`；名称范围、兼容标识和本轮验证见[产品改名记录](reports/2026-11-06-product-rename.md)。日常启动配置改为「此间集－启动」等，命令、数据路径和备份格式继续沿用；历史报告中的旧名称保留当时事实，操作以当前指南为准。
+## 文档分类
 
 | 目录 | 内容与入口 |
 | --- | --- |
-| `guides/` | 面向使用者：[PyCharm 启动](guides/ide-startup.md)、[启动与维护](guides/local-first-release.md)、[功能操作](guides/user-guide.md)、[备份恢复](guides/backup-restore.md) |
-| `product/` | 做什么：[项目定位](product/project-brief.md)、[需求与验收](product/requirements.md)、[页面流程](product/page-flow.md) |
-| `architecture/` | 怎么实现：[技术栈](architecture/tech-stack.md)、[数据/API](architecture/data-api-design.md)、[SQL 设计样例](architecture/data-model.sql)、[账号存储](architecture/account-storage-plan.md)、[地图方案](architecture/map-plan.md) |
-| `planning/` | 任务进度与逐项实施记录：[开发计划](planning/development-plan.md) |
-| `reference/` | 目录来源和审核依据：[初始三城映射](reference/t03-city-mappings.md)、[正式城市目录](reference/t13-city-catalog.md) |
-| `reports/` | 历次测试、交付和维护证据，见下表 |
-
-[文件导航](file-guide.md)逐项说明仓库文件的用途；开发者从[前端说明](../frontend/README.md)或[后端说明](../backend/README.md)进入代码。
+| `guides/` | 上表中的日常使用、启动、安装和维护说明 |
+| `product/` | [项目定位](product/project-brief.md)、[需求与验收](product/requirements.md)、[页面流程](product/page-flow.md) |
+| `architecture/` | [技术栈](architecture/tech-stack.md)、[数据/API](architecture/data-api-design.md)、[SQL 设计样例](architecture/data-model.sql)、[账号存储](architecture/account-storage-plan.md)、[地图方案](architecture/map-plan.md) |
+| `planning/` | [开发计划与实施记录](planning/development-plan.md) |
+| `reference/` | [初始三城映射](reference/t03-city-mappings.md)、[城市目录审核](reference/t13-city-catalog.md) |
+| `reports/` | [按准备阶段、第一版、第二版、维护分类的报告索引](reports/README.md) |
 
 ## 验证与交付记录
 
-| 记录 | 范围 |
-| --- | --- |
-| [早期可行性](reports/feasibility.md) | 地图、账号存储和原图显示的首轮证据 |
-| [原型 Edge 复查](reports/edge-review-2026-09-21.md) | 2026-09-21 可点击原型，不是正式产品回归 |
-| [T02](reports/t02-auth-verification.md) | 注册、登录与授权 |
-| [T03](reports/t03-albums-verification.md) | 城市与年份影集 |
-| [T04](reports/t04-originals-verification.md) | 原图接收、校验、保存 |
-| [T05](reports/t05-browsing-verification.md) | 按需读取与跨页浏览 |
-| [T06](reports/t06-batch-import-verification.md) | 批量导入与重试 |
-| [T07](reports/t07-editing-verification.md) | 文字与影集排序 |
-| [T08](reports/t08-organizing-verification.md) | 跨影集移动与重复查看 |
-| [T09](reports/t09-trash-verification.md) | 回收站与恢复 |
-| [T10](reports/t10-cleanup-verification.md) | 到期清理与故障恢复 |
-| [T11](reports/t11-backup-verification.md) | 一致备份与恢复工具 |
-| [T12](reports/t12-map-data-loading.md) | 地图数据、口径与加载核对 |
-| [T13](reports/t13-map-verification.md) | 正式地图与本人资料联动 |
-| [T14](reports/t14-edge-verification.md) | 实际 Edge 连续流程回归 |
-| [T15](reports/t15-scale-verification.md) | 原图规模、并发与内存 |
-| [T16](reports/t16-local-delivery-verification.md) | 本地构建版空库交付 |
-| [2026-10-17 目录整理](reports/2026-10-17-repository-organization.md) | 文件分类、路径迁移与回归结果 |
-| [2026-10-17 IDE 启动整理](reports/2026-10-17-ide-startup.md) | PyCharm 共享运行配置、隔离启动/停止与 Edge 验证 |
-| [2026-10-21 V2-01 独立相册](reports/2026-10-21-v2-album-library.md) | 白色界面、独立相册、封面偏好、迁移与新旧备份兼容；地图剩余范围 |
-| [2026-10-22 中国市级地图](reports/2026-10-22-china-city-map.md) | 中国市级静态矢量、391 入口覆盖、本人填色、来源许可及隔离端口验证 |
-| [2026-10-23 首页双栏与滚动](reports/2026-10-23-home-map-sidebar.md) | 紧凑地图、本人足迹、最近相册、滚轮滚页及最近排序接口 |
-| [2026-10-23 相册查找](reports/2026-10-23-album-library-filters.md) | 城市/所属地区搜索、本人年份选项、组合筛选与排序、返回及请求隔离 |
-| [2026-10-23 相册卡片排版](reports/2026-10-23-album-card-layout.md) | 共享 3:4 封面、完整城市名、年份/照片数对齐、空封面与窄屏复查 |
-| [2026-10-23 操作反馈](reports/2026-10-23-operation-feedback.md) | 导入、封面和删除/恢复的持续进度、明确结果与查询/重试入口 |
-| [2026-10-23 连接与启动提示](reports/2026-10-23-connection-feedback.md) | 服务响应分类、启动帮助、手动会话核对与草稿/账号边界 |
-| [2026-10-23 手机端细节](reports/2026-10-23-mobile-details.md) | 触控控件、批量列表局部横滚、短屏原图查看及地图触摸滚页/移动切换 |
-| [2026-10-23 省市边界层级](reports/2026-10-23-province-borders.md) | 增加独立省界线层、保留细市界与逐市填色及交互、固定公开源与隔离验证 |
-| [2026-10-23 上传入口与空闲提示](reports/2026-10-23-upload-entry-feedback.md) | 修正禁用按钮的等待光标、补充未选文件提示、邻近批量入口与电脑多选说明 |
-| [2026-10-24 城市相册层级](reports/2026-10-24-city-album-hierarchy.md) | 一城市一相册、城市内多个年份框、本人聚合接口及统计/封面/逐级返回规则 |
-| [2026-10-25 省会默认入口](reports/2026-10-25-province-city-entries.md) | 各省级地区一个默认城市、明确拼音排序、完整展示与全国城市搜索兼容 |
-| [2026-10-26 市界显示与地图高度](reports/2026-10-26-map-boundary-visibility.md) | 省界常显、城市点亮/悬停显界、直辖市外轮廓及加高画布 |
-| [2026-10-26 小城市可见与点击](reports/2026-10-26-small-city-access.md) | 港澳珠海快捷入口、全部城市几何适配定位、选中城市卡及验证 |
-| [2026-10-30 首页第一轮优化](reports/2026-10-30-home-map-round-one.md) | 欢迎区收紧、地图搜索与缩放集中、按需展开小城入口及异常重试 |
-| [2026-10-30 照片页第二轮优化](reports/2026-10-30-photo-upload-round-two.md) | 图库优先、统一单张/多张/拖入入口、旧任务恢复、卡片更多操作及本轮验证 |
-| [2026-11-06 侧栏与视觉第三轮优化](reports/2026-11-06-sidebar-visual-round-three.md) | 统计与最近影集层级、大横封面、长名称与常用字号/控件整理及本轮验证 |
-| [2026-11-06 产品改名](reports/2026-11-06-product-rename.md) | 此间集/CIJIANJI 展示、共享启动配置、文档同步与兼容边界 |
+完整记录集中在[报告索引](reports/README.md)，这里仅保留近期入口：
 
-T01 的实施证据在开发计划。保留原有报告文件名便于按任务编号查找；没有复制另一套架构、接口或任务清单。
+- [首页侧栏与视觉整理](reports/v2/2026-11-06-sidebar-visual-round-three.md)。
+- [产品改名为此间集](reports/maintenance/2026-11-06-product-rename.md)。
+- [本次文件整理与测试产物清理](reports/maintenance/2026-11-06-file-organization.md)。
+
+T01–T16 和已交付的第二版子项保留各自验收条件；V2-04、第二版整体验收与 T17 部署仍待安排。历史报告中的名称、测试条数和输出路径表示当时情况；本地测试产物可按已记录的清理操作移除，需要时重新运行工具生成。
 
 ## 文档维护规则
 
-- 新指南放 `guides/`，业务范围放 `product/`，实现设计放 `architecture/`；进度只维护开发计划。
-- 测试/交付报告放 `reports/`，资料来源与审核表放 `reference/`；历史结果不改写为当前测试结果。
-- 新增、删除或移动文件时同步更新[文件导航](file-guide.md)，根目录运行 `node scripts/check-repository.mjs`。
-- Markdown 使用相对链接；命令说明标明执行目录，避免依赖文档所在目录。
-- 公开文档只放脱敏结论，不附真实 Key、原图、数据库和私人截图。
+- 日常说明放 `guides/`，业务范围放 `product/`，设计放 `architecture/`，来源资料放 `reference/`。
+- 报告按 `reports/preparation/`、`reports/v1/`、`reports/v2/`、`reports/maintenance/` 分类；新增报告同时登记[报告索引](reports/README.md)和[文件导航](file-guide.md)。
+- 新增或移动文件时修正相对链接，在根目录运行 `node scripts/check-repository.mjs`；进度只维护开发计划。
+- 历史结果保留当时含义，不改写为当前测试结果。公开文档只放脱敏结论，私人配置、照片、数据库和测试产物留在本机。

@@ -54,6 +54,6 @@ http://lbs.tianditu.gov.cn/server/administrative2.html
 
 ## 使用范围
 
-2026-10-03～04 T12 补充：目录候选的坏/重复编码、无效中心点记录到 `metadata.rejectedDestinations`，不将空值转成 0 坐标。边界查询要求唯一匹配天地图代码，已有名称也须一致；不匹配就不画，不再回退到名称或唯一模糊结果。10 月 4 日隔离浏览器以 `extensions=false` 读取实际目录，527 来源节点，修正后 391 候选；用户确认特殊口径，无来源结构冲突，正式三城映射一致。分类仍不代表全国逐条独立行政审核或正式种子发布。测试、特殊单位交叉来源及官方 WMTS 背景方案见 [T12 核对报告](../../../docs/reports/t12-map-data-loading.md)。原型页面仍保留历史 34 省背景流程。
+2026-10-03～04 T12 补充：目录候选的坏/重复编码、无效中心点记录到 `metadata.rejectedDestinations`，不将空值转成 0 坐标。边界查询要求唯一匹配天地图代码，已有名称也须一致；不匹配就不画，不再回退到名称或唯一模糊结果。10 月 4 日隔离浏览器以 `extensions=false` 读取实际目录，527 来源节点，修正后 391 候选；用户确认特殊口径，无来源结构冲突，正式三城映射一致。分类仍不代表全国逐条独立行政审核或正式种子发布。测试、特殊单位交叉来源及官方 WMTS 背景方案见 [T12 核对报告](../../../docs/reports/v1/t12-map-data-loading.md)。原型页面仍保留历史 34 省背景流程。
 
 来源应注明天地图。参阅 [服务条款](https://www.tianditu.gov.cn/about/service)、[版权声明](https://www.tianditu.gov.cn/about/copyright) 与 [配额说明](https://cloudcenter.tianditu.gov.cn/center/development/quotaDesc)。接口正常返回不等于获得批量爬取、永久打包或再分发地图数据的授权；本轮仅作本机原型的正常在线查询与页内缓存。

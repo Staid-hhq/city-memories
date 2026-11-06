@@ -45,4 +45,4 @@
 
 本任务覆盖定位、需求、可行性验证、页面流程、技术方案、数据接口、开发拆分七个准备阶段，允许文档、原型和有界验证。正式应用尚未初始化，未部署上线。
 
-技术与交付安排见 [技术方案](../architecture/tech-stack.md)、[数据与接口设计](../architecture/data-api-design.md) 和 [开发任务](../planning/development-plan.md)。地图加载速度、完整性、特殊单位映射和真实规模仍有待验证项，详见 [可行性记录](../reports/feasibility.md)；文档齐备不等于这些问题已经解决。
+技术与交付安排见 [技术方案](../architecture/tech-stack.md)、[数据与接口设计](../architecture/data-api-design.md) 和 [开发任务](../planning/development-plan.md)。地图加载速度、完整性、特殊单位映射和真实规模仍有待验证项，详见 [可行性记录](../reports/preparation/feasibility.md)；文档齐备不等于这些问题已经解决。

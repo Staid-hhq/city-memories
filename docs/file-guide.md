@@ -193,43 +193,65 @@
 | [planning/development-plan.md](planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖和逐项实施记录 |
 | [reference/t03-city-mappings.md](reference/t03-city-mappings.md) | 初期三城 UUID/供应商映射与核对依据 |
 | [reference/t13-city-catalog.md](reference/t13-city-catalog.md) | 正式目录审核、特殊地区口径和待开放项 |
-| [reports/feasibility.md](reports/feasibility.md) | 准备阶段关键可行性验证与限制 |
-| [reports/edge-review-2026-09-21.md](reports/edge-review-2026-09-21.md) | 早期原型实际 Edge 操作复查 |
-| [reports/t02-auth-verification.md](reports/t02-auth-verification.md) | T02 账号认证交付证据 |
-| [reports/t03-albums-verification.md](reports/t03-albums-verification.md) | T03 城市和年份影集证据 |
-| [reports/t04-originals-verification.md](reports/t04-originals-verification.md) | T04 原图上传、校验和保存证据 |
-| [reports/t05-browsing-verification.md](reports/t05-browsing-verification.md) | T05 原图按需加载和浏览证据 |
-| [reports/t06-batch-import-verification.md](reports/t06-batch-import-verification.md) | T06 批量导入及重试证据 |
-| [reports/t07-editing-verification.md](reports/t07-editing-verification.md) | T07 文字、排序、草稿和冲突证据 |
-| [reports/t08-organizing-verification.md](reports/t08-organizing-verification.md) | T08 跨影集移动与重复查看证据 |
-| [reports/t09-trash-verification.md](reports/t09-trash-verification.md) | T09 回收站与恢复证据 |
-| [reports/t10-cleanup-verification.md](reports/t10-cleanup-verification.md) | T10 到期清理和故障恢复证据 |
-| [reports/t11-backup-verification.md](reports/t11-backup-verification.md) | T11 一致备份/校验/恢复证据 |
-| [reports/t12-map-data-loading.md](reports/t12-map-data-loading.md) | T12 地图来源、配额、城市口径和加载核对 |
-| [reports/t13-map-verification.md](reports/t13-map-verification.md) | T13 正式地图交付和真实来源检查 |
-| [reports/t14-edge-verification.md](reports/t14-edge-verification.md) | T14 Edge 连续流程、隔离和布局回归 |
-| [reports/t15-scale-verification.md](reports/t15-scale-verification.md) | T15 3400 份合成原图规模、双账号、内存与审计 |
-| [reports/t16-local-delivery-verification.md](reports/t16-local-delivery-verification.md) | T16 本地第一版、空库与真实构建资源验收 |
-| [reports/2026-10-17-repository-organization.md](reports/2026-10-17-repository-organization.md) | 本轮目录变更、路径说明及复测记录 |
-| [reports/2026-10-17-ide-startup.md](reports/2026-10-17-ide-startup.md) | 开发软件核对、PyCharm 运行配置和隔离验证记录 |
-| [reports/2026-10-21-v2-album-library.md](reports/2026-10-21-v2-album-library.md) | V2-01 白色界面、独立相册、封面偏好、迁移/备份兼容与本轮验证 |
-| [reports/2026-10-22-china-city-map.md](reports/2026-10-22-china-city-map.md) | V2-02/V2-03 中国市级地图、公开源覆盖、交互与隔离端口验证 |
-| [reports/2026-10-23-home-map-sidebar.md](reports/2026-10-23-home-map-sidebar.md) | V2-04 首页双栏、足迹/最近相册、滚轮滚页及专项验证 |
-| [reports/2026-10-23-album-library-filters.md](reports/2026-10-23-album-library-filters.md) | V2-04 相册城市/地区和年份查找、排序、接口及隔离验证 |
-| [reports/2026-10-23-album-card-layout.md](reports/2026-10-23-album-card-layout.md) | V2-04 共享相册卡片排版、空封面与窄屏视觉复查及既有行为回归 |
-| [reports/2026-10-23-operation-feedback.md](reports/2026-10-23-operation-feedback.md) | V2-04 导入、封面和回收/恢复反馈、重试核对及本轮验证 |
-| [reports/2026-10-23-connection-feedback.md](reports/2026-10-23-connection-feedback.md) | V2-04 连接错误分类、启动帮助、会话核对及隔离验证 |
-| [reports/2026-10-23-mobile-details.md](reports/2026-10-23-mobile-details.md) | V2-04 手机触控控件、批量列表、短屏原图查看和地图触控的范围、验证及真机边界 |
-| [reports/2026-10-23-province-borders.md](reports/2026-10-23-province-borders.md) | V2-04 省市边界层级、公共省界源线、保留城市交互及本轮验证 |
-| [reports/2026-10-23-upload-entry-feedback.md](reports/2026-10-23-upload-entry-feedback.md) | V2-04 上传空闲光标与选图提示、批量入口及多选说明的范围和验证 |
-| [reports/2026-10-24-city-album-hierarchy.md](reports/2026-10-24-city-album-hierarchy.md) | V2-04 城市相册/年份影集层级、聚合接口、计数/封面/返回规则、更新和验证 |
-| [reports/2026-10-25-province-city-entries.md](reports/2026-10-25-province-city-entries.md) | V2-04 省会默认入口、城市拼音排序、全目录搜索兼容、更新和验证 |
-| [reports/2026-10-26-map-boundary-visibility.md](reports/2026-10-26-map-boundary-visibility.md) | V2-04 市界按点亮/悬停显示、省级外轮廓常显、地图高度及验证 |
-| [reports/2026-10-26-small-city-access.md](reports/2026-10-26-small-city-access.md) | V2-04 小城快捷入口、几何适配定位、选中城市卡和验证 |
-| [reports/2026-10-30-home-map-round-one.md](reports/2026-10-30-home-map-round-one.md) | V2-04 首页第一轮：欢迎区收紧、地图搜索/缩放集中、小城入口与更多工具及验证 |
-| [reports/2026-10-30-photo-upload-round-two.md](reports/2026-10-30-photo-upload-round-two.md) | V2-04 第二轮：图库优先、统一单多张/拖入入口、旧任务恢复、卡片更多操作及验证 |
-| [reports/2026-11-06-sidebar-visual-round-three.md](reports/2026-11-06-sidebar-visual-round-three.md) | V2-04 第三轮：侧栏内容层级、大横封面、长名称和常用视觉规则及本轮验证 |
-| [reports/2026-11-06-product-rename.md](reports/2026-11-06-product-rename.md) | 此间集产品改名、启动配置、兼容标识与本轮验证 |
+| [reports/README.md](reports/README.md) | 按准备阶段、第一版、第二版和维护分类的交付报告索引 |
+
+### 准备阶段报告
+
+| 文件 | 用途 |
+| --- | --- |
+| [reports/preparation/feasibility.md](reports/preparation/feasibility.md) | 准备阶段关键可行性验证与限制 |
+| [reports/preparation/edge-review-2026-09-21.md](reports/preparation/edge-review-2026-09-21.md) | 早期原型实际 Edge 操作复查 |
+
+### 第一版报告
+
+| 文件 | 用途 |
+| --- | --- |
+| [reports/v1/t02-auth-verification.md](reports/v1/t02-auth-verification.md) | T02 账号认证交付证据 |
+| [reports/v1/t03-albums-verification.md](reports/v1/t03-albums-verification.md) | T03 城市和年份影集证据 |
+| [reports/v1/t04-originals-verification.md](reports/v1/t04-originals-verification.md) | T04 原图上传、校验和保存证据 |
+| [reports/v1/t05-browsing-verification.md](reports/v1/t05-browsing-verification.md) | T05 原图按需加载和浏览证据 |
+| [reports/v1/t06-batch-import-verification.md](reports/v1/t06-batch-import-verification.md) | T06 批量导入及重试证据 |
+| [reports/v1/t07-editing-verification.md](reports/v1/t07-editing-verification.md) | T07 文字、排序、草稿和冲突证据 |
+| [reports/v1/t08-organizing-verification.md](reports/v1/t08-organizing-verification.md) | T08 跨影集移动与重复查看证据 |
+| [reports/v1/t09-trash-verification.md](reports/v1/t09-trash-verification.md) | T09 回收站与恢复证据 |
+| [reports/v1/t10-cleanup-verification.md](reports/v1/t10-cleanup-verification.md) | T10 到期清理和故障恢复证据 |
+| [reports/v1/t11-backup-verification.md](reports/v1/t11-backup-verification.md) | T11 一致备份/校验/恢复证据 |
+| [reports/v1/t12-map-data-loading.md](reports/v1/t12-map-data-loading.md) | T12 地图来源、配额、城市口径和加载核对 |
+| [reports/v1/t13-map-verification.md](reports/v1/t13-map-verification.md) | T13 正式地图交付和真实来源检查 |
+| [reports/v1/t14-edge-verification.md](reports/v1/t14-edge-verification.md) | T14 Edge 连续流程、隔离和布局回归 |
+| [reports/v1/t15-scale-verification.md](reports/v1/t15-scale-verification.md) | T15 3400 份合成原图规模、双账号、内存与审计 |
+| [reports/v1/t16-local-delivery-verification.md](reports/v1/t16-local-delivery-verification.md) | T16 本地第一版、空库与真实构建资源验收 |
+
+### 第二版报告
+
+| 文件 | 用途 |
+| --- | --- |
+| [reports/v2/2026-10-21-v2-album-library.md](reports/v2/2026-10-21-v2-album-library.md) | V2-01 白色界面、独立相册、封面偏好、迁移/备份兼容与本轮验证 |
+| [reports/v2/2026-10-22-china-city-map.md](reports/v2/2026-10-22-china-city-map.md) | V2-02/V2-03 中国市级地图、公开源覆盖、交互与隔离端口验证 |
+| [reports/v2/2026-10-23-home-map-sidebar.md](reports/v2/2026-10-23-home-map-sidebar.md) | V2-04 首页双栏、足迹/最近相册、滚轮滚页及专项验证 |
+| [reports/v2/2026-10-23-album-library-filters.md](reports/v2/2026-10-23-album-library-filters.md) | V2-04 相册城市/地区和年份查找、排序、接口及隔离验证 |
+| [reports/v2/2026-10-23-album-card-layout.md](reports/v2/2026-10-23-album-card-layout.md) | V2-04 共享相册卡片排版、空封面与窄屏视觉复查及既有行为回归 |
+| [reports/v2/2026-10-23-operation-feedback.md](reports/v2/2026-10-23-operation-feedback.md) | V2-04 导入、封面和回收/恢复反馈、重试核对及本轮验证 |
+| [reports/v2/2026-10-23-connection-feedback.md](reports/v2/2026-10-23-connection-feedback.md) | V2-04 连接错误分类、启动帮助、会话核对及隔离验证 |
+| [reports/v2/2026-10-23-mobile-details.md](reports/v2/2026-10-23-mobile-details.md) | V2-04 手机触控控件、批量列表、短屏原图查看和地图触控的范围、验证及真机边界 |
+| [reports/v2/2026-10-23-province-borders.md](reports/v2/2026-10-23-province-borders.md) | V2-04 省市边界层级、公共省界源线、保留城市交互及本轮验证 |
+| [reports/v2/2026-10-23-upload-entry-feedback.md](reports/v2/2026-10-23-upload-entry-feedback.md) | V2-04 上传空闲光标与选图提示、批量入口及多选说明的范围和验证 |
+| [reports/v2/2026-10-24-city-album-hierarchy.md](reports/v2/2026-10-24-city-album-hierarchy.md) | V2-04 城市相册/年份影集层级、聚合接口、计数/封面/返回规则、更新和验证 |
+| [reports/v2/2026-10-25-province-city-entries.md](reports/v2/2026-10-25-province-city-entries.md) | V2-04 省会默认入口、城市拼音排序、全目录搜索兼容、更新和验证 |
+| [reports/v2/2026-10-26-map-boundary-visibility.md](reports/v2/2026-10-26-map-boundary-visibility.md) | V2-04 市界按点亮/悬停显示、省级外轮廓常显、地图高度及验证 |
+| [reports/v2/2026-10-26-small-city-access.md](reports/v2/2026-10-26-small-city-access.md) | V2-04 小城快捷入口、几何适配定位、选中城市卡和验证 |
+| [reports/v2/2026-10-30-home-map-round-one.md](reports/v2/2026-10-30-home-map-round-one.md) | V2-04 首页第一轮：欢迎区收紧、地图搜索/缩放集中、小城入口与更多工具及验证 |
+| [reports/v2/2026-10-30-photo-upload-round-two.md](reports/v2/2026-10-30-photo-upload-round-two.md) | V2-04 第二轮：图库优先、统一单多张/拖入入口、旧任务恢复、卡片更多操作及验证 |
+| [reports/v2/2026-11-06-sidebar-visual-round-three.md](reports/v2/2026-11-06-sidebar-visual-round-three.md) | V2-04 第三轮：侧栏内容层级、大横封面、长名称和常用视觉规则及本轮验证 |
+
+### 维护报告
+
+| 文件 | 用途 |
+| --- | --- |
+| [reports/maintenance/2026-10-17-repository-organization.md](reports/maintenance/2026-10-17-repository-organization.md) | 本轮目录变更、路径说明及复测记录 |
+| [reports/maintenance/2026-10-17-ide-startup.md](reports/maintenance/2026-10-17-ide-startup.md) | 开发软件核对、PyCharm 运行配置和隔离验证记录 |
+| [reports/maintenance/2026-11-06-product-rename.md](reports/maintenance/2026-11-06-product-rename.md) | 此间集产品改名、启动配置、兼容标识与本轮验证 |
+| [reports/maintenance/2026-11-06-file-organization.md](reports/maintenance/2026-11-06-file-organization.md) | 报告分组、入口精简、引用审计与本地测试产物清理 |
 
 ## 独立验证工具
 

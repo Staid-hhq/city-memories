@@ -22,4 +22,4 @@ backend\.venv\Scripts\ruff.exe check --config backend/pyproject.toml validation/
 node node_modules/typescript/bin/tsc --ignoreConfig --noEmit --target es2023 --module esnext --moduleResolution bundler --skipLibCheck --strict --types node delivery/local.spec.ts playwright.delivery.config.ts
 ```
 
-日常启动说明见 [本地第一版手册](../../docs/guides/local-first-release.md)，实测结果见 [T16 报告](../../docs/reports/t16-local-delivery-verification.md)。需要清理测试库时先停服务，只处理核对过的 results 直接子目录及 `t16-isolated.txt` 的 `synthetic-only` 标记，不使用通配递归删除，不触碰 `.local-data`。
+日常启动说明见 [本地第一版手册](../../docs/guides/local-first-release.md)，实测结果见 [T16 报告](../../docs/reports/v1/t16-local-delivery-verification.md)。需要清理测试库时先停服务，只处理核对过的 results 直接子目录及 `t16-isolated.txt` 的 `synthetic-only` 标记，不使用通配递归删除，不触碰 `.local-data`。
