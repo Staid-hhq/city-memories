@@ -85,6 +85,8 @@ UserView 为 `id, username, created_at`。用户名为 3–32 位英文字母、
 
 退出开始立即隐藏私人页，初次提交与显式重试均先核对当前身份及 CSRF；核对到其他账号时不替其退出。退出成功或核对当前已无登录态后才完成；其余情况保留核对和明确重试入口。退出未确认期间恢复页面、切回窗口或跨窗口通知不能重新显示旧私人内容。实现与验证见[认证等待与恢复](../reports/v2/2026-11-07-auth-recovery.md)。
 
+前端字段错误在首次提交后展示，保持输入与帮助/错误描述的关联，聚焦首个无效字段；此后编辑更新校验，不自动移动焦点。服务端字段定位仅对注册的精确白名单生效：409 `USERNAME_TAKEN` 对应用户名，422 `PASSWORD_LENGTH/CHARACTERS/COMMON` 对应密码，422 `PASSWORD_CONFIRM_LENGTH/CHARACTERS/COMMON` 及 `PASSWORD_MISMATCH` 对应确认密码。5xx、未知代码、`INVALID_CREDENTIALS` 等保留表单级，不从错误文案推断字段或泄露账号是否存在。见[表单错误提示](../reports/v2/2026-11-07-auth-fields.md)。
+
 ## 4. 城市、年份影集与封面
 
 CityView 为 `id, name, parent_name, unit_kind, can_create`；AlbumView 为 `id, city, year, revision, photo_count, cover_photo_id, original_url, created_at, updated_at`，其中 city 是嵌套 CityView。

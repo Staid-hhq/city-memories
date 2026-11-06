@@ -267,6 +267,9 @@ test('市界仅在有照片或临时查看时显示，鼠标移开和失焦复�
   await page.mouse.move(start.x + 48, start.y + 24, { steps: 4 })
   await page.mouse.up()
   await expect(page).toHaveURL(/\/$/)
+  // The city can remain under the pointer after a drag; leave its real hover
+  // before checking that the earlier keyboard highlight has been cleared.
+  await page.mouse.move(8, 80)
   await expect(boundary(gz)).toHaveCount(0) // A real mouse drag takes over without leaving a focus-only highlight.
   await stage.focus()
   const lineWidth = await boundary(sz).evaluate(element => getComputedStyle(element).strokeWidth)

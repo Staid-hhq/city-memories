@@ -108,6 +108,9 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .auth-recovery p { margin: 0 0 8px; }
 .auth-recovery .quiet-button { display: inline-flex; align-items: center; min-height: 44px; margin: 4px 8px 0 0; }
 .field-help { color: var(--muted); font-size: var(--text-small); line-height: 1.7; margin: 8px 0 0; }
+.auth-card input[aria-invalid="true"] { border-color: #a23d31; }
+.auth-field-error { margin: 6px 0 0; color: #a23d31; font-size: var(--text-small); line-height: 1.7; overflow-wrap: anywhere; }
+.auth-error-announcement { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .primary-button { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 13px 18px; margin-top: 28px; border: 1px solid #a4643c; border-radius: 8px; color: #fffaf4; background: #ac704a; font-weight: 600; font-size: 14px; }
 .primary-button:hover:not(:disabled) { background: #95603e; }
 .form-footnote { font-size: 12px; color: #978472; text-align: center; margin: 20px 0 0; line-height: 1.7; }

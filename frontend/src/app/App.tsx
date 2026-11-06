@@ -5,7 +5,8 @@ import { api, ApiError, clearSessionState, errorMessage, isAbort, setCsrfToken }
 import type { LoginResult, User } from '../shared/api'
 import { OperationFeedback } from '../shared/OperationFeedback'
 import { authErrorMessage, authResultUnknown, isUser, readAuthState, withAuthDeadline } from '../shared/auth'
-import { registrationPasswordError } from '../shared/passwords'
+import { authFieldOrder, registrationErrorField, validateAuthFields } from '../shared/authFields'
+import type { AuthField } from '../shared/authFields'
 import { Journal } from '../features/albums/Journal'
 
 type SessionState =
@@ -54,6 +55,11 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+  const [serverFieldError, setServerFieldError] = useState<{ field: AuthField; message: string; code: string } | null>(null)
+  const [focusRequest, setFocusRequest] = useState<{ field: AuthField } | null>(null)
+  const lastFocused = useRef<typeof focusRequest>(null)
+  const fieldInputs = useRef<Record<AuthField, HTMLInputElement | null>>({ username: null, password: null, confirmation: null })
   const [recovery, setRecovery] = useState<{ kind: 'login' | 'register'; username: string } | null>(null)
   const [checking, setChecking] = useState(false)
   const operation = useRef(0)
@@ -61,9 +67,29 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
   const notice = location.state?.registeredUsername ? '账号已创建，请使用新密码登录。'
     : location.state?.recoveryUsername ? '注册结果尚未确认，请尝试登录。' : ''
   const activeRequest = useRef<AbortController | null>(null)
+  const fieldErrors = submitted && !recovery ? validateAuthFields({ username, password, confirmation }, register) : {}
+  if (serverFieldError && !recovery) fieldErrors[serverFieldError.field] = serverFieldError.message
+  const firstErrorField = authFieldOrder.find(field => fieldErrors[field])
+  const alertMessage = error || (firstErrorField ? fieldErrors[firstErrorField] : '')
 
   useEffect(() => () => { operation.current++; activeRequest.current?.abort() }, [])
   useEffect(() => { if (recovery) recoveryPanel.current?.focus() }, [recovery])
+  useEffect(() => {
+    if (focusRequest && !busy && lastFocused.current !== focusRequest) {
+      lastFocused.current = focusRequest
+      fieldInputs.current[focusRequest.field]?.focus()
+    }
+  }, [focusRequest, busy])
+
+  function updateField(field: AuthField, value: string) {
+    if (field === 'username') setUsername(value)
+    else if (field === 'password') setPassword(value)
+    else setConfirmation(value)
+    setError('')
+    setServerFieldError(previous => previous?.field === field || (
+      previous?.code === 'PASSWORD_MISMATCH' && (field === 'password' || field === 'confirmation')
+    ) ? null : previous)
+  }
 
   function begin() {
     activeRequest.current?.abort()
@@ -102,19 +128,11 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
     event.preventDefault()
     if (busy || recovery) return
     setError('')
-    if (!/^[A-Za-z0-9_]{3,32}$/.test(username)) {
-      setError('用户名须为 3–32 位英文字母、数字或下划线。')
-      return
-    }
-    if (register) {
-      const passwordError = registrationPasswordError(password) ?? registrationPasswordError(confirmation, true)
-      if (passwordError) { setError(passwordError); return }
-      if (password !== confirmation) {
-        setError('两次输入的密码不一致，请重新核对。')
-        return
-      }
-    } else if ([...password].length < 8 || [...password].length > 128) {
-      setError('密码长度须为 8–128 个字符。')
+    setSubmitted(true); setServerFieldError(null)
+    const errors = validateAuthFields({ username, password, confirmation }, register)
+    const first = authFieldOrder.find(field => errors[field])
+    if (first) {
+      setFocusRequest({ field: first })
       return
     }
     setBusy(true)
@@ -146,11 +164,17 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
       }
     } catch (reason: unknown) {
       if (!current()) return
-      setError(authErrorMessage(reason, errorMessage))
       if (authResultUnknown(reason)) {
+        setError(authErrorMessage(reason, errorMessage))
         clearSessionState()
         setShowPassword(false); setShowConfirmation(false)
         setRecovery({ kind: register ? 'register' : 'login', username: submittedUsername })
+      } else {
+        const field = registrationErrorField(reason, register)
+        if (field && reason instanceof ApiError) {
+          setServerFieldError({ field, message: errorMessage(reason), code: reason.code })
+          setFocusRequest({ field })
+        } else setError(authErrorMessage(reason, errorMessage))
       }
     } finally {
       if (current()) setBusy(false)
@@ -184,31 +208,40 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
         <form onSubmit={submit} aria-busy={busy} noValidate>
           <label htmlFor="username">用户名</label>
           <input id="username" name="username" autoComplete="username" required maxLength={32}
-            value={username} onChange={(event) => setUsername(event.target.value)}
-            aria-describedby="username-help" disabled={busy} placeholder="例如 slow_traveler" />
+            ref={node => { fieldInputs.current.username = node }}
+            value={username} onChange={(event) => updateField('username', event.target.value)}
+            aria-invalid={fieldErrors.username ? true : undefined}
+            aria-describedby={fieldErrors.username ? 'username-help username-error' : 'username-help'} disabled={busy} placeholder="例如 slow_traveler" />
           <p id="username-help" className="field-help">3–32 位英文字母、数字或下划线，不区分大小写。</p>
+          {fieldErrors.username && <p id="username-error" className="auth-field-error">{fieldErrors.username}</p>}
           <label htmlFor="password">密码</label>
           <div className="password-field">
             <input id="password" name="password" type={showPassword ? 'text' : 'password'} required disabled={busy}
+              ref={node => { fieldInputs.current.password = node }}
               autoComplete={register ? 'new-password' : 'current-password'} autoCapitalize="none" spellCheck={false} value={password}
-              onChange={(event) => setPassword(event.target.value)} aria-describedby="password-help" />
+              onChange={(event) => updateField('password', event.target.value)} aria-invalid={fieldErrors.password ? true : undefined}
+              aria-describedby={fieldErrors.password ? 'password-help password-error' : 'password-help'} />
             <button className="quiet-button password-toggle" type="button" disabled={busy}
               aria-label={showPassword ? '隐藏密码' : '显示密码'} aria-pressed={showPassword} aria-controls="password"
               onClick={() => setShowPassword(value => !value)}>{showPassword ? '隐藏' : '显示'}</button>
           </div>
           <p id="password-help" className="field-help">{register ? '密码为 8–16 位，支持英文字母、数字和英文符号，不支持中文或空格。' : '请输入密码'}</p>
+          {fieldErrors.password && <p id="password-error" className="auth-field-error">{fieldErrors.password}</p>}
           {register && <>
             <label htmlFor="password-confirm">确认密码</label>
             <div className="password-field">
               <input id="password-confirm" name="password_confirm" type={showConfirmation ? 'text' : 'password'} required disabled={busy}
+                ref={node => { fieldInputs.current.confirmation = node }}
                 autoComplete="new-password" autoCapitalize="none" spellCheck={false} value={confirmation}
-                onChange={(event) => setConfirmation(event.target.value)} aria-describedby="password-help" />
+                onChange={(event) => updateField('confirmation', event.target.value)} aria-invalid={fieldErrors.confirmation ? true : undefined}
+                aria-describedby={fieldErrors.confirmation ? 'password-help password-confirm-error' : 'password-help'} />
               <button className="quiet-button password-toggle" type="button" disabled={busy}
                 aria-label={showConfirmation ? '隐藏确认密码' : '显示确认密码'} aria-pressed={showConfirmation} aria-controls="password-confirm"
                 onClick={() => setShowConfirmation(value => !value)}>{showConfirmation ? '隐藏' : '显示'}</button>
             </div>
+            {fieldErrors.confirmation && <p id="password-confirm-error" className="auth-field-error">{fieldErrors.confirmation}</p>}
           </>}
-          {error && <p className="form-error" role="alert">{error}</p>}
+          {alertMessage && <p className={error ? 'form-error' : 'auth-error-announcement'} role="alert">{alertMessage}</p>}
           {recovery && <div className="auth-recovery" role="status" tabIndex={-1} ref={recoveryPanel}>
             <p>{recovery.kind === 'login' ? '登录结果尚未确认' : '注册结果尚未确认'}</p>
             <p>{recovery.kind === 'login'
