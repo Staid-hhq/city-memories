@@ -1,398 +1,280 @@
-# 此间集数据与接口设计
+# 此间集数据与接口契约
 
-基线日期：2026-09-21，状态更新：2026-10-25。依据 [需求](../product/requirements.md) 和 [技术方案](tech-stack.md)。T01–T16 的工程、账号、影集、原图、整理、回收站、清理、备份、城市目录及本地交付已实现；后续 V2-01/V2-04 增加本人影集查找、封面、城市相册聚合和省会默认入口。当前页面按“城市相册 → 年份影集 → 照片”组织，新聚合接口见第 11 节，城市列表视图见第 12 节；两者不增加数据库表。当前字段与约束以[正式模型](../../backend/src/city_memories/models.py)和迁移为准，旧设计样例已精简，历史章节的验收数不代替当前验证。
+更新：2026-11-06。本文只描述当前实现；结构以[模型](../../backend/src/city_memories/models.py)与[迁移链](../../backend/migrations/versions/c7e9a162b4d8_add_album_cover_preference.py)为准，HTTP schema 由[路由](../../backend/src/city_memories/main.py)生成 OpenAPI。运行结构和地图来源见[技术架构](tech-stack.md)，操作步骤见[功能指南](../guides/user-guide.md)。
 
-本轮复查补齐数据关系图、请求/响应示例及城市入口的跨年份导入衔接。结构与接口设计完成不代表真实接口测试通过，整体状态见 [项目总览](../../README.md)。
+第一版各任务与第二版子项的验证保留在[报告索引](../reports/README.md)，不在契约中重复测试条数。V2-04、第二版整体验收与 T17 仍待安排。
 
-## 1. 本轮明确的规则
+## 1. 数据模型与约束
 
-| 事项 | 采用的规则 | 决策来源 |
-| --- | --- | --- |
-| 删除照片 | 进入回收站，保留 30 天可恢复，到期清理系统副本；源 U 盘和电脑文件不变 | 用户委托助手选择 |
-| 重复照片 | 正常保留，用户自己查看后决定留哪张、删哪张；不自动跳过、合并或覆盖 | 用户明确要求 |
-| 跨城市、跨年份移动 | 支持移动到本人其他影集，保留照片标识、原图及文字 | 用户同意 |
-
-移动后追加到目标影集末尾，可继续手动排序；删除或移走最后一张照片后，原年份影集框保留，城市按剩余有效照片重新判断是否点亮。恢复照片时放回原影集末尾，保留原文字。以上位置与空影集处理是本次采用的实现规则。
-
-重复提示只比较本账号、同一影集内有效照片的文件内容哈希，不靠文件名判断；相似画面不等于相同文件，仍由本人查看。系统可把完全相同的照片并列供查看，默认全部保留，用户关闭提示也不删除。每份保留照片具有独立 ID、文字、顺序及存储副本，删除其中一份不影响另一份。
-
-首版回收站针对照片，影集和城市不提供连带删除全部照片的操作。回收站中的照片不计入首页照片数量、不点亮城市，但仍占空间；容量规划包含回收站和待完成上传。
-
-## 2. 数据模型
-
-内部 ID 使用服务端生成的 UUID；所有时间以 UTC 毫秒整数保存，接口输出带时区的 ISO 8601 字符串。年份是用户选择的整数或 null，不从上传日期反推。排序和文字独立于原图字节。
+内部业务 ID 为 UUID，数据库时间保存 UTC Unix 毫秒整数。API 中用户/影集创建更新时间、导入批次 expires_at 输出 UTC ISO 8601 字符串；回收站 deleted_at、purge_after、server_time 输出 Unix 毫秒整数，remaining_ms 为剩余毫秒。不能按同一种时间格式解析全部接口。
 
 ```mermaid
 erDiagram
-    USERS o|--o{ SESSIONS : "登录会话；匿名会话无用户"
+    USERS o|--o{ SESSIONS : "匿名会话可无用户"
     USERS ||--o{ ALBUMS : "拥有"
     CITIES ||--o{ ALBUMS : "城市归属"
     ALBUMS ||--o{ PHOTOS : "当前影集"
     ALBUMS ||--o{ IMPORT_BATCHES : "目标影集"
-    IMPORT_BATCHES ||--|{ UPLOAD_ITEMS : "按确认顺序包含"
-    UPLOAD_ITEMS ||--o| PHOTOS : "提交后生成；删除后可不存在"
+    IMPORT_BATCHES ||--|{ UPLOAD_ITEMS : "确认顺序"
+    UPLOAD_ITEMS ||--o| PHOTOS : "提交生成；永久删除后可无照片"
 ```
 
-图示为业务关系；实际归属约束包含 owner_id 复合外键。限流表没有私人影集关系，未在图中展开。
+| 表 | 职责与关键字段 |
+| --- | --- |
+| users | username / 唯一 username_key、password_hash、创建时间 |
+| sessions | token_hash、可空 user_id、csrf_token、有效/撤销时间；不存原始会话标识 |
+| auth_rate_limits | scope、HMAC key_hash、固定窗口与计数，不存明文凭据 |
+| cities | 稳定 id、provider / provider_code、名称/上级/单位类型、审核与启用状态；无几何或私人统计 |
+| albums | owner_id、city_id、year、revision、created_at / updated_at、preferred_cover_photo_id |
+| import_batches | owner_id、album_id、request_key / request_hash、state / expires_at、提交摘要与收据 |
+| upload_items | batch_id / owner_id、item_index、有序文件声明、storage_key、reserved_photo_id、状态/尝试/租约与实测资料 |
+| photos | owner_id、album_id、upload_item_id、storage_key、原名/格式/字节/哈希/尺寸、position / note、state / revision、删除与到期时间 |
 
-| 表 | 主要字段 | 关系与用途 |
+当前迁移头为 `c7e9a162b4d8`，封面偏好允许 null。城市相册是年份影集的只读聚合，不另建表。
+
+- 同一账号、城市、年份仅一份影集；year 为严格整数 1–9999 或 null，两个部分唯一索引分别约束具体年份和未标年份。
+- 照片与影集、上传与批次使用带 owner_id 的复合外键，接口仍须单独授权。停用城市的既有影集可由本人读取，新建返回 CITY_UNAVAILABLE。
+- active 照片的影集/position 唯一，回收站 position=null。position 可以有间隔，详情 ordinal 才是从 1 起的序号。
+- 哈希不唯一，重复默认全部保留，每份有独立 ID、文字与副本。数据库不保存图片 BLOB、源绝对路径或永久公开原图 URL；storage_key 仅服务端使用。
+- reserved_photo_id 不是指向 photos 的外键：上传前预留，永久删除后仍保留在幂等元数据中，重放不能重建照片。
+- 照片数/点亮仅统计 active；影集数包含空影集。移动或删空后影集保留，恢复/移入追加目标末尾。
+
+## 2. HTTP 通用约定
+
+前缀 `/api/v1`，同源 Cookie 会话。除健康检查及登录前认证流程外，业务接口需要登录；客户端 owner_id 不作为授权依据。普通成功 JSON 为 `{"data": ...}`，错误为 `{"error":{"code":"...","message":"...","request_id":"..."}}`；原图直接返回二进制，204 没有 JSON 正文。
+
+私人 JSON 和原图采用 `Cache-Control: private, no-store`。响应不输出密码/会话摘要、私有路径、存储键或完整内容哈希。修改请求携带会话 Cookie、可信 Origin/Referer 和 `X-CSRF-Token`，含登录、注册、上传、退出。
+
+| HTTP | 主要含义 |
+| --- | --- |
+| 401 / 404 | 未登录；或已登录但资源不存在/非本人（统一 404） |
+| 403 / 409 | CSRF/来源不符；版本、状态或幂等参数冲突 |
+| 410 | 导入过期、本人回收站照片到期或正在清理 |
+| 413 / 415 / 422 | 请求过大、格式不支持、字段/文件/游标无效 |
+| 429 / 503 | 限流（含 Retry-After）；临时存储不可用 |
+
+一般分页默认 24，limit 为 1–100，返回 items / next_cursor，null 表示结束。游标是服务端签名的不透明值，不能改写、跨条件或跨 scope 使用：
+
+| 列表 | 游标边界 |
+| --- | --- |
+| 城市目录 | 视图与规范化查询词；公共目录不绑定账号 |
+| 本人年份影集、城市相册、城市内年份 | 账号及相应筛选/排序/城市范围；不是 revision 快照，新增后可能需刷新首批 |
+| 照片、重复分组 | 账号、影集及影集 revision；变化返回 409 / ALBUM_CHANGED |
+| 回收站 | 账号、未到期 ID/版本摘要；成员或期限变化返回 409 / TRASH_CHANGED |
+| 导入队列 | 单独使用 after / next_index，每页最多 25 批，见第 6 节 |
+
+## 3. 注册与会话
+
+| 方法与路径 | 请求 | 成功 data |
 | --- | --- | --- |
-| users | id、username、username_key、password_hash、created_at | username_key 唯一；不保存明文密码 |
-| sessions | token_hash、user_id、csrf_token、expires_at、revoked_at | 会话标识只保存摘要；user_id 为空时是短期登录前会话 |
-| auth_rate_limits | scope、key_hash、window_start、attempts、expires_at | 保存登录、注册等固定时间窗口的请求计数，过期清理 |
-| cities | id、provider、provider_code、name、parent_name、unit_kind、mapping_status、is_active | 公共城市业务映射，不含私人照片和行政边界几何 |
-| albums | id、owner_id、city_id、year、revision、created_at、updated_at | 独立的年份影集，允许没有照片；year=null 表示未标年份 |
-| import_batches | id、owner_id、album_id、request_key、request_hash、state、expires_at、commit_result_json | 一次导入及其幂等收据，保留用户检查后的文件顺序 |
-| upload_items | id、owner_id、batch_id、item_index、expected_bytes、expected_sha256、storage_key、reserved_photo_id、state、lease_until | 单个上传及重试，保存服务端实测的格式、字节、哈希和尺寸 |
-| photos | id、owner_id、album_id、upload_item_id、storage_key、original_filename、mime_type、byte_size、sha256、width、height、position、note、state、revision、deleted_at、purge_after | 已提交照片及其当前影集、顺序、文字和回收站状态 |
+| GET /auth/csrf | 无有效会话时签发匿名会话 | {csrf_token} |
+| POST /auth/register | {username, password, password_confirm} | 201，UserView；注册后仍需登录 |
+| POST /auth/login | {username, password} | {user: UserView, csrf_token}，轮换会话 Cookie |
+| GET /auth/me | 当前会话 | UserView |
+| POST /auth/logout | 撤销当前会话 | 204 |
 
-完整字段、CHECK、外键和索引见[正式模型](../../backend/src/city_memories/models.py)及[初始迁移](../../backend/migrations/versions/4a097ff7fccb_create_initial_schema.py)，后续升级按迁移链补充。数据库不保存图片 BLOB、源绝对路径或永久公开原图 URL。`storage_key` 只由服务端生成，通过配置定位私有目录，不发给前端。
+UserView 为 `id, username, created_at`。用户名为 3–32 位英文字母、数字或下划线，唯一键转小写；密码 15–128 字符，允许 Unicode/空格，不 trim 或截断；确认密码不入库。登录错误统一为账号或密码不正确。
 
-城市表只维护业务必需的标识与映射，不在本轮批量下载或打包第三方目录。正式可新增影集的城市须完成映射核对；停用城市的既有影集仍可读取。地级单位、直辖市、港澳台等对应关系继续按 [地图方案](map-plan.md) 核对，不能把省级代码当城市代码。
+匿名会话 1 小时，登录会话绝对有效期 7 天；登录撤销旧会话，退出/过期立即拒绝旧凭据。CSRF Token 在同一会话内稳定，避免多窗口互相失效。凭据不进入 URL 或日志；来源头只按可信部署配置处理，本地启动禁用代理来源头。
 
-### 关键约束
+当前固定窗口：同账号 15 分钟最多 10 次失败，同来源 15 分钟最多 60 次登录尝试，注册每来源每小时 5 次，匿名会话新签发每来源每小时 60 次（复用不计）。认证 JSON 实际上限 16 KiB。退出/换号清空前端私人状态和 Blob 地址，取消请求并拒绝晚到响应。
 
-- 同一账号、城市、具体年份只能有一个影集；未标年份也只能有一个。使用两个部分唯一索引，分别处理 `year IS NOT NULL` 和 `year IS NULL`，避免 NULL 导致重复入口。[SQLite 部分索引](https://www.sqlite.org/partialindex.html)
-- 照片的 `(album_id, owner_id)` 与上传的 `(batch_id, owner_id)` 使用复合外键，阻止资料关联到其他账号；原图读取仍必须另做接口鉴权，外键不能替代授权。[SQLite 外键](https://www.sqlite.org/foreignkeys.html)
-- 有效照片的 `(album_id, position)` 唯一；回收站照片 position=null。文件 SHA256 不设唯一约束，明确允许本人保留重复照片。
-- 照片 ID、存储标识和原文件名分别处理。同名文件不覆盖，移动及恢复不重新分配照片 ID，不改变原文件名和文件哈希。
-- `upload_items.reserved_photo_id` 在上传前生成，作为幂等收据保留；它不是指向 photos 的外键，因为此时照片可能尚未创建，或以后已永久删除。相应上传重试不得重新创建已删照片。
+## 4. 城市、年份影集与封面
 
-SQL 样例只验证结构约束；城市映射、资源归属查询、状态流转、文件存在性及“一个上传项只能生成其预留照片”还需应用服务检查，不能宣称 SQL 已保障全部业务规则。
+CityView 为 `id, name, parent_name, unit_kind, can_create`；AlbumView 为 `id, city, year, revision, photo_count, cover_photo_id, original_url, created_at, updated_at`，其中 city 是嵌套 CityView。
 
-### 派生数据与顺序
-
-城市点亮、照片数和影集数从当前账号资料查询得出，初期不维护容易失真的独立统计表。照片统计仅包括 `state=active`；影集数量包括空影集。年份卡按 year 从大到小，null 最后；照片按 position 递增。
-
-影集 revision 用于成员及顺序变更；照片 revision 用于文字、所属影集和回收站状态变更。文字保存只增加照片 revision，纯排序只增加影集 revision。客户端提交期望版本，发生冲突返回 409 并保留未保存编辑，不自动覆盖。
-
-## 3. 接口通用约定
-
-接口前缀 `/api/v1`，同源 Cookie 会话。请求中的 owner_id 不被接受为授权依据。成功响应只输出允许的业务字段；普通 JSON 响应形如 `{"data":{...}}`，错误形如 `{"error":{"code":"ALBUM_CHANGED","message":"影集已更新，请刷新后重试","request_id":"..."}}`。原图响应直接返回文件字节。
-
-未登录返回 401；已登录但资源不属于本人，与资源不存在一样返回 404。CSRF 校验失败返回 403；版本或状态冲突 409；过期导入或本人已过期的回收站条目可返回 410；请求超限 413；格式不支持 415；字段/文件校验失败 422；限流 429 并带 Retry-After；临时存储故障返回 503，不展示成功。
-
-所有私人 JSON 和原图响应采用 `Cache-Control: private, no-store`。列表不返回密码摘要、会话摘要、storage_key、完整文件哈希或其他账号的重复信息。文件哈希仅在服务端用于校验和本账号内提示。
-
-初始参数是开发基线，可依据实测调整：照片列表默认 24 条、最多 100 条；一次导入最多 400 个文件、同批最多 2 个接收请求；单文件 50 MiB、8000 万像素，允许格式沿用技术方案。400 是单次队列限制，不是影集或账号上限。已选 3000 张可分批导入。
-
-照片分页游标包含影集 revision 和上次 position/id，由服务端验证；分页期间顺序改变返回 `ALBUM_CHANGED`，刷新后从稳定位置重新读取，避免重复或漏项。其他列表采用稳定字段加 ID 分页。原图浏览按需请求，不能把资料分页误认为已经限制了图片解码内存。
-
-## 4. 注册与会话接口
-
-| 方法与路径 | 输入/行为 | 成功结果 |
+| 方法与路径 | 输入 | 成功 data |
 | --- | --- | --- |
-| GET /auth/csrf | 返回当前会话的 CSRF Token；无有效会话时建立短期匿名会话 | 200，csrf_token |
-| POST /auth/register | username、password、password_confirm | 201，账号基本信息；注册后仍进入登录页 |
-| POST /auth/login | username、password | 200，用户信息及新 CSRF Token；设置新会话 Cookie |
-| GET /auth/me | 登录状态 | 200，当前用户基本信息；未登录 401 |
-| POST /auth/logout | 撤销当前会话、清 Cookie | 204 |
+| GET /cities | q、view、cursor、limit | {items: CityView[], next_cursor} |
+| GET /me/atlas | 无 | {items, album_count, photo_count}；每项 {city, album_count, photo_count, lit} |
+| GET /me/city-albums | q、year、sort、cursor、limit | 城市相册聚合分页，见下文 |
+| GET /me/albums | q、year、sort、cursor、limit | 本人年份影集分页，items 为 AlbumView |
+| GET /me/albums/options | 无 | {years}；本人全部具体年份倒序，null 最后，不受当前搜索/分页影响 |
+| GET /cities/{city_id}/albums | cursor、limit | {city, items: AlbumView[], next_cursor}，年份倒序、null 最后 |
+| POST /cities/{city_id}/albums | {year}，必填，可 null | 201：AlbumView + created=true；已有同年份为 200 + created=false |
+| GET /albums/{album_id} | 无 | AlbumView |
+| PATCH /albums/{album_id}/cover | {photo_id, expected_revision}，photo_id 可 null | AlbumView；null 恢复自动封面 |
 
-首版用户名采用 3–32 位英文字母、数字或下划线，保存展示形式及转小写后的唯一 username_key；密码 15–128 个字符，允许空格与 Unicode，不截断、不 trim。确认密码仅作此次校验，不入库。这是具体实现选择，可回访调整；密码最小长度参考无多因素认证场景的建议。[OWASP 认证指南](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
+创建、封面输入不接受额外字段，版本为正的严格整数。已有影集创建不覆盖内容；非本人照片不能设封面。手选封面失效时回退第一张 active 照片，无 active 时封面及 URL 均 null；封面偏好变化仅增加影集 revision，无变化不增加。
 
-登录错误统一提示账号或密码不正确。开发基线：同一账号键 15 分钟内最多 10 次失败，同一来源 15 分钟最多 60 次登录尝试，注册每来源每小时 5 次；匿名会话签发也限流，计数键采用服务端 HMAC 后的账号键或来源信息，不记录明文密码。代理来源只信任正式配置的代理，不直接信任任意 X-Forwarded-For。
+### 城市目录视图
 
-T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效会话不计签发次数；认证 JSON 实际请求体上限 16 KiB。登录成功的普通响应为 `data.user`（id、username、created_at）及 `data.csrf_token`，注册与 me 为 `data` 下的用户字段。当前单实例、固定时间窗口；本机启动禁用代理来源头，HMAC 密钥在私有目录持久保存或由环境注入。测试范围见 [T02 验证记录](../reports/v1/t02-auth-verification.md)。
+q 最多 80 字符，trim 后按城市名或所属地区字面包含匹配。view 为 all（默认）或 province-centers，其他值 422；均只列 active 且 verified，当前 391 个开放入口，草湖市待映射，见[审核目录](../reference/t13-city-catalog.md)。
 
-匿名会话 1 小时有效；已登录会话绝对有效期 7 天，到期重新登录。登录时撤销旧会话并生成新的随机标识与 CSRF Token。原始会话标识仅在 Cookie 中，数据库保存摘要；CSRF Token 单独随机生成并保存在私有会话记录中，同一会话读取时不反复轮换，避免多窗口互相失效。
+all 按名称/ID 升序；province-centers 由[明确 UUID 与拼音键](../../backend/src/city_memories/province_centers.py)选出 34 个省级地区对应城市，台湾地区选台北，不猜代码/名称后缀。先筛选排序再分页；首页空搜索使用该视图、limit=100，非空搜索查 all。城市目录与地图完整目录不因默认入口改变而缩减。
 
-修改请求在 `X-CSRF-Token` 携带会话匹配的 Token，并校验 Origin/Referer 来源；包括登录、注册、上传、退出。GET /auth/csrf 不向跨站来源开放凭据读取。SameSite 是额外防护，不能代替 Token 检查。[OWASP CSRF 指南](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
+### 城市相册聚合与筛选
 
-退出后前端清理私人状态、原图地址和在途请求；旧会话不能继续调用私人接口。后台每次请求均检查过期与撤销，不依赖清理任务是否已删除旧会话行。
+`/me/city-albums` 按本人年份影集先聚合城市再分页，包含只有空影集及停用后保留的历史城市。每项为 `city, album_count, photo_count, latest_year, has_unmarked, cover_photo_id, original_url`；latest_year 是全部影集的最大具体年份，只有未标年份时 null。
 
-## 5. 城市、影集与原图接口
+year 省略为全部，或为 unmarked / 1–9999 无前导零数字字符串；筛出存在该年影集的城市，**统计、最新年份与封面仍覆盖该城市全部年份**。q 同上；sort 默认 year（最大年份降序/城市 ID 升序），recent 按城市内影集最新 updated_at 降序/城市 ID 升序。
 
-| 方法与路径 | 主要输入 | 返回与规则 |
+城市封面选年份倒序、null 最后首个有 active 照片的影集，再用该影集手选/自动规则；较新空年份不遮住较早有照片年份。不新增城市手选封面，也不改变年份偏好。
+
+`/me/albums` 保留年份影集语义：q / year 筛选各影集，sort 为 year 或 recent。首页最近整理使用 recent；文字保存不更新影集时间，创建、导入、移动、排序、回收/恢复及封面变化会更新。两种列表游标不能互换，城市聚合响应不另加 updated_at。
+
+## 5. 照片浏览、文字与重复查看
+
+PhotoView 为 `id, album_id, original_filename, mime_type, byte_size, width, height, position, revision, has_note, original_url`；列表无 note 全文、完整哈希或私有路径。原图 URL 是同源鉴权地址，不含凭据或源盘符。
+
+| 方法与路径 | 输入 | 成功 data / 行为 |
 | --- | --- | --- |
-| GET /cities | q、view、cursor、limit | 可选城市的稳定 ID、名称、行政类型；默认全目录，省会入口视图见第 12 节；不返回其他账号资料 |
-| GET /me/atlas | 无 | 本人的城市、有效照片数、影集数及点亮状态，空影集城市也在列表中 |
-| GET /me/city-albums | q、year、sort、cursor、limit | 本人城市相册聚合分页；按城市去重，统计、封面及筛选范围见第 11 节 |
-| GET /me/albums | q、year、sort、cursor、limit | 本人跨城市年份影集分页，保留给首页最近整理等原入口；不会改为城市聚合 |
-| GET /me/albums/options | 无 | 本人全部年份影集的去重年份，数字倒序、null 最后，不受搜索或已加载页数限制 |
-| GET /cities/{city_id}/albums | cursor、limit（可省略） | 本人年份影集、数量、revision 及按手选/自动规则取得的 cover_photo_id/original_url；无有效照片时封面字段为 null，年份倒序、未标年份最后 |
-| POST /cities/{city_id}/albums | year，允许 null | 新建返回 201；已有则 200 返回原影集及 created=false，不覆盖内容 |
-| GET /albums/{album_id} | 无 | 城市、年份、有效照片数、影集 revision |
-| GET /albums/{album_id}/photos | cursor、limit | 有效照片的 ID、文件名、尺寸、position、revision、has_note、同源 original_url |
-| GET /photos/{photo_id} | 可选 album_id、expected_album_revision | 本人有效照片详情、只读文字、序号及同一影集前后照片 ID；浏览上下文改变返回 409 |
-| GET /photos/{photo_id}/original | 无 | 鉴权后返回有效照片原字节；MIME 来自服务端校验结果 |
-| GET /albums/{album_id}/duplicates | cursor、limit | 本影集内容完全相同的有效照片分组及 ID，供本人查看选择 |
-| PATCH /photos/{photo_id}/note | note、expected_photo_revision | 保存纯文本，最多 2000 字符，允许空字符串；不改原图 |
+| GET /albums/{album_id}/photos | cursor、limit | {items: PhotoView[], next_cursor, album_revision, photo_count}，按 position/ID 升序 |
+| GET /photos/{photo_id} | 可选 album_id、expected_album_revision | PhotoView + note、album_revision、previous_photo_id、next_photo_id、ordinal、photo_count |
+| GET /photos/{photo_id}/original | 无 | 仅本人 active 原字节，MIME 来自服务端校验 |
+| PATCH /photos/{photo_id}/note | {note, expected_photo_revision} | {id, album_id, note, revision, has_note} |
+| GET /albums/{album_id}/duplicates | cursor、limit | {items, next_cursor, album_revision, group_count, photo_count} |
 
-原图地址不含 token、源盘符或存储标识；同源 Cookie 负责鉴权。重名照片保持各自 ID。用户选择保留重复照片时无需额外写入或去重标记，选择删除则使用回收站接口；移动、恢复带来重复时也仅提示，不拦截用户决定。
+详情前后 ID 和 ordinal 来自完整 active 影集，首/末邻接为 null，不受已加载分页限制。可选浏览上下文改变返回 409，照片不属于本人先返回 404。资料与统计在同一读取快照取得。
 
-### T03 已实现的响应格式
+note 为原样纯文本，最多 2000 Unicode 码点，允许空白、换行和空字符串；孤立代理字符 422。JSON 实际上限 64 KiB，版本正严格整数，不接受额外字段。变化只增加照片 revision，相同文字不增版本，不改原图或影集顺序。
 
-城市目录为 `data: {items, next_cursor}`；城市字段为 id、name、parent_name、unit_kind、can_create。名称或所属地区按 q 子串匹配（最多 80 字符），只列出已核对且启用的城市。首批历史范围见 [三城映射](../reference/t13-city-catalog.md#首批三城映射)，当前 391 个开放入口见 [T13 审核](../reference/t13-city-catalog.md)。
-
-城市年份列表为 `data: {city, items, next_cursor}`，城市与年份列表默认 24 条、最多 100 条；签名游标绑定查询范围，私人年份游标绑定账号和城市。年份按 year 降序（null 最后）加 ID 排序，新插入已读页之前的年份需刷新列表查看。`GET /albums/{id}` 的 data 为 id、city、year、revision、photo_count、cover_photo_id、original_url、created_at、updated_at；POST 创建在这些字段上增加 created。year 必填，严格整数 1–9999 或 null，不接受字符串、布尔值和客户端 owner_id。并发重复创建不覆盖原有记录。
-
-城市统计为 `data: {items, album_count, photo_count}`；每项包含 city、album_count、photo_count、lit，只统计本账号。空影集城市仍在列表中，lit=false。停用城市只能由已有影集的本人读取历史，POST 返回 409/CITY_UNAVAILABLE。响应通过 Pydantic 白名单模型输出并生成 OpenAPI schema，验证见 [T03 记录](../reports/v1/t03-albums-verification.md)。T04 已追加真实导入后的数量和 lit 验证，并接入 `GET /photos/{photo_id}/original`：仅本人有效照片可读，不暴露私有路径，返回校验所得 MIME 和原始字节。文字修改已在 T07、重复分组已在 T08 实现。
-
-### T05 已实现的照片格式
-
-`GET /albums/{id}/photos` 的 `data` 为 `{items, next_cursor, album_revision, photo_count}`，默认 24 条、最多 100 条。每项白名单为 `id, album_id, original_filename, mime_type, byte_size, width, height, position, revision, has_note, original_url`；列表不输出 note 全文。只列本人 active 照片，按 position/id 升序，空影集返回空列表，错误不冒充空列表。
-
-游标签名范围为账号和影集，位置包含影集 revision、上一项 position/id；篡改、跨账号/跨影集使用返回 422，资源不属于本人时先返回 404。版本不一致返回 409/ALBUM_CHANGED。归属、版本、数量和列表在同一读取快照中取得，避免并发写入时拼接不一致的数据。T05 页面在此冲突下保留已读项并禁止追加，用户明确重新加载后从首批建立新快照；普通网络失败只重试续页，不清空已读项。
-
-`GET /photos/{id}` 在上述白名单上增加 `note, album_revision, previous_photo_id, next_photo_id, ordinal, photo_count`。前后 ID 和 1 起始序号来自完整影集，不受客户端已加载分页限制；首张 previous、末张 next 为 null，回收站和其他账号照片不进入邻接关系。可选 album_id 检查归属上下文，expected_album_revision 为正整数，顺序版本不符返回 409。T05 当时只显示已有文字，T07 已加入下面的编辑流程。
-
-列表和详情均 no-store；原图读取复用 T04 鉴权接口。浏览器 `?photo=<照片 UUID>` 只是定位标识，不能越权；其余列表资料只在页面内存中保存。按视野加载、Blob 地址释放、返回位置与 Edge 回归见 [T05 记录](../reports/v1/t05-browsing-verification.md)。
-
-### T07 已实现的文字格式
-
-`PATCH /photos/{id}/note` 输入为 `{note, expected_photo_revision}`，版本必须为正的严格整数，不接受额外字段。note 必须是字符串，最多 2000 个 Unicode 码点（不是 UTF-16 单元），允许空白、换行或空字符串，原样保存，不自动裁剪和截断；孤立代理字符返回 422。请求体实际字节上限 64 KiB，兼容转义后的 2000 个补充平面字符；超限返回 413，CSRF 与会话规则不变。
-
-成功的 `data` 白名单为 `{id, album_id, note, revision, has_note}`。仅本人 active 照片可修改，否则 404；版本冲突返回 409/PHOTO_CHANGED。真实文字变化只增加照片 revision、不改变影集 revision；相同内容不增加版本。原图、文件名、顺序与照片 ID 不变。
-
-失败或响应丢失时前端保留当前草稿，读取 `GET /photos/{id}?album_id=...` 的最新文字作比较；采用最新文字或明确保留草稿后再次保存，不能自动覆盖新版本。页面离开/切图保护由路由拦截完成，硬刷新或关页使用 beforeunload；草稿不写入浏览器持久存储，强制结束程序不保证恢复。退出/换账号优先清理私人资料。同账号切回窗口的后台身份确认不卸载编辑器。详见 [T07 记录](../reports/v1/t07-editing-verification.md)。
-
-### T08 已实现的重复分组格式
-
-`GET /albums/{id}/duplicates?cursor=...&limit=24` 只查询本人、当前影集内 active 照片，按 SHA256 分组并仅保留至少两份的内容。不同文件名可属于同组，相同文件名不意味着重复，不进行相似图识别或自动去重。
-
-`data` 为 `{items, next_cursor, album_revision, group_count, photo_count}`；items 每项 `{group_id, total, photos}`，photos 使用 T05 的照片白名单，不含文字全文或哈希。group_count 为全影集重复组数，photo_count 为这些组内的全部照片份数（包含每组第一份），total 为该组全部份数。group_id 是组内最小照片 UUID，仅作为当前版本下的分组标识，不是文件哈希，也不是永久分组实体。
-
-limit 限制的是**照片条数**，默认 24、最多 100，不是组数；大组可以跨页，前端按 group_id 合并连续页，避免单个大组返回无限资料。按 group_id、position、id 排序，签名游标绑定账号、影集及影集版本，位置保存代表 UUID 和上次照片位置/ID，游标与响应均不泄露完整文件哈希。越权 404；无效/篡改/跨范围游标 422；成员或顺序改变返回 409/ALBUM_CHANGED。授权、分组总数和成员列表处于同一读取快照。
-
-页面地址 `/albums/{id}/duplicates`，原图按需读取，逐份查看和文字独立保存沿用原接口。关闭默认全部保留，移动可使分组变化；T09 已接入单份删除确认，不影响其他份。失败不冒充无重复，续页失败保留已读资料，版本冲突须明确重新核对。
+重复仅比较本人同影集 active 文件 SHA256，不按文件名或相似画面。每组 `{group_id, total, photos: PhotoView[]}`，group_id 是组内最小照片 UUID，不是哈希或永久实体；group_count 为全部重复组数，photo_count 包含每组第一份。limit 按**照片份数**限制，大组可跨页，由前端按 group_id 合并；按 group_id / position / ID 排序。关闭页面默认全部保留，删除其中一份不影响其他副本。
 
 ## 6. 导入协议与失败恢复
 
-城市入口的 P-01 导入先由前端按用户核对后的年份分组，逐组创建/取得影集，再调用下列单影集导入协议；每批最多 400 项，超出时按同组顺序分批提交。同一影集的批次顺序提交，避免后批先完成改变用户预期顺序；不同影集分别报告结果，不承诺跨影集全有或全无。部分影集成功不因另一组失败而回滚。已经进入明确年份的 P-03 添加不执行自动分组，文件名冲突只提示核对。
+统一添加入口先核对年份/顺序、确认队列，再上传及保存；旧 `?import=` 只恢复既有单批任务。城市入口按确认年份分组，每批最多 400 项，同影集批次按顺序提交；不同影集独立报告，不承诺跨影集全有或全无。进入明确年份时，文件名识别不静默改变归属；导入路径 album_id 已固定目标，正文不接受 year。
 
-| 方法与路径 | 输入/行为 | 结果 |
+| 方法与路径 | 输入 | 结果 |
 | --- | --- | --- |
-| POST /albums/{album_id}/imports | Idempotency-Key 请求头；按用户最终确认顺序排列的 items，每项含 original_filename、byte_size、sha256 | 201 返回批次 id、items[].id；相同键和内容重试 200 返回原批次，不同内容返回 409 |
-| PUT /imports/{batch_id}/items/{item_id}/content | multipart 的单个 file；实际文件大小和哈希须匹配创建资料 | 暂存完成 200；接收中重复请求 409；失败可按同项重新上传 |
-| GET /imports/{batch_id} | 查询本人的批次与逐项状态 | 返回暂存、失败、提交结果；不返回服务器路径 |
-| GET /imports/queue/{queue_id} | 本人的随机队列 UUID；可选 after（默认 -1） | 已登记批次按确认顺序分页恢复，含可显式清理的过期项 |
-| POST /imports/{batch_id}/commit | expected_album_revision、allow_partial（默认 false） | 200，一次提交选定批次的已暂存项，返回 photo_ids、失败项及新版本 |
-| DELETE /imports/{batch_id} | 取消尚未提交的批次 | 204；清理暂存副本，不影响影集里的照片 |
+| POST /albums/{album_id}/imports | Idempotency-Key 头；{items:[{original_filename, byte_size, sha256}]} | 首次 201，同键同内容重放 200；data 为 BatchView |
+| PUT /imports/{batch_id}/items/{item_id}/content | 单个 multipart file，无文本字段 | ItemView；staged 重放直接返回原项 |
+| GET /imports/{batch_id} | 无 | BatchView；过期返回 410 |
+| GET /imports/queue/{queue_id} | after 默认 -1 | {items, next_index}，每页最多 25 批 |
+| POST /imports/{batch_id}/commit | {expected_album_revision, allow_partial:false} | Receipt，原参数重放返回原收据 |
+| DELETE /imports/{batch_id} | 取消未提交批次 | 204；不删除已提交照片 |
 
-浏览器为当前队列逐文件计算 SHA256，不一次把所有原图读入内存；服务端必须自行核验，不能信任客户端哈希或文件名。接收层在 multipart 解析前检查权限、批次状态并限制实际请求体字节，允许有界的 multipart 开销；解析后再检查文件实际字节、格式与像素数。
+BatchView 为 `id, album_id, album_revision, state, expires_at, items, result`；ItemView 为 `id, item_index, original_filename, byte_size, state, failure_code`；Receipt 为 `batch_id, album_id, photo_ids, failed_item_ids, album_revision`。未提交 result=null，已提交返回保存的 Receipt。批次 album_revision 是查询时当前值，收据版本是保存时值，可能不同。
 
-上传项状态：`pending → receiving → staged → committed`；接收失败变为 failed，可重新 receiving。取消或批次过期后未提交项变为 discarded。批次状态为 open、committed、canceled、expired；24 小时未提交的 open 批次到期，不自动加入影集。暂存完成只显示“已传输，待保存”，提交成功才显示“已加入影集”。
+### 文件与接收限制
 
-接收使用租约和每次尝试的随机标识：新尝试写独立临时文件，只有持有当前有效租约的尝试能发布暂存结果；旧请求不得覆盖新请求。写完整、校验、同盘改名后才标 staged。提交前再次确认暂存文件存在，发布与取消/清理相互协调。原图文件早于照片行就绪；数据库失败时保留暂存以便重试，崩溃产生的孤立文件由恢复流程核对后清理。
+每批 1–400 项；Idempotency-Key 为 1–128 位英文字母/数字/下划线/连字符，sha256 为 64 位小写十六进制，byte_size 是 1–50 MiB 严格整数。original_filename 长度 1–255，不可含路径分隔符、盘符或控制字符，不用于磁盘寻址。创建 JSON 上限 1 MiB、提交 16 KiB；实际 multipart 不超过声明字节 +64 KiB，部件头累计最多 16 KiB。
 
-提交在一个短事务中核对批次状态、账号和影集版本，按 item_index 将暂存项追加到当前影集末尾，创建稳定照片记录，标记上传项 committed，保存提交收据并增加影集 revision。并发上传完成的先后不影响用户选择的顺序，原有手工顺序也不被文件名编号重排。编号识别只生成待用户核对的初始列表。
+支持 JPEG、PNG、静态 WebP，最多 8000 万像素；服务端自行核对实际大小/哈希/格式并完整解码，不重编码。全局及同批最多两路接收/解析，超限 429。15 分钟租约及随机尝试标识保护发布，旧尝试不能覆盖新尝试；接收等待超出租约为 UPLOAD_ATTEMPT_EXPIRED。
 
-默认必须全部暂存成功且没有 receiving 项才提交。部分失败时，只有用户明确选择“先保存成功项”才传 allow_partial=true；此时仍不得有接收中的项，成功项按原相对顺序提交，其余项废弃并列明。失败文件以后作为新批次添加到末尾，可再排序，不能偷偷改变已保存顺序。
+上传项 `pending → receiving → staged → committed`，失败为 failed，可重传；取消/到期的未提交项 discarded。批次 open / committed / canceled / expired，未提交 open 24 小时到期。启动将中断的 receiving 标为 failed / INTERRUPTED；不提供文件内断点续传或后台扫描源盘。
 
-创建幂等键按账号隔离，请求摘要包含影集和有序文件资料。重复 commit 返回原收据，不重复插入；重复提交参数不同返回 409。幂等重放在校验账号后、检查当前影集版本前处理，避免响应丢失后无法取得原成功结果。已提交批次不接受取消；对应照片以后被移动或删除也不会因重放而重建。收据保留元数据，不留额外原图副本；其裁剪策略另行设计，第一版不贸然释放旧幂等键。
+### 提交、幂等与查询恢复
 
-刷新页面可查询服务端暂存结果；尚未上传完成的本地文件可能需要重新选择。本协议支持按文件重试，不承诺断点续传或后台自动读取 U 盘。
+提交先核对本人、状态、版本与文件，再按 item_index 追加到完整影集末尾，照片/上传项/批次收据和影集版本同事务保存。暂存或上传 100% 不代表已加入影集。文件可能先于数据库发布，提交失败时受保护的副本留供同批重试，不能直接清空暂存目录。
 
-### T04 已实现的格式与边界
+默认全部 staged 且无 receiving 才能保存。只有用户明确选择部分保存才传 allow_partial=true，此时也不得有 receiving；未保存项 discarded，之后重选的新批次追加末尾，不插回已保存顺序。
 
-创建和查询的 `data` 为 `{id, album_id, album_revision, state, expires_at, items, result}`，其中 album_revision 是查询时影集的当前版本；items 每项为 `{id, item_index, original_filename, byte_size, state, failure_code}`。接收成功只返回该项资料。提交收据为 `{batch_id, album_id, photo_ids, failed_item_ids, album_revision}`，查询已提交批次时 result 返回同一收据；未提交时为 null。无 storage_key、完整哈希、会话或磁盘路径输出。
+创建摘要包含影集与有序文件资料，同账号同键改内容/顺序/影集返回 IDEMPOTENCY_CONFLICT；过期创建重放也可能 410。commit 摘要包含规范化 expected_album_revision / allow_partial；已提交时原参数返回原收据，改参数 COMMIT_CONFLICT，不先用当前影集版本否定原成功重放。收据在移动、回收或永久清除照片后仍保留，重放不会重建/移回照片；已提交批次不可取消。
 
-Idempotency-Key 为 1–128 位英文字母、数字、下划线或连字符；sha256 为 64 位小写十六进制；byte_size 为 1–50 MiB 的严格整数。文件名只作显示，不允许路径分隔符、盘符或控制字符，不用于磁盘寻址。元数据 JSON 上限 1 MiB，提交 JSON 上限 16 KiB；实际 multipart 总量不超过声明文件字节加 64 KiB，仅一个 file、无文本字段，部件头累计上限 16 KiB。服务端通过 Pillow 校验并完整解码 JPEG、PNG、静态 WebP，但不保存重编码结果；动画、损坏、超像素及伪装文件不生成照片。
+队列为随机 UUID，键为 `<UUID>_<六位批次序号>`；after 范围 -1–999999，next_index 是最后批次序号，不是 offset。每项在 BatchView 上增加 queue_index / city_id / year；查询只读本人匹配键，其他账号返回空列表。队列特意保留 expired 项供显式清理，单批 GET 的 410 规则不变。
 
-当前单实例通过随机尝试标识和 15 分钟租约保护接收，全局同时最多两项解析/解码，同批最多两项接收；超出返回 429 和 Retry-After。启动将旧 receiving 标为 failed/INTERRUPTED，用户可重选同文件重试。24 小时到期立即拒绝继续接收/提交；T10 启动及运行期将过期状态落库并回收遗留系统副本。multipart 等待超过剩余租约返回 409/UPLOAD_ATTEMPT_EXPIRED，关闭解析临时文件并释放名额；同步解码仍受已有大小/像素/并发限制，发布前必须再次核验尝试标识与租约。数据库失败可能已将文件移到 originals，重试会重新校验该未引用副本后完成同一事务；取消只处理本批未引用副本，删除失败留待清理，不删除现有照片。
+响应丢失先查原批/队列并按原标识和参数重试；刷新只恢复服务端已有记录，本地核对草稿与尚未完成文件需重选。同名同大小多项有歧义时逐行匹配，服务端最终核对冻结哈希。照片、文件名清单和哈希不写浏览器持久存储。
 
-T04 单张 UI 保留，地址 `?import=<批次 UUID>` 支持刷新恢复，不在浏览器持久存储图片或凭据。遇到 ALBUM_CHANGED 必须重新查询并再次点击保存，不自动覆盖。T04 当时的范围与证据见 [T04 记录](../reports/v1/t04-originals-verification.md)；批量功能已在下述 T06 接入，不同大尺寸合成原图规模已由 [T15](../reports/v1/t15-scale-verification.md) 补验。
+## 7. 排序与跨影集移动
 
-### T06 队列恢复与批量界面
-
-城市和影集各有独立批量核对页，前端确认归属/顺序后冻结逐文件资料，使用原导入协议。每批最多 400 项，同影集按顺序保存，各影集失败独立报告；仅由用户明确选择才允许部分保存。失败文件后来以新批次追加到末尾，不插回已保存序列。上传最多两路，字节发送百分比与服务端校验、最终提交分别显示；停止传输不等于已取消暂存，随后查询或显式取消。
-
-浏览器地址 `?queue=<随机 UUID>` 仅保存队列定位标识；Idempotency-Key 采用 `<同一 UUID>_<从 000000 开始的六位批次序号>`，沿用现有账号范围的唯一键，不新增表。`GET /imports/queue/{queue_id}?after=-1` 只查询会话本人的匹配键，返回 `data: {items, next_index}`，每页最多 25 批；继续请求将 after 设为 next_index，null 表示结束。after 范围 -1–999999，无效 UUID/页参数返回 422，其他账号同一队列标识返回空列表，未登录返回 401。
-
-每项包含原 BatchView 的白名单字段，追加 `queue_index, city_id, year`；不输出 request_key、完整哈希、存储键或文件路径。查询 open 但已经到期的批次时以 expired 返回，使其仍可在队列页显式取消清理；单批原 GET 的 410 规则不变，也不能上传/提交过期批次。取消后 UploadItem 为 discarded。文件删除失败和崩溃遗留临时文件由 T10 后台清理处理，队列查询自身不触发清理。expired 已落库时单批 GET 仍返回 410，不能因后台状态更新而重新访问。
-
-创建响应丢失也可通过队列标识找回已登记批次；上传或提交响应丢失重放原标识/参数，不重复入库。刷新只恢复服务端已有记录，核对草稿和未登记文件需重新选择，已登记但未完成的原图需重选；批量匹配仅接受唯一的同名同大小项，有歧义逐行选择，服务端最终核对冻结的 SHA256。前端不扫描磁盘、不持久存储文件名/原图/哈希；换账号或离开取消请求并拒绝晚到响应。
-
-T06 当时完成 401 项微型合成 PNG 真实拆批和完整顺序验证，3000 项仅做规划测试，见 [T06 记录](../reports/v1/t06-batch-import-verification.md)。T15 另以 3400 张不同合成原图验证 400 张页面导入、主账号 3000 张及第二账号 400 张，双账号经正式 HTTP 协议并发读写，不绕过上传限制或直接填照片表；详情见 [T15 记录](../reports/v1/t15-scale-verification.md)。
-
-## 7. 排序、移动与回收站接口
-
-| 方法与路径 | 输入 | 返回与规则 |
+| 方法与路径 | 严格请求字段 | 成功 data |
 | --- | --- | --- |
-| POST /albums/{album_id}/reorder | photo_id、before_photo_id（null 表示末尾）、expected_album_revision | 在服务端完整有效列表内移动，返回新 revision；锚点必须同影集且有效 |
-| POST /photos/{photo_id}/move | target_album_id、expected_photo_revision、expected_source_revision、expected_target_revision | 移到本人目标影集末尾；返回照片及两影集新版本 |
-| POST /photos/{photo_id}/trash | expected_photo_revision、expected_album_revision | 返回 deleted_at、purge_after、新版本；从正常列表移除 |
-| GET /trash/photos | cursor、limit | 本人的未到期回收站条目、原城市年份与剩余保留时间 |
-| GET /trash/photos/{photo_id} | 无 | T09 补充：本人未到期回收站详情与文字，供确认恢复和异常后核对状态 |
-| GET /trash/photos/{photo_id}/original | 无 | 仅本人可读取未到期回收站原图，便于决定恢复 |
-| POST /trash/photos/{photo_id}/restore | expected_photo_revision、expected_album_revision | 放回原影集末尾、文字保留，返回新版本 |
+| POST /albums/{album_id}/reorder | photo_id、before_photo_id（必填，可 null）、expected_album_revision | {album_id, photo_id, before_photo_id, album_revision, changed} |
+| POST /photos/{photo_id}/move | target_album_id、expected_photo_revision、expected_source_revision、expected_target_revision | {photo, source_album_id, source_revision, target_album_id, target_revision, target_duplicate_count} |
 
-排序在服务端读取全影集的有效 ID，客户端无需一次下载全部原图，也不能提交一个分页列表来覆盖完整影集。前后移动按钮和拖动共用此接口。调整整数位置时先移到大于当前最大值的临时区间，再写最终位置，全部在同一事务内完成，避免唯一位置冲突；无变化的移动不增加版本。
+版本为正的严格整数，JSON 上限 16 KiB，不接受额外字段。SQLite 先取得写锁再读归属/版本；排序操作完整 active 影集，before_photo_id=null 表示末尾。两阶段位移和最终顺序同事务，任一步失败全部回滚；无变化 changed=false、版本不增，纯排序不改照片 revision。
 
-T07 已实现 `POST /albums/{id}/reorder`：before_photo_id 必填，可为同影集有效照片 ID 或 null；expected_album_revision 为正的严格整数，不接受额外字段，实际 JSON 请求体上限 16 KiB。影集、照片或锚点不属于本人/不在当前有效列表时返回 404，版本不符返回 409/ALBUM_CHANGED。成功的 `data` 为 `{album_id, photo_id, before_photo_id, album_revision, changed}`；移动到自己前、已经在目标位置等无变化操作返回 changed=false 和原版本。纯排序仅增加影集 revision，不改变照片 revision、文字或原图。
+移动只允许本人 active 照片及本人源/目标影集，追加目标最大 position+1（空为 0），照片与两影集 revision 各加一；保留 ID、原名、原字节、文字、上传关联及收据。不同版本分别返回 PHOTO_CHANGED / SOURCE_CHANGED / TARGET_CHANGED，同影集返回 SAME_ALBUM。新目标先显式创建，取消移动不撤销已建空影集。
 
-SQLite 在读取前取得写锁，两个位置写入阶段及版本更新处于同一事务，任一步失败全部回滚。前端提供拖动手柄、前后移动和置顶置底，前后锚点取自完整影集的详情关系；成功后刷新已加载窗口。响应丢失或冲突先保留操作上下文并要求重新加载，不自动重放旧排序；与导入协议不同，这两个编辑接口不生成幂等收据，旧版本重试可能返回 409，须读取最新结果后核对。跨影集移动已接通 T08，回收站已在 T09 接通。
+target_duplicate_count 无同内容为 0，否则为移入后全部份数，仅提示。编辑/移动不生成导入式收据；冲突或结果不明先查询当前位置/最新版本，不自动重放，不覆盖新修改。未保存文字留在内存并有离开提醒，退出/换号优先清理。
 
-跨影集移动先核对照片、源影集和目标影集均属于当前账号，版本均匹配，再在同一事务内更新照片归属、位置及两个影集版本；不复制原图，不修改文字和文件名。目标影集不存在时先创建，不能靠移动请求中的任意城市文本生成影集。同影集调整使用 reorder，不走跨影集 move。
+## 8. 回收站与恢复
 
-T08 的 `POST /photos/{id}/move` 严格要求上述四个字段，不接受 owner_id 或额外字段；版本为正的严格整数，目标 ID 为 1–36 字符字符串，实际 JSON 上限 16 KiB。SQLite 先取得写锁再读取归属和版本。源/目标必须本人所有、照片必须 active，否则 404；照片、原影集、目标影集版本过期分别为 409/PHOTO_CHANGED、SOURCE_CHANGED、TARGET_CHANGED；当前影集与目标相同为 409/SAME_ALBUM，不重新排序。
+| 方法与路径 | 请求 | 成功 data / 行为 |
+| --- | --- | --- |
+| POST /photos/{photo_id}/trash | {expected_photo_revision, expected_album_revision} | TrashDetail（含 note） |
+| GET /trash/photos | cursor、limit | {items: TrashView[], next_cursor, photo_count, server_time} |
+| GET /trash/photos/{photo_id} | 无 | TrashDetail |
+| GET /trash/photos/{photo_id}/original | 无 | 本人未到期回收站原字节 |
+| POST /trash/photos/{photo_id}/restore | {expected_photo_revision, expected_album_revision} | {photo, album_revision, duplicate_count} |
 
-成功 `data` 为 `{photo, source_album_id, source_revision, target_album_id, target_revision, target_duplicate_count}`，photo 使用 T05 白名单。目标 position 为当前最大有效位置加一（空影集为 0），照片 revision 和两个影集 revision 各加一，三者同事务保存。源位置可有间隔，但剩余相对顺序不变；前后邻接和序号继续由完整有效列表计算。target_duplicate_count 无相同内容时为 0，否则为移入后该内容的全部份数，仅提示不拦截。原图、文字、文件名、照片 ID、上传关联及收据不变；重放原导入收据不会重新生成或移回照片。
+TrashView 为 `id, album_id, city, year, original_filename, mime_type, byte_size, width, height, revision, album_revision, has_note, deleted_at, purge_after, remaining_ms, original_url`；详情再加 note，列表无全文。时间为毫秒整数（见第 1 节），详情没有 server_time 字段。
 
-前端移动页为 `/albums/{source_id}/move/{photo_id}`。目标城市使用可选目录与本人的历史城市，现有年份分页读取；可先显式创建新年份或未标年份，再确认移动，取消移动不会撤销已创建的空影集。源影集移空后仍保留，城市统计按剩余有效照片计算。成功可留在原影集或打开目标；冲突或响应不明时保留目标选择、禁止自动重试，先用不带旧 album_id 的详情查询当前位置。仍在源影集时读取最新目标版本、展示最新已保存文字，再由用户确认；已到其他影集则提供当前位置入口，不把旧意图再次执行。离开页面会取消客户端等待，但不保证撤销服务端已提交的移动。详见 [T08 记录](../reports/v1/t08-organizing-verification.md)。
+删除 `active → trashed`、position=null，purge_after=删除时间+30×24 小时；照片/影集 revision 各加一。恢复须严格早于到期，先核对原图存在与大小，再追加原影集末尾，清空删除期限，原 ID/字节/文字不变；再次删除重新起算期限。duplicate_count 无重复为 0，否则为恢复后同内容全部份数，不合并。
 
-删除是软删除：`active → trashed`，position 清空，purge_after 为删除时间加 30×24 小时。恢复只允许 `trashed` 且当前时间严格早于 purge_after；恢复后清空删除时间，再次删除重新计算保留期。恢复、移动及删除均需版本校验；版本冲突不自动重试破坏用户刚做的新操作。
+回收站只列本人未到期 trashed，按 deleted_at 降序、ID 升序。到期相等也立即拒绝详情/原图/恢复（410 TRASH_EXPIRED），即使物理文件还在；purging 同样不可恢复。照片非回收状态为 PHOTO_NOT_TRASHED，版本冲突为 PHOTO_CHANGED / ALBUM_CHANGED；原图不可用 503 且不改状态。有效原图与回收站地址不能跨状态读取。
 
-### T09 已实现的删除、查看与恢复
+回收站与 pending 上传仍占空间，但不计 active 照片或点亮。结果不明先“核对当前状态”，不重复删除/延长期限；前端按服务器剩余时长和单调时钟倒计时，到期卸载原图和恢复入口。
 
-删除与恢复输入均为 `{expected_photo_revision, expected_album_revision}`，正的严格整数，不接受额外字段，实际 JSON 上限 16 KiB。取得 SQLite 写锁后读取本人资源、状态、版本和服务器时间；照片与影集 revision 各加一，同事务提交。恢复到删除时所在影集（trashed 不可移动），位置为最大有效位置加一、空影集为 0；恢复前检查原图存在且字节数符合记录。原图、文字、文件名、ID、存储键、上传关联和原导入收据不变，重放导入不会复活已删除照片。
+## 9. 物理清理与离线备份
 
-回收站条目白名单为 `id, album_id, city, year, original_filename, mime_type, byte_size, width, height, revision, album_revision, has_note, deleted_at, purge_after, remaining_ms, original_url`，不返回 position、owner_id 或内容哈希/私有路径。删除成功与详情在条目上增加 note；列表不含文字全文。这里的 `deleted_at, purge_after, server_time` **使用 Unix 毫秒整数**，remaining_ms 为服务器计算的剩余毫秒；页面显示本地绝对时间，剩余计时按请求发出时的单调时钟起算，不因墙钟误差或网络延迟延长展示期限。
+这些是本地维护能力，没有永久删除按钮或备份 HTTP 接口；配置见[后端说明](../../backend/README.md#t10-到期清理及故障恢复)，操作见[备份说明](../guides/backup-restore.md)。
 
-`GET /trash/photos` 的 data 为 `{items, next_cursor, photo_count, server_time}`。仅本人 trashed 且 purge_after 严格大于当前时间，按 deleted_at 降序、ID 升序；默认 24、最多 100 条。签名游标绑定账号、未到期成员 ID/版本摘要与末条删除时间/ID；摘要不是文件哈希。删除、恢复、再次删除或到期改变成员使旧游标返回 409/TRASH_CHANGED；篡改或跨账号游标 422。数量与分页在同一数据库快照内取得。生成摘要需读取本人的未到期 ID/版本，不读取原图内容；T15 在 3000 条回收站下 30 次首批查询 p95 66.180 ms，完整分页核对通过。
+清理先短事务置 purging，再删该份独有副本，成功或文件已不存在后删 photos 行；失败保留进度重试。与恢复条件更新竞争，受操作系统实例锁及导入发布锁协调。启动补做，后台每轮结束后默认等待 60 秒；停机或故障不保证第 30 天准时物理删除，但访问期限立即生效。
 
-恢复成功 data 为 `{photo, album_revision, duplicate_count}`，photo 沿用有效照片白名单；无重复为 0，有重复为恢复后该内容全部份数，仅提示不合并。删除/恢复后列表、封面、城市统计及重复组只统计 active，空影集与城市入口保留。
+每轮最多标记 100 到期照片、处理 100 purging、100 过期批次、200 关闭批次项、200 过期接收租约；每个私有文件目录轮转核对最多 200 项，但目录名仍完整枚举排序。有效租约、未到期 staged 及失败后提前发布副本受保护，无元数据系统文件需满 24 小时才回收。未知命名/目录不处理，拒绝链接/重定向，不递归或接收源路径。会话与限流分别最多清除 500 条，日志仅汇总计数；导入收据不清除。
 
-错误：不存在/非本人 404；删除非 active 或照片版本变化 409/PHOTO_CHANGED；影集版本变化 409/ALBUM_CHANGED；回收站详情、原图或恢复请求遇到本人 active 为 409/PHOTO_NOT_TRASHED；本人过期 trashed 或 purging 为 410/TRASH_EXPIRED（包含到期相等）；恢复原图不可用为 503，不改变状态。沿用会话鉴权、CSRF 和 private,no-store。有效与回收站原图地址严格分离，旧地址不能跨状态读取。
+备份工具 `python -m city_memories.backup create/verify/restore` 要求先正常停后端，全程持有同一实例锁，以 SQLite Backup API 快照配合原图形成格式 v1。清单包含迁移版本、快照时间、表计数、逐照片身份/归属/期限/哈希及元数据摘要；留在私人备份，不输出公开日志。验证目录成员、schema、完整性/外键、关系和逐文件字节；哈希不是签名，仅接受本人掌管的可信备份。
 
-前端 `/albums/{album_id}/trash/{photo_id}` 为删除确认，`/trash` 为列表，`/trash/photos/{photo_id}` 为查看与恢复。冲突或网络结果不明停止操作，必须“核对当前状态”；已在回收站不会重复删除/延长期限，已恢复则给当前位置入口。仍可操作时展示最新文字与版本，再由用户确认；已移动到其他影集时不直接重试删除。离开只取消客户端等待，不保证撤销已提交请求。未保存文字沿用离开保护，到期卸载原图和恢复入口，退出清理图片地址与晚到响应。验证见 [T09 记录](../reports/v1/t09-trash-verification.md)。
+快照保留 active 与未到期 trashed，排除 purging/过期照片、sessions、限流记录、暂存和认证密钥；关闭未完成导入，保留已提交项/收据。只清理副本并 VACUUM，不改源库。恢复写工作区外全新目录，禁止覆盖/合并/嵌套/链接；完成前再次核对原期限，不重置回收站 30 天，旧会话失效，原账号密码保留。
 
-### T10 已实现的物理清理与故障补做
+当前支持 schema `b61e24f803a7` 与 `c7e9a162b4d8`，按原版本恢复，不自动迁移未知版本。失败留下 .maintenance-incomplete，禁止应用/迁移启动；完整备份目录也不能当运行目录。不内置加密、自动备份或轮换；历史备份的删除按介质保留策略处理，在线清除不承诺擦除全部历史副本。
 
-过期清理先在短事务中把到期照片置为 purging，再删除该照片独有的存储副本，文件删除成功或已不存在后才删除 photos 行。删除失败保留 purging 状态重试，不能先删数据库行而失去待清理文件位置。清理与恢复通过条件更新竞争，避免一边恢复一边删文件；purging 不可恢复。
+## 10. 地图与健康接口
 
-正式应用启动时补做一轮，后台每轮结束后默认等待 60 秒。操作系统锁限制同一私有目录一个实例，进程退出/崩溃释放锁，锁文件保留；暂停清理仍强制单实例。关闭服务、积压或删除失败时不保证恰好在第 30 天物理删除，但到期后的读取和恢复立即按时间拒绝，下一次服务运行时继续清理。升级后默认启用；本轮仅用临时测试目录验证，没有执行真实资料清理，也未创建系统计划任务。
+| 方法与路径 | 成功 data | 当前用途 |
+| --- | --- | --- |
+| GET /health | {status:"ok"} | 不要求登录，探测数据库连接 |
+| GET /map/cities | MapCity[] 数组 | 登录；CityView + provider_code，公共业务目录，无几何或私人统计 |
+| GET /map/config | {enabled, key, review_number, review_date, catalog_version, message} | 登录且同源；仅第一版兼容，配置不可用时 key=null |
+| GET /me/atlas | 见第 4 节 | 本人统计，独立于公共地图几何 |
 
-每轮最多标记 100 张到期照片、尝试处理 100 条 purging，游标轮转避免失败项挡住后续条目。文件已不存在视为删除步骤完成，数据库行删除失败留待下轮或重启；完成后再次读取/恢复该照片为 404，不重建资料。空影集和其他副本保持，导入批次、上传元数据和幂等收据不清除；重放原提交只返回原收据，不复活已删除照片。
+当前地图从同源 `/map-data/china-cities.v1.json` 加载固定公共几何，与 /map/cities 严格核对，私人点亮来自 /me/atlas；不请求 /map/config、世界瓦片或在线逐市边界，无需地图 Key。旧兼容接口中浏览器 Key 也不能视为对浏览器保密。稳定 UUID 始终用于路由/影集关联，外部新目录不能绕过审核门禁。
 
-导入清理与发布/提交/取消共享锁，忙时跳过本轮导入清理。每轮最多标记 100 个过期批次、处理 200 个关闭批次项和 200 个过期 receiving 租约；每个私有文件目录轮转检查最多 200 个条目。有效接收尝试的临时文件、未到期批次 staged 文件、数据库失败后提前发布的文件受保护，供用户显式重试。取消/过期批次和部分提交放弃项的遗留副本可回收。无元数据的系统命名文件需修改时间满 24 小时才回收；未知命名或目录不处理。只处理经过路径/目录身份检查的直接、独立普通文件，拒绝符号链接、硬链接与 junction，不递归，也不接收源路径。目录名称仍完整枚举排序，不能把每轮数量上限等同于大目录性能通过。
+## 11. 请求与响应示例
 
-T15 在 3400 份有效原图下执行 30 轮正式清理，p95 325.733 ms，失败/忙跳过/原图误删均为 0；这覆盖该目录规模的枚举与正常核对，不代表数千份过期积压删除已测。
+以下为虚构 UUID / 城市 / 时间，用于展示 schema，不是实际账号或接口运行结果。修改请求仍须有效 Cookie、可信来源及 CSRF，不在示例中放凭据。
 
-每轮最多清除 500 条到期/已撤销会话与 500 条过期限流记录，保留有效会话及当前限流窗口。清理阶段失败不阻止其他阶段，日志只输出汇总计数，不含异常文本和私人字段。配置、排障与全部测试见 [后端说明](../../backend/README.md#t10-到期清理及故障恢复) 和 [T10 记录](../reports/v1/t10-cleanup-verification.md)。
+### 创建未标年份影集
 
-“永久删除”指在线照片记录和系统原图副本；已有历史备份按备份保留规则淘汰，不承诺同时擦除全部历史介质。备份除有效照片外还需保留未到期回收站照片，排除 purging；维护窗口同时暂停清理任务。恢复备份后先核对过期状态再开放使用，不能为已过期条目重新起算 30 天。
-
-### T11 已实现的离线备份协议
-
-`python -m city_memories.backup create/verify/restore` 是本地维护命令，不增加 HTTP 接口。先正常停止服务及重载进程，等待在途请求结束；与应用/清理共享操作系统锁，在线 Alembic 迁移也遵守该锁。备份通过 SQLite Backup API 获取含已提交 WAL 的快照，维护全程暂停应用写入与清理，而非只暂停上传或在线复制主数据库文件。
-
-格式 v1 由数据库快照、独立原图、`backup-manifest.json` 和锁文件组成；清单记录迁移版本、快照 Unix 毫秒时间、各表数量、数据库大小/SHA256、逐照片身份/归属/存储键/状态/期限/大小/哈希，以及含文字/顺序等全部照片字段的摘要。清单仅留在私人备份，不能输出到公开日志。校验固定目录成员、版本、列结构、无额外触发器/视图、数据库 integrity_check/foreign_key_check、逐文件字节和关系；哈希不是签名，仍只接受用户自己掌管的可信备份。
-
-只保留快照时 active 和未到期 trashed；在快照副本删除 purging/已到期照片及 sessions/auth_rate_limits，关闭 open 批次、将未提交项置 discarded。随后 VACUUM 清除副本空闲页残留，不改源库。已提交批次、upload_items 与收据保留，照片永久清除后收据重放不复活。暂存文件和认证密钥不复制，恢复后未完成导入需重选开始。
-
-恢复先验证全部备份，再写全新目录；禁止覆盖、合并、互相嵌套、Git 工作区目标与链接路径。恢复完成前按当前时间再次剔除到期回收站，保留原期限与未过期照片字段，旧会话失效、原用户名密码保留；默认首次启动生成新认证密钥，外部注入配置不从备份恢复。恢复的是快照时状态，无法知道快照之后的新增/编辑/删除，不是与当前库合并。
-
-创建/恢复仅在全部验证通过后去掉 `.maintenance-incomplete`；异常或中断留下的目录不允许服务启动或迁移。完整备份目录也不能直接启动服务。失败不递归删除、不开启覆盖重试；原数据和好备份保留。操作说明、退出码和真实验证见 [备份说明](../guides/backup-restore.md) 与 [T11 记录](../reports/v1/t11-backup-verification.md)。无新增表/依赖/迁移；仅支持格式 v1 和迁移 `b61e24f803a7`，不自动迁移未知版本。
-
-## 8. 接口示例
-
-以下 UUID 为虚构示例，展示正式接口的约定，不是已运行结果。修改请求均须携带有效 Cookie 与 X-CSRF-Token，凭据不写入示例。实际 OpenAPI 在实现接口时生成，并与本文核对。
-
-创建未标年份影集：`POST /api/v1/cities/00000000-0000-4000-8000-000000000001/albums`。
+`POST /api/v1/cities/00000000-0000-4000-8000-000000000001/albums`，请求 CreateAlbum：
 
 ```json
-{ "year": null }
+{"year": null}
 ```
 
-新建成功返回 201；已有时返回 200、created=false，保持原 ID 与已有内容。
+201 响应 Envelope[CreatedAlbum]，已有返回 200 且 created=false：
 
 ```json
 {
   "data": {
     "id": "00000000-0000-4000-8000-000000000002",
-    "city_id": "00000000-0000-4000-8000-000000000001",
+    "city": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "name": "示例市",
+      "parent_name": "示例省",
+      "unit_kind": "prefecture",
+      "can_create": true
+    },
     "year": null,
     "revision": 1,
+    "photo_count": 0,
+    "cover_photo_id": null,
+    "original_url": null,
+    "created_at": "2026-11-06T00:00:00Z",
+    "updated_at": "2026-11-06T00:00:00Z",
     "created": true
   }
 }
 ```
 
-把照片放到影集末尾：`POST /api/v1/albums/00000000-0000-4000-8000-000000000002/reorder`。
+### 把照片放到影集末尾
+
+`POST /api/v1/albums/00000000-0000-4000-8000-000000000002/reorder`，请求 ReorderInput：
 
 ```json
-{
-  "photo_id": "00000000-0000-4000-8000-000000000003",
-  "before_photo_id": null,
-  "expected_album_revision": 4
-}
+{"photo_id":"00000000-0000-4000-8000-000000000003","before_photo_id":null,"expected_album_revision":4}
 ```
 
-实际产生顺序变化时返回 200 及新版本；无变化返回原版本。
+200 响应 Envelope[OrderView]，无变化时 changed=false 且保留原版本：
 
 ```json
-{ "data": { "album_id": "00000000-0000-4000-8000-000000000002", "photo_id": "00000000-0000-4000-8000-000000000003", "before_photo_id": null, "album_revision": 5, "changed": true } }
+{"data":{"album_id":"00000000-0000-4000-8000-000000000002","photo_id":"00000000-0000-4000-8000-000000000003","before_photo_id":null,"album_revision":5,"changed":true}}
 ```
 
-如果期间已有其他操作改变影集，返回 409。前端保留未保存编辑并刷新资料，不自动重放移动。
+版本冲突为 409，先核对最新结果再由用户确认：
 
 ```json
-{
-  "error": {
-    "code": "ALBUM_CHANGED",
-    "message": "影集已更新，请刷新后重试",
-    "request_id": "example-request"
-  }
-}
+{"error":{"code":"ALBUM_CHANGED","message":"影集已更新，请刷新后重试","request_id":"example-request"}}
 ```
-
-## 9. 验证与交接
-
-准备阶段曾使用 Windows Python 3.13 自带 SQLite 3.50.4，在空内存数据库执行当时的 SQL 设计样例（已移入 Git 历史，不代表当前 schema），**25 项检查通过**：覆盖建表及外键、具体年份和未标年份唯一、跨账号关联拒绝、同哈希多份照片、有效位置唯一、上传完成资料约束、排序与文字关联、版本条件更新、跨影集移动、回收站状态和恢复期限、清理后幂等收据保留、数据库完整性。仅使用虚构资料，没有操作任何照片文件，也没有测试 WAL 并发或真实 FastAPI 接口。文档链接另作本地检查，不代替未来接口与文件恢复测试。
-
-正式实现还须验证：越权原图及上传拒绝、CSRF/会话到期、并发分页与版本冲突、响应丢失后的幂等重放、并发上传顺序、部分失败显式提交、清理与恢复竞争、文件系统故障、原图哈希及 Edge 关键操作。此前地图和小范围原图检查不重复执行；真实规模与地图未完成项继续跟踪。
-
-阶段 7 [开发任务拆分](../planning/development-plan.md) 已明确任务依赖和完成标准。上文第 9 节为准备阶段验证记录；当前已完成 T01–T16，实际 Edge 连续流程与异常检查见 [T14 记录](../reports/v1/t14-edge-verification.md)，原图规模与双账号并发见 [T15 记录](../reports/v1/t15-scale-verification.md)，本地手册与构建版空库验收见 [T16 记录](../reports/v1/t16-local-delivery-verification.md)。接口、数据库结构和版本不变；T17 待安排，真实备份运维及上线条件仍保留。
-
-## 10. T13 地图运行时接口（2026-10-04）
-
-API 版本 0.13.0；复用 `cities` 和本人 `/me/atlas`，无新增迁移。启动在单实例锁内按已审核静态业务目录补齐缺失记录，不覆盖已有 UUID、名称、停用/待审核状态。391 项启用、草湖市 1 项待审核；[审核来源](../reference/t13-city-catalog.md)。
-
-| 方法与路径 | 返回 data | 边界 |
-| --- | --- | --- |
-| `GET /api/v1/map/cities` | 有效且 verified 的 `CityView` 数组，追加 `provider_code` | 登录必需；只含公共业务身份，不含坐标/边界、照片数或账号资料 |
-| `GET /api/v1/map/config` | `enabled, key, review_number, review_date, catalog_version, message` | 登录且同源；未配置时 key 为 null，不回显文件路径或无效值 |
-| `GET /api/v1/me/atlas` | 原有本人城市、影集数、有效照片数及 lit | 继续原账号授权，不接受客户端 owner_id；无照片空影集不亮 |
-
-以上响应沿用 `private, no-store`。`/map/config` 中的 Key 只用于已登录浏览器直连官方服务，不能视为对浏览器保密；不出现在源码、构建或日志。没有客户端批量注册城市、服务端瓦片代理或无鉴权的地图配置接口。
-
-前端将 `/map/cities` 与天地图目录严格匹配，业务 UUID 始终是路由和影集关联依据；外部新目录不能绕过后端新建门禁。地图资料只驻留页面内存，照片变化后重读本人统计，退出会取消未完成请求并清空旧账号视图。实际验证见 [T13 记录](../reports/v1/t13-map-verification.md)。
-
-## 11. 城市相册聚合接口（2026-10-24）
-
-当前页面的“相册”表示一个城市，“影集”表示该城市内的一个年份框。仍使用既有 `albums` 年份影集表和 `(owner_id, city_id, year)` 唯一规则，不建立独立城市相册表或更改照片归属。新增只读 `GET /api/v1/me/city-albums`，需有效会话，响应沿用 `private, no-store` 和 `{data: {items, next_cursor}}`。只聚合当前账号有年份影集的城市，包含只有空影集或停用后仍保留历史影集的城市。
-
-每项白名单为：
-
-| 字段 | 当前含义 |
-| --- | --- |
-| `city` | 既有 `CityView`：`id, name, parent_name, unit_kind, can_create`；沿用业务 UUID |
-| `album_count` | 当前账号在该城市的全部年份影集数，包括空影集和未标年份 |
-| `photo_count` | 上述全部影集的 active 照片数，不含回收站或 purging |
-| `latest_year` | 上述全部影集中最大的具体年份；只有未标年份时为 null，空年份仍参与 |
-| `has_unmarked` | 是否存在该账号、该城市的未标年份影集 |
-| `cover_photo_id`、`original_url` | 下述城市封面；没有有效照片时两者为 null，不输出私有路径或哈希 |
-
-城市封面按年份倒序（null 最后）选择首个有 active 照片的年份影集，再沿用该影集的现有手选封面；手选照片无效时回退该影集第一张有效照片。较新的空年份不会遮住较早年份的照片。城市相册不新增手选封面设置，也不修改任何年份封面偏好或照片顺序。
-
-查询参数：
-
-| 参数 | 当前契约 |
-| --- | --- |
-| `q` | 可省略，最多 80 字符、去除首尾空白；按字面包含匹配城市名或所属地区，不把通配符解释为查询语法 |
-| `year` | 省略表示全部；传值仅接受 `unmarked` 或 1–9999 的无前导零数字字符串。筛出存在对应年份影集的城市，**返回统计、最新年份与封面仍覆盖该城市全部年份** |
-| `sort` | 默认 `year`，按 `max(coalesce(Album.year, 0)) DESC, City.id ASC`；`recent` 按 `max(Album.updated_at) DESC, City.id ASC` |
-| `cursor` | 签名游标，绑定当前账号、规范化搜索、年份和排序；采用独立城市相册 scope，与旧 `/me/albums` 游标不可互换，篡改或跨范围使用返回 422 |
-| `limit` | 默认 24 个城市，范围 1–100；按城市分页，不能把影集先分页再在前端去重 |
-
-`recent` 使用城市内所有年份影集的最新更新时间，包括创建、导入、移动、排序、回收/恢复及封面改变；仅修改照片文字不改变该时间。不在响应中追加聚合 `updated_at`。同一城市的多个年份不会重复占用城市列表名额，筛选无匹配返回空页而非其他账号资料。
-
-原 `/me/albums`、`/me/albums/options`、`/cities/{id}/albums`、影集详情、创建、导入和封面写入保持兼容；首页最近整理仍用旧年份影集接口直达照片。新页面从城市相册库进入城市年份页再进入照片，保留逐级返回及当前账号内存中的筛选/展开位置，不把私人列表持久写入浏览器存储。
-
-本次没有新表、数据库迁移、依赖或锁文件变更。已完成 V2-01 升级时，正常停止项目、重建前端并正常启动后刷新即可；新只读接口需要后端重启加载。实际测试、合成数据边界及未执行范围见[城市相册层级记录](../reports/v2/2026-10-24-city-album-hierarchy.md)，V2-04 整体验收及 T17 继续待安排。
-
-## 12. 城市列表的省会入口视图（2026-10-25）
-
-既有需登录 `GET /api/v1/cities` 增加 `view`，返回继续为 `{data: {items: CityView[], next_cursor: string|null}}`；`CityView` 字段仍为 `id, name, parent_name, unit_kind, can_create`，不增加照片或账号字段。
-
-| 参数 | 契约 |
-| --- | --- |
-| `view` | `all`（默认）或 `province-centers`，其他值返回 422。`all` 保留原全国目录及名称/ID 升序；`province-centers` 选择 34 个省级地区对应入口，按明确城市拼音键、城市 ID 升序 |
-| `q` | 最多 80 字符，去除首尾空白；城市名/所属地区字面包含匹配，两种视图都支持；省会视图中查询仍限于选定入口 |
-| `cursor` | 签名游标绑定视图与规范化查询词；省会视图使用独立版本 scope，不能与全目录或另一查询混用 |
-| `limit` | 默认 24，范围 1–100；先筛选、排序再分页，首页省会入口使用 100 一次读取全量 |
-
-`province_centers.py` 以既有业务 UUID 选择省会、自治区首府、直辖市和港澳本身，台湾地区选择台北；不按名称后缀或行政代码顺序猜省会，也不重新创建目录。明确拼音保证重庆按 `chongqing` 排在成都之后、福州之前，长春/长沙按 `changchun`/`changsha` 排序。两种视图都限定城市 active 且 verified，停用或待审核项不会被补回；全部开放时省会视图为 34 项。
-
-前端空搜索词使用省会视图；提交非空搜索词使用原全目录搜索，点“返回省会列表”重回默认。地图完整目录、本人城市相册、城市/年份关联与创建门禁保留。无需新数据库迁移或依赖，需正常重启后端加载参数；本轮范围和验证见[省会默认入口记录](../reports/v2/2026-10-25-province-city-entries.md)。

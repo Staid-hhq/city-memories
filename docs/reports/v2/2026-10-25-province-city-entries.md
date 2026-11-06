@@ -11,7 +11,7 @@
 
 ## 2. 实现与接口
 
-`GET /api/v1/cities` 增加 `view=all|province-centers`，默认 `all` 保持原全国目录搜索。省会视图使用 [province_centers.py](../../../backend/src/city_memories/province_centers.py) 中明确的业务 UUID 与拼音键，在分页前筛选、排序；首页请求 `/cities?view=province-centers&limit=100` 一次读取全部默认入口。完整参数和返回契约见[数据与接口设计](../../architecture/data-api-design.md#12-城市列表的省会入口视图2026-10-25)。
+`GET /api/v1/cities` 增加 `view=all|province-centers`，默认 `all` 保持原全国目录搜索。省会视图使用 [province_centers.py](../../../backend/src/city_memories/province_centers.py) 中明确的业务 UUID 与拼音键，在分页前筛选、排序；首页请求 `/cities?view=province-centers&limit=100` 一次读取全部默认入口。完整参数和返回契约见[数据与接口设计](../../architecture/data-api-design.md#城市目录视图)。
 
 两种视图都只返回 active 且 verified 的城市；省会视图的签名游标绑定视图和规范化查询词，不能与全目录或另一查询混用。手工暂停或待审核入口不会被自动重新开放。选项来自既有已审核城市目录，不新增目录种子、表、迁移、依赖或锁文件，不改私人影集、照片或原图。
 

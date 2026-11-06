@@ -184,9 +184,8 @@
 | [guides/backup-restore.md](guides/backup-restore.md) | 离线备份、校验、恢复的具体命令及安全条件 |
 | [product/project-brief.md](product/project-brief.md) | 产品定位、目标用户、价值与不做的事 |
 | [product/requirements.md](product/requirements.md) | 需求、确认口径、验收条件与任务对应 |
-| [architecture/tech-stack.md](architecture/tech-stack.md) | 技术选型、组件关系、运行和数据保存方式 |
+| [architecture/tech-stack.md](architecture/tech-stack.md) | 当前组件、运行/数据保存与静态地图架构；旧在线方案见历史报告 |
 | [architecture/data-api-design.md](architecture/data-api-design.md) | 数据关系、约束、接口契约和失败恢复协议 |
-| [architecture/map-plan.md](architecture/map-plan.md) | 地图供应商、来源、调用和加载方案依据 |
 | [planning/development-plan.md](planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖、验收条件和记录入口 |
 | [reference/t13-city-catalog.md](reference/t13-city-catalog.md) | 正式目录审核、首批三城稳定 ID/来源、特殊地区口径和待开放项 |
 | [reports/README.md](reports/README.md) | 按准备阶段、第一版、第二版和维护分类的交付报告索引 |
@@ -225,20 +224,14 @@
 | [reports/v2/2026-10-21-v2-album-library.md](reports/v2/2026-10-21-v2-album-library.md) | V2-01 白色界面、独立相册、封面偏好、迁移/备份兼容与本轮验证 |
 | [reports/v2/2026-10-22-china-city-map.md](reports/v2/2026-10-22-china-city-map.md) | V2-02/V2-03 中国市级地图、公开源覆盖、交互与隔离端口验证 |
 | [reports/v2/2026-10-23-home-map-sidebar.md](reports/v2/2026-10-23-home-map-sidebar.md) | V2-04 首页双栏、足迹/最近相册、滚轮滚页及专项验证 |
-| [reports/v2/2026-10-23-album-library-filters.md](reports/v2/2026-10-23-album-library-filters.md) | V2-04 相册城市/地区和年份查找、排序、接口及隔离验证 |
-| [reports/v2/2026-10-23-album-card-layout.md](reports/v2/2026-10-23-album-card-layout.md) | V2-04 共享相册卡片排版、空封面与窄屏视觉复查及既有行为回归 |
-| [reports/v2/2026-10-23-operation-feedback.md](reports/v2/2026-10-23-operation-feedback.md) | V2-04 导入、封面和回收/恢复反馈、重试核对及本轮验证 |
 | [reports/v2/2026-10-23-connection-feedback.md](reports/v2/2026-10-23-connection-feedback.md) | V2-04 连接错误分类、启动帮助、会话核对及隔离验证 |
 | [reports/v2/2026-10-23-mobile-details.md](reports/v2/2026-10-23-mobile-details.md) | V2-04 手机触控控件、批量列表、短屏原图查看和地图触控的范围、验证及真机边界 |
 | [reports/v2/2026-10-23-province-borders.md](reports/v2/2026-10-23-province-borders.md) | V2-04 省市边界层级、公共省界源线、保留城市交互及本轮验证 |
-| [reports/v2/2026-10-23-upload-entry-feedback.md](reports/v2/2026-10-23-upload-entry-feedback.md) | V2-04 上传空闲光标与选图提示、批量入口及多选说明的范围和验证 |
-| [reports/v2/2026-10-24-city-album-hierarchy.md](reports/v2/2026-10-24-city-album-hierarchy.md) | V2-04 城市相册/年份影集层级、聚合接口、计数/封面/返回规则、更新和验证 |
 | [reports/v2/2026-10-25-province-city-entries.md](reports/v2/2026-10-25-province-city-entries.md) | V2-04 省会默认入口、城市拼音排序、全目录搜索兼容、更新和验证 |
-| [reports/v2/2026-10-26-map-boundary-visibility.md](reports/v2/2026-10-26-map-boundary-visibility.md) | V2-04 市界按点亮/悬停显示、省级外轮廓常显、地图高度及验证 |
-| [reports/v2/2026-10-26-small-city-access.md](reports/v2/2026-10-26-small-city-access.md) | V2-04 小城快捷入口、几何适配定位、选中城市卡和验证 |
-| [reports/v2/2026-10-30-home-map-round-one.md](reports/v2/2026-10-30-home-map-round-one.md) | V2-04 首页第一轮：欢迎区收紧、地图搜索/缩放集中、小城入口与更多工具及验证 |
-| [reports/v2/2026-10-30-photo-upload-round-two.md](reports/v2/2026-10-30-photo-upload-round-two.md) | V2-04 第二轮：图库优先、统一单多张/拖入入口、旧任务恢复、卡片更多操作及验证 |
-| [reports/v2/2026-11-06-sidebar-visual-round-three.md](reports/v2/2026-11-06-sidebar-visual-round-three.md) | V2-04 第三轮：侧栏内容层级、大横封面、长名称和常用视觉规则及本轮验证 |
+| [reports/v2/album-browsing.md](reports/v2/album-browsing.md) | 相册筛选、卡片与城市/年份层级，按 2026-10-23～24 各轮保留接口、失败修正与验证 |
+| [reports/v2/operation-feedback.md](reports/v2/operation-feedback.md) | 2026-10-23 操作进度、结果核对与上传空闲入口提示，两项独立验证 |
+| [reports/v2/map-interaction.md](reports/v2/map-interaction.md) | 2026-10-26 市界/画布、小城定位与选中入口，两轮几何和交互证据 |
+| [reports/v2/ui-refinement.md](reports/v2/ui-refinement.md) | 2026-10-30～11-06 首页、照片上传、侧栏视觉三轮整理，保留分轮结果与未测范围 |
 
 ### 维护报告
 

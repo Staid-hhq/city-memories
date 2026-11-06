@@ -18,7 +18,7 @@
 | --- | --- |
 | `guides/` | 上表中的日常使用、启动、安装和维护说明 |
 | `product/` | [项目定位](product/project-brief.md)、[需求与验收](product/requirements.md) |
-| `architecture/` | [技术栈](architecture/tech-stack.md)、[数据/API](architecture/data-api-design.md)、[地图方案](architecture/map-plan.md) |
+| `architecture/` | [技术与地图架构](architecture/tech-stack.md)、[当前数据/API 契约](architecture/data-api-design.md) |
 | `planning/` | [开发计划与任务状态](planning/development-plan.md) |
 | `reference/` | [城市目录审核与首批三城映射](reference/t13-city-catalog.md) |
 | `reports/` | [按准备阶段、第一版、第二版、维护分类的报告索引](reports/README.md) |
@@ -27,7 +27,7 @@
 
 完整记录集中在[报告索引](reports/README.md)，这里仅保留近期入口：
 
-- [首页侧栏与视觉整理](reports/v2/2026-11-06-sidebar-visual-round-three.md)。
+- [三轮界面整理](reports/v2/ui-refinement.md)。
 - [维护日志](reports/maintenance/maintenance-log.md)：改名兼容、文件整理、文档优化与精简。
 
 T01–T16 和已交付的第二版子项保留各自验收条件；V2-04、第二版整体验收与 T17 部署仍待安排。历史报告中的名称、测试条数和输出路径表示当时情况；本地测试产物可按已记录的清理操作移除，需要时重新运行工具生成。
