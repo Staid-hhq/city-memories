@@ -61,5 +61,6 @@
 | [2026-10-17 目录整理](maintenance/2026-10-17-repository-organization.md) | 文件分类、路径迁移与回归结果 |
 | [2026-11-06 产品改名](maintenance/2026-11-06-product-rename.md) | 此间集/CIJIANJI 展示、共享启动配置、文档同步与兼容边界 |
 | [2026-11-06 文件整理与清理](maintenance/2026-11-06-file-organization.md) | 报告分组、入口精简、引用审计及可再生测试产物清理 |
+| [2026-11-06 常用文档优化](maintenance/2026-11-06-documentation-refresh.md) | 修正旧操作与状态说明，统一安装更新分流，精简前后端开发文档 |
 
 T01 的实施证据保留在开发计划。产品当前名为「此间集」；曾用名及历史平台应用名按原事实保留，详见改名记录。

@@ -1,6 +1,6 @@
 # 此间集 · 第一版需求与验收
 
-更新：2026-09-21。阶段 2 工作基线，已纳入阶段 6 的最新回答。本文统一记录当前功能规则，移除已被替代的“全部照片再筛年份”、重复问答及旧阶段安排。
+本文件保留 2026-09-21 第一版需求与验收基线，包含准备阶段 6 的确认，用于追溯规则和任务对应。第二版当前入口与操作见[功能指南](../guides/user-guide.md)，实现状态以[开发计划](../planning/development-plan.md)为准；历史界面设想不表示当前页面仍采用同一布局。
 
 依据：[项目定位](project-brief.md)。下表是正式产品的验收要求，不表示已经实现；原型与技术小样通过的范围见 [可行性记录](../reports/preparation/feasibility.md) 和 [Edge 复查](../reports/preparation/edge-review-2026-09-21.md)。任务编号见 [开发计划](../planning/development-plan.md)。
 

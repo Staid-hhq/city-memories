@@ -1,143 +1,91 @@
 # 此间集后端
 
-FastAPI、SQLAlchemy 与 Alembic 工程。开发命令统一从本目录运行，依赖由 `uv.lock` 锁定。
+FastAPI、SQLAlchemy 与 Alembic 工程，采用 Python `src` 布局。以下命令从 `backend/` 执行，依赖由 [pyproject.toml](pyproject.toml) 和 `uv.lock` 锁定。日常启动见[本地手册](../docs/guides/local-first-release.md)，接口字段与错误码统一维护在[数据与接口设计](../docs/architecture/data-api-design.md)。
 
-当前相册界面按“城市相册 → 年份影集 → 照片”组织：`GET /api/v1/me/city-albums` 聚合本人城市相册，原 `/cities/{city_id}/albums` 继续提供该城市的年份影集，原 `/me/albums` 继续服务首页最近整理等年份列表。不新建城市相册表，不改现有影集或照片 ID；当前接口契约见[数据与接口设计](../docs/architecture/data-api-design.md#11-城市相册聚合接口2026-10-24)。
+## 环境与启动
 
-目录采用标准 Python `src` 布局：`src/city_memories/` 按业务模块组织服务，`migrations/` 保存数据库升级历史，`tests/` 放隔离测试。现有模块规模仍适合这种结构，未为分类新增多层空包；各文件职责见[文件导航](../docs/file-guide.md#后端)。当前开发和维护命令保持不变。
+首次准备或依赖变化，按[安装与更新步骤](../docs/guides/local-first-release.md#3-新机器首次准备或更新后)同步环境。已有环境时使用项目 Python；本机裸 `python` 可能指向 MSYS2。
 
-日常本地第一版的启动/停止、构建版前端、配置、数据位置与维护说明集中在 [T16 使用手册](../docs/guides/local-first-release.md)。下面保留开发模式命令；日常无需 `--reload`，不要与既有后端同时运行。
-
-```powershell
-uv sync --locked --python 'D:\SDK\Python\Python3.13\python.exe'
-uv run python -m alembic upgrade head
-uv run uvicorn city_memories.main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-headers
-```
-
-只运行单个应用实例。`--no-proxy-headers` 保证限流根据真实连接来源计数，客户端不能伪造 `X-Forwarded-For` 换地址；未来部署的代理信任范围另在 T17 配置。
-
-配置取自项目根目录 `.env` 或 `CITY_MEMORIES_` 环境变量，示例见 [.env.example](.env.example)。默认目录为项目根目录 `.local-data`：`database/` 保存 SQLite，`originals/` 保存独立原图副本，`staging/` 保存待提交图片；`auth-secret.key` 在第一次启动时随机创建，之后重启沿用。不要把这些内容提交到公开仓库。
-
-`/api/v1/auth/csrf`、`register`、`login`、`me`、`logout` 已实现。修改请求必须携带当前会话 Cookie、可信的 Origin/Referer 和 `X-CSRF-Token`；密码、Token、数据库路径不出现在错误响应里。OpenAPI 由运行服务的 `/docs` 提供。
-
-T03 新增 `/api/v1/cities`、`/me/atlas`、`/cities/{city_id}/albums`（GET/POST）和 `/albums/{album_id}`；均要求登录，具体影集必须属于会话本人。迁移 `b61e24f803a7` 加入三个公共城市映射，详情和已测边界见 [T03 记录](../docs/reports/v1/t03-albums-verification.md)。年份为严格整数 1–9999 或 null，重复创建返回原影集；城市与年份列表有签名游标分页，不能用私人游标跨账号读取。
-
-T04 新增创建导入、逐文件接收、状态查询、提交和取消，以及 `/photos/{photo_id}/original`。沿用现有表和依赖，不新增迁移。先校验权限再读取 multipart；实际格式、大小、像素和 SHA256 均由服务端核验。原始字节不重编码，文件先就绪、照片记录和幂等收据再通过短事务一起保存。详细请求格式、50 MiB/8000 万像素限制、租约和失败恢复边界见 [接口契约](../docs/architecture/data-api-design.md#6-导入协议与失败恢复) 与 [T04 记录](../docs/reports/v1/t04-originals-verification.md)。
-
-当前仅支持单实例：全局最多同时接收/解码两张，接收租约 15 分钟，未提交批次 24 小时过期。启动时把上次中断的 receiving 项标为可重试失败；不自动提交照片。取消只清除该批次未发布的系统副本，删除失败及崩溃遗留文件由 T10 后台重试清理；不要手动清空原图目录。
-
-T05 新增 `GET /albums/{album_id}/photos` 和 `GET /photos/{photo_id}`，均在 `/api/v1` 下。照片分页默认 24、最多 100，签名游标绑定账号、影集、影集版本和上次位置；数据变化返回 409/ALBUM_CHANGED，不能拼接旧页。详情提供同影集的前后照片、序号及只读文字，可附 album_id、expected_album_revision 检查浏览上下文。权限、版本、数量和资料来自同一数据库读取快照，不含存储键、完整哈希或其他账号数据。见 [T05 记录](../docs/reports/v1/t05-browsing-verification.md)。
-
-T06 新增 `GET /api/v1/imports/queue/{queue_id}?after=-1`：按当前账号和随机队列 UUID 查询已登记批次，每页最多 25 批。已有 Idempotency-Key 使用 `<队列 UUID>_<六位批次顺序>`；不另建上传通道或表。返回 `items, next_index`，每个批次追加 `queue_index, city_id, year`，包括可显式取消清理的过期状态，不输出路径或哈希。批量前端继续使用原逐文件接收和显式提交协议；见 [T06 记录](../docs/reports/v1/t06-batch-import-verification.md)。
-
-T07 新增 `PATCH /api/v1/photos/{photo_id}/note` 和 `POST /api/v1/albums/{album_id}/reorder`。文字最多 2000 个 Unicode 字符、可空，JSON 实际字节上限 64 KiB；只改变照片 revision。排序 JSON 上限 16 KiB，在完整有效影集内按照片/锚点移动，两阶段位置更新和影集 revision 处于同一事务；不改照片 ID、文字、revision 或原图。均要求本人资源、CSRF 和匹配版本，冲突返回 409，相同内容/位置不增加版本。复用现有表，无新依赖或迁移；详见 [接口契约](../docs/architecture/data-api-design.md) 和 [T07 记录](../docs/reports/v1/t07-editing-verification.md)。
-
-T08 新增 `POST /api/v1/photos/{photo_id}/move` 和 `GET /api/v1/albums/{album_id}/duplicates`。移动要求本人有效照片与本人源/目标影集，以及照片、源影集、目标影集的三个版本；JSON 上限 16 KiB，事务内追加目标末尾并更新三者版本，原 ID、文字、原图和导入收据不变。重复查询仅按本影集有效照片的 SHA256 分组，默认 24、最多 100 **条照片**，大组可跨页，返回代表照片 UUID 而非哈希；游标绑定账号、影集、版本。原影集移空仍保留，相同内容不自动删除或合并；无新依赖或迁移。详见 [T08 记录](../docs/reports/v1/t08-organizing-verification.md)。
+确认依赖、实际数据目录和迁移就绪后，使用与 PyCharm 共享配置一致的命令：
 
 ```powershell
-uv run ruff check .
-uv run python -m pytest -q
+& .\.venv\Scripts\python.exe -m uvicorn city_memories.main:app --host 127.0.0.1 --port 8000 --no-proxy-headers --no-access-log
 ```
 
-测试只用临时数据库。`test_process_restart.py` 会在临时端口启动并停止真实 Uvicorn；前端 `npm run test:e2e` 调用 `tests/serve_e2e.py`，在临时数据目录验证实际 Edge。
+只运行一个应用实例，不加多 `workers`。日常不需要 `--reload`；后端代码变更后正常停止并重启。`--no-proxy-headers` 保留真实连接来源的限流口径，未来部署的代理信任范围另在 T17 配置。
 
-若本机应用程序控制阻止 `pytest.exe` 启动器，使用上述模块入口或 `.\.venv\Scripts\python.exe -m pytest -q`；不需要重装依赖或更改系统策略。
+配置来自工程根目录 `.env` 或 `CITY_MEMORIES_` 环境变量，环境变量优先；[.env.example](.env.example) 仅有占位示例。默认数据在根目录 `.local-data/`，配置与数据不提交 GitHub。产品更名未改变包名、环境变量前缀、Cookie、数据库或备份标识。
 
-## T09 回收站与恢复
+## 代码职责
 
-新增 `POST /api/v1/photos/{id}/trash`、`GET /api/v1/trash/photos`、`GET /api/v1/trash/photos/{id}`、`GET /api/v1/trash/photos/{id}/original`、`POST /api/v1/trash/photos/{id}/restore`。修改需照片/影集版本与 CSRF，JSON 16 KiB；写锁后检查归属、状态、版本与时间，两者同事务更新。30×24 小时内可查看并恢复到删除时所在影集末尾，保留原字节/文字/ID，空影集保留；期限相等或 purging 返回 410。分页默认 24、最多 100，游标绑定账号和未到期成员 ID/版本摘要；日期用 Unix 毫秒整数，剩余时长用毫秒。无新依赖/迁移。到期物理清理由下述 T10 实现；记录已清除后再次查询返回 404，不恢复也不重建。见 [T09 记录](../docs/reports/v1/t09-trash-verification.md)。
+| 模块 | 职责 |
+| --- | --- |
+| [main.py](src/city_memories/main.py)、[config.py](src/city_memories/config.py) | 应用工厂、生命周期与配置 |
+| [auth.py](src/city_memories/auth.py)、[boundary.py](src/city_memories/boundary.py)、[errors.py](src/city_memories/errors.py) | 会话、CSRF、来源/频率限制及统一错误边界 |
+| [models.py](src/city_memories/models.py)、[database.py](src/city_memories/database.py)、`migrations/` | 数据模型、连接及迁移链 |
+| [albums.py](src/city_memories/albums.py)、[province_centers.py](src/city_memories/province_centers.py) | 城市/年份影集、城市聚合、封面和省会视图 |
+| [imports.py](src/city_memories/imports.py)、[storage.py](src/city_memories/storage.py) | 导入、暂存、原图存储与恢复状态 |
+| [photos.py](src/city_memories/photos.py)、[editing.py](src/city_memories/editing.py)、[organizing.py](src/city_memories/organizing.py) | 原图/分页、文字/排序、移动与重复查看 |
+| [trash.py](src/city_memories/trash.py)、[cleanup.py](src/city_memories/cleanup.py)、[backup.py](src/city_memories/backup.py) | 回收恢复、到期/遗留清理与离线备份 |
+| [maps.py](src/city_memories/maps.py)、[city-catalog.json](src/city_memories/city-catalog.json) | 已审核城市目录、稳定业务 ID 及第一版地图兼容接口 |
+| `tests/` | 临时数据和合成图片的接口/维护/重启测试 |
 
-## T10 到期清理及故障恢复
+完整职责见[文件导航](../docs/file-guide.md#后端)。
 
-T10 交付时沿用既有表、依赖和迁移头 `b61e24f803a7`；当前 API 版本仍为 0.13.0，第二版数据库升级见文末 V2-01。没有新增清理按钮或对外清理接口，默认启动补做一轮，再在后台每轮结束后等待 60 秒。无需预先创建计划任务或填写清理密钥。**升级后下次启动真实服务就会清理已到期副本；开发验证只使用临时目录，没有清理用户真实资料。**
+## 数据库升级
 
-配置取自根目录 `.env` 或环境变量：
-
-| 配置 | 默认值 | 作用 |
-| --- | --- | --- |
-| `CITY_MEMORIES_CLEANUP_ENABLED` | `true` | 启动与周期清理开关；故障排查时可临时设为 false，重启生效 |
-| `CITY_MEMORIES_CLEANUP_INTERVAL_SECONDS` | `60` | 两轮之间的等待秒数，整数 1–3600 |
-
-关闭清理不延长回收站/上传期限，不关闭访问校验、启动时 receiving 中断标记或单实例保护。排障后恢复 true 并重启，遗留状态会继续补做；不要把长期关闭当作备份。服务未运行、积压或删除失败时，不保证到期瞬间释放磁盘。
-
-同一私有数据目录使用操作系统文件锁 `maintenance.lock`，第二个实例启动会明确失败；不要用多个 Uvicorn workers。锁文件保留是正常的，关闭或进程崩溃后系统释放锁，**不要在运行时手工删除锁文件**。私有目录必须是独立本地目录，不支持符号链接、Windows junction 或被重定向的祖先目录。
-
-清理顺序：到期照片先事务落库为 purging → 删除该份独立文件 → 删除照片行。文件被占用/权限失败保留状态，下轮重试；文件已删而数据库提交失败时，重启也能完成余下步骤。已成功恢复的照片不会进入 purging；purging 不可恢复。有效照片、未到期回收站、空影集、其他重复副本、上传源文件及历史备份不由此删除。已提交导入收据保留，重放不重新生成已永久清除的照片。
-
-上传租约到期撤销旧尝试；multipart 等待超时释放接收名额，迟到上传不能覆盖新尝试。取消/过期/部分保存放弃项的遗留系统文件可回收；仍在有效批次中的 staged 文件及数据库失败后已发布的副本保留供显式重试。无元数据的系统命名文件至少等待文件修改时间满 24 小时。仅扫描私有目录直接子文件，拒绝硬链接、符号链接、junction，不递归或处理未知命名文件。清理不自动提交导入、不删除批次及幂等收据。
-
-日志只给汇总计数，不输出异常文本、文件名、路径、账号或密钥。若持续出现 `Private-data cleanup incomplete; will retry`，先检查磁盘空间、目录权限和文件占用；解除故障后等待下一轮，必要时正常停止并重启服务。不要手动清空 originals、改库或延长期限；数据损坏/丢失不保证自动恢复，独立备份与恢复工具已在下述 T11 提供。
-
-每轮数据库变更和文件检查有数量上限；目录名称仍会完整枚举排序。T15 已用 3400 份有效合成原图执行 30 轮清理核对，未测数千份过期积压的删除性能。详见 [T10 交付记录](../docs/reports/v1/t10-cleanup-verification.md) 与 [T15 规模记录](../docs/reports/v1/t15-scale-verification.md)。
-
-## T11 一致备份与恢复工具
-
-新增离线模块 `python -m city_memories.backup`，含 `create`、`verify`、`restore`，无网页入口。**先正常停止后端和重载进程**，工具以同一操作系统锁排除应用、清理、迁移和其他维护命令；使用 SQLite Backup API 读取已提交 WAL，不直接复制运行中的单个数据库文件。
-
-`create --data-dir <私有数据目录> --destination <全新备份目录>` 创建快照、复制有效/未到期回收站独立原图、保存清单并完整校验；只整理快照副本，不改源库。清单含格式/迁移版本、大小、哈希、数量和照片元数据摘要。已提交收据保持；旧会话/限流不携带，未提交批次在副本中关闭，暂存文件和认证密钥不复制。
-
-`verify --backup <备份目录>` 校验结构、版本、数据库完整性/外键、清单和全部原图。`restore --backup <备份目录> --destination <全新数据目录>` 先校验再恢复，结束前重新核对到期状态，期限不重置；旧 Cookie 失效，用户名/密码保留。失败目录保留 `.maintenance-incomplete`，不能启动或迁移；完整备份目录也禁止直接作为服务数据目录使用。
-
-目标父目录须存在，最终目录必须不存在、位于 Git 工作区外且与来源不互相包含；不覆盖、不合并、不递归删除任何目录，拒绝链接/网络路径。操作日志只有汇总计数和固定错误，不输出私人字段。备份本身仍含照片、文字、账号及密码哈希，须保密；不内置加密，不自动判断物理介质独立性，不创建定时任务或删除旧备份。
-
-备份格式保持 v1；V2-01 工具兼容旧迁移 `b61e24f803a7` 和新迁移 `c7e9a162b4d8` 的创建、校验与恢复，保留源 schema，不自动升级备份或恢复结果。旧版本恢复目录在启动新版应用前须显式执行 Alembic 升级；不要在备份目录本身迁移。实际使用时的独立介质、频率和保留策略仍需确定。完整命令与升级顺序见 [操作说明](../docs/guides/backup-restore.md)；T11 的历史结果见 [T11 交付记录](../docs/reports/v1/t11-backup-verification.md)，本轮兼容验证见 [V2-01 记录](../docs/reports/v2/2026-10-21-v2-album-library.md)。
-
-## T13 第一版地图配置与城市目录
-
-本节保留第一版在线地图配置。V2-02/V2-03 的正式前端已改用随应用提供的公共市界，不再请求 `/map/config` 或在线瓦片；无需为新图填写 Key。城市业务目录、稳定 UUID 和 `/me/atlas` 的本人统计继续复用，不新增数据库迁移。数据来源及当前验证见[中国地图记录](../docs/reports/v2/2026-10-22-china-city-map.md)。
-
-新增登录必需的 `GET /api/v1/map/cities`（已审核业务身份及供应商代码）和同源 `GET /api/v1/map/config`（绘图 Key、来源信息及可用状态），均不缓存。没有服务器瓦片代理；本人照片统计仍用 `/me/atlas`。391 项开放、草湖市 1 项 pending；启动只补缺，保留原三城 UUID 和所有已有停用/人工修订记录，不改影集归属。
-
-根目录私有 `.env` 或环境变量可设置 `CITY_MEMORIES_MAP_KEY`；也可设置 `CITY_MEMORIES_MAP_KEY_FILE`，指向含 `TIANDITU_KEY=占位符` 的受保护本地配置文件。不要同时复制真实值到源码。另需 `CITY_MEMORIES_MAP_REVIEW_NUMBER`、`CITY_MEMORIES_MAP_REVIEW_DATE`，由官方实际服务核对后配置；缺失则只使用文字入口。本机已引用现有 Key 文件，仓库只提供 `.env.example`。
-
-浏览器 Key 对已登录浏览器可见，上线须复核域名限制和使用条件；此接口不是保护服务端秘密的通用渠道。配置错误不会在响应中回显 Key 或文件路径。详见 [T13 交付](../docs/reports/v1/t13-map-verification.md)、[目录审核](../docs/reference/t13-city-catalog.md)。后端全量 257 项及 Ruff 通过，无新增迁移或依赖。
-
-## V2-01 独立相册与封面偏好
-
-新增 `GET /api/v1/me/albums`，返回本人跨城市的 `{items, next_cursor}` 相册列表，分页默认 24、最多 100。`sort=year` 为默认排序，按年份倒序、未标年份最后，同年按稳定 ID 排列；原有无过滤年份游标 scope 保持不变。V2-04 首页增加 `sort=recent`，按 `updated_at DESC, id ASC` 排列，签名游标同时绑定当前账号和排序，不能跨账号或排序复用。各项沿用 `AlbumView`，有效照片数量与封面按本人资源计算。
-
-首页最近整理读取 `sort=recent&limit=3`。这里的更新时间包括相册创建、照片导入、移动、排序、回收/恢复及封面改变；照片文字编辑只更新照片版本，不改变相册最近整理时间。此排序复用现有字段，不增加迁移、依赖或锁文件变更，接口与隔离验证见[首页改善记录](../docs/reports/v2/2026-10-23-home-map-sidebar.md)。
-
-新增 `PATCH /api/v1/albums/{id}/cover`，JSON 为 `{photo_id: null|string, expected_revision: int}`，成功返回更新后的 `AlbumView`。修改需要当前会话、CSRF 和本人影集；手选照片须仍属于该影集且有效，版本不匹配返回 `409 / ALBUM_CHANGED`。`photo_id: null` 恢复自动封面；当前手选照片无效时展示会回退到影集顺序中的第一张有效照片，无有效照片时为空。封面偏好不修改照片 ID、原图字节、文字或顺序。
-
-迁移 `c7e9a162b4d8` 在 `albums` 增加可空的 `preferred_cover_photo_id`，现有行默认 null，使用自动封面。**PyCharm 启动入口不会自动迁移。** 先正常停机、核对数据目录并备份，再从 `backend` 目录由使用者执行：
+当前迁移头为 `c7e9a162b4d8`。新安装、第一版旧库或旧版恢复目录，需要先停止后端、核对实际目录，有资料时完成一致备份，再显式升级：
 
 ```powershell
 & .\.venv\Scripts\python.exe -m alembic upgrade head
-if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动新版服务' }
+if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动服务' }
+& .\.venv\Scripts\python.exe -m alembic current
 ```
 
-本轮仅升级合成测试库，未读取或迁移真实数据库、照片和 `.env`；依赖与锁文件保持不变。备份工具接受旧/新 schema 并保持源版本；旧库或旧恢复目录启动新版前仍要按上述命令显式升级。实现、验证进度和第二版剩余任务见 [V2-01 记录](../docs/reports/v2/2026-10-21-v2-album-library.md)。
+运行按钮不会迁移；当前头未变时不因普通界面更新重复初始化。迁移会使用当前配置的数据目录，不把备份目录当作运行目录，也不通过删库解决缺字段。恢复后的升级顺序见[备份指南](../docs/guides/backup-restore.md#3-恢复到全新目录并检查)。
 
-## V2-04 相册筛选与年份选项
+## 接口与实现约束
 
-`GET /api/v1/me/albums` 增加可组合的 `q` 与 `year`，仍在服务端筛选当前账号的完整相册集合，再按既有年份或最近整理规则分页，不只搜索浏览器已加载的卡片：
+所有业务路径位于 `/api/v1`，OpenAPI 由运行服务的 `/docs` 提供。除健康、注册/登录等必要入口外，私人资源必须检查当前账号归属；修改请求沿用 Cookie、可信 Origin/Referer 和 `X-CSRF-Token`。
 
-| 参数 | 规则 |
-| --- | --- |
-| `q` | 最多 80 字符，去除首尾空白；对城市名称或所属地区作字面包含搜索，空字符串等同不限制；`%`、`_` 等字符不充当 SQL 通配符 |
-| `year` | 省略表示全部年份；`unmarked` 表示未标年份；否则为 1–9999 的年份 |
-| `sort` | `year`（默认）或 `recent`，规则不变 |
-| `cursor`、`limit` | 继续使用签名游标和既有分页数量限制 |
+- `/me/city-albums` 读取本人按城市聚合的相册；`/cities/{id}/albums` 读取年份影集；`/me/albums` 仍服务最近整理等年份列表。城市聚合不新增表或改变既有照片归属。
+- 搜索、年份、排序及游标绑定账号和条件；年份筛选选出城市后，城市卡统计和封面仍覆盖该城市所有年份。
+- 导入分为登记、传输/校验与明确提交，重试保持原批次和幂等参数；只有提交成功才进入影集。文件就绪与数据库关系提交须保持一致，原字节不重编码。
+- 文字、排序、移动、封面及回收/恢复使用既有版本核对；冲突不覆盖新内容，不以新建操作掩盖结果不明。
+- 后端保存城市业务身份和本人统计；当前前端使用公共静态矢量，不请求旧 `/map/config` 或在线瓦片，无需新增地图 Key。
 
-无过滤时兼容原游标 scope；有过滤时游标绑定账号、排序、规范化搜索词和年份条件，不能用于另一组合。筛选仍包含本人空影集；无匹配返回空列表，与权限失败或加载失败区分。
+完整协议以[接口契约](../docs/architecture/data-api-design.md)为准，历史实现过程见[报告索引](../docs/reports/README.md)。
 
-新增需登录的 `GET /api/v1/me/albums/options`，返回 `{years: (number|null)[]}`：从本人的全部相册去重，数字年份倒序、null 最后，没有相册时为空数组。不受当前搜索词、年份条件或列表首 24 条限制，不返回其他账号的选项。
+## T10 到期清理及故障恢复
 
-本次沿用现有表、更新时间字段和依赖，没有迁移或锁文件变更。正常停止并重新启动项目以加载接口，重建前端后 `Ctrl+F5` 刷新；已完成 V2-01 升级时不用再次迁移。验证、近期排序口径和使用边界见[相册查找记录](../docs/reports/v2/2026-10-23-album-library-filters.md)。
+默认在启动时补做清理，再在运行中每轮结束等待 60 秒。**启动真实数据目录会按规则永久清理到期副本**；测试必须使用临时目录。
 
-## V2-04 城市相册与年份影集层级
+| 配置 | 默认 | 说明 |
+| --- | --- | --- |
+| `CITY_MEMORIES_CLEANUP_ENABLED` | `true` | 控制启动及周期清理，改变后重启生效 |
+| `CITY_MEMORIES_CLEANUP_INTERVAL_SECONDS` | `60` | 两轮之间等待秒数，整数 1–3600 |
 
-新增需登录的 `GET /api/v1/me/city-albums`，按本人已有年份影集的城市分组，返回 `{items, next_cursor}`，默认 24 个城市、最多 100 个。各项为 `city, album_count, photo_count, latest_year, has_unmarked, cover_photo_id, original_url`；`album_count` 包含空年份影集，`photo_count` 只计算本人的 active 照片，只有空影集的城市仍保留。这里的城市相册是读取时的聚合，不增加数据库实体或写入入口。
+关闭清理不会延长回收站/上传期限，也不取消中断接收状态恢复、访问校验或单实例保护。回收站保留 30×24 小时，到期立即禁止查看/恢复，物理删除失败留待重试。
 
-参数沿用 `q`、`year`、`sort`、`cursor`、`limit`：搜索规范化后按城市/所属地区字面包含匹配；年份筛选表示该城市存在所选年份影集，统计和封面仍取该城市全部年份。`sort=year` 按城市最新具体年份倒序、仅未标年份最后；`sort=recent` 按城市内最新影集更新时间倒序，两种排序均以城市 ID 升序稳定分页。签名游标绑定当前账号、规范化筛选及排序，并使用独立 scope，不能跨账号、条件或与旧年份影集列表混用。
+清理协调未提交/过期导入、遗留临时文件、到期回收站、会话及限流资料；保留已提交导入的幂等收据，永久删除照片后也不能因重放旧请求重新生成。实例锁在关闭清理时仍保留，不手动删除锁文件。日志仅输出固定错误和汇总，不输出密钥、私人内容或完整异常；服务停机、积压或故障时不保证准点释放空间。
 
-城市封面取年份倒序（未标年份最后）中首个有有效照片的影集，再沿用该影集的手选/自动封面规则；最新年份为空时继续寻找较早有照片的年份，无有效照片时封面为 null。不新增城市封面偏好，不修改年份影集既有偏好。原 `/me/albums`、年份选项、创建影集、导入和封面修改接口保持兼容。
+排障先核对磁盘、权限和占用，解除后重试；不手工清空 `originals/`、`staging/` 或修改数据库。完整规则与边界见[数据设计](../docs/architecture/data-api-design.md)及[历史验证](../docs/reports/v1/t10-cleanup-verification.md)。
 
-更新时正常停止项目、重建前端、正常启动，再 `Ctrl+F5`，以加载只读聚合接口；仅构建前端不能加载该接口。已完成 V2-01 升级时不重复迁移；本轮没有新表、依赖或锁文件变更，不读取或迁移用户真实资料。实际验证与使用边界见[城市相册层级记录](../docs/reports/v2/2026-10-24-city-album-hierarchy.md)。
+## 离线备份与恢复
 
-## V2-04 省会默认入口
+`python -m city_memories.backup` 提供 `create`、`verify`、`restore`，没有网页入口。使用项目 Python，先正常停止后端，再按[备份指南](../docs/guides/backup-restore.md)选择实际数据目录、工作区外全新目标并校验。
 
-`GET /api/v1/cities` 增加 `view=all|province-centers`，默认 `all` 保留原全国城市搜索和名称分页。`province-centers` 从既有已审核目录按稳定业务 ID 选择 34 个省级地区的省会、首府、直辖市/港澳本身及台北，先筛选并按明确拼音键、城市 ID 排序，再分页；重庆使用 `chongqing`，长春、长沙使用 `changchun`、`changsha`。返回仍为 `{items, next_cursor}`，每项沿用 `CityView`，默认 24、最多 100；首页用 `limit=100` 一次读取完整列表。
+备份保留有效照片和未到期回收站，不携带 `.env`、认证密钥或旧会话；恢复保留账号密码哈希、原图、关系、文字和顺序，期限不重置。工具接受第一版和当前迁移版本并保留源 schema，不自动升级恢复结果。不覆盖或合并旧资料，不内置加密、定时任务或自动轮换。
 
-两种视图都只返回 active 且 verified 的城市，沿用 `q` 的首尾空白清理及城市/所属地区字面包含匹配；省会视图的签名游标绑定该视图与规范化查询，不能与全目录或其他搜索词混用。手工暂停或待审核的入口不会被重新开放，既有地图目录及影集归属继续使用原业务 ID。选项和排序放在 `province_centers.py`，不新增表、迁移、依赖或目录种子。更新时正常重启后端以加载参数，并重建前端后刷新；实际验证见[省会默认入口记录](../docs/reports/v2/2026-10-25-province-city-entries.md)。
+## 测试与检查
+
+已有项目环境时执行：
+
+```powershell
+& .\.venv\Scripts\python.exe -m ruff check .
+& .\.venv\Scripts\python.exe -m pytest -q
+```
+
+测试使用临时数据库；`test_process_restart.py` 会在临时端口启动真实 Uvicorn。`tests/serve_e2e.py` 仅供前端隔离回归，不能用作日常服务入口。前端测试和独立端口说明见[前端 README](../frontend/README.md#隔离测试)。
+
+已有可用环境无需为运行测试重装全局包；使用模块入口可避开某些环境对 `pytest.exe` 包装器的限制。结果、截图和运行库留在忽略目录，实际通过项及未测范围只记录在对应交付报告中。

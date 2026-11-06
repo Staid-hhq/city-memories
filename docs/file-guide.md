@@ -252,6 +252,7 @@
 | [reports/maintenance/2026-10-17-ide-startup.md](reports/maintenance/2026-10-17-ide-startup.md) | 开发软件核对、PyCharm 运行配置和隔离验证记录 |
 | [reports/maintenance/2026-11-06-product-rename.md](reports/maintenance/2026-11-06-product-rename.md) | 此间集产品改名、启动配置、兼容标识与本轮验证 |
 | [reports/maintenance/2026-11-06-file-organization.md](reports/maintenance/2026-11-06-file-organization.md) | 报告分组、入口精简、引用审计与本地测试产物清理 |
+| [reports/maintenance/2026-11-06-documentation-refresh.md](reports/maintenance/2026-11-06-documentation-refresh.md) | 常用文档过时说明修正、安装更新分流与本轮静态验证 |
 
 ## 独立验证工具
 

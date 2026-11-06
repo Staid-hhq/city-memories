@@ -30,6 +30,7 @@
 - [首页侧栏与视觉整理](reports/v2/2026-11-06-sidebar-visual-round-three.md)。
 - [产品改名为此间集](reports/maintenance/2026-11-06-product-rename.md)。
 - [本次文件整理与测试产物清理](reports/maintenance/2026-11-06-file-organization.md)。
+- [常用文档优化](reports/maintenance/2026-11-06-documentation-refresh.md)：当前上传操作、更新分流和前后端开发入口。
 
 T01–T16 和已交付的第二版子项保留各自验收条件；V2-04、第二版整体验收与 T17 部署仍待安排。历史报告中的名称、测试条数和输出路径表示当时情况；本地测试产物可按已记录的清理操作移除，需要时重新运行工具生成。
 
