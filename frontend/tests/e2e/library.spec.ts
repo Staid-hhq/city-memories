@@ -105,6 +105,7 @@ test('相册空状态、首次加载失败和退出后的迟到响应不会串�
   }
   await page.setViewportSize({ width: 1360, height: 940 })
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
   await login(page, 'Albums_One')
   let release!: () => void
   const paused = new Promise<void>(resolve => { release = resolve })

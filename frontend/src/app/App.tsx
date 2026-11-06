@@ -4,6 +4,7 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-r
 import { api, ApiError, clearSessionState, errorMessage, isAbort, setCsrfToken } from '../shared/api'
 import type { LoginResult, User } from '../shared/api'
 import { OperationFeedback } from '../shared/OperationFeedback'
+import { authErrorMessage, authResultUnknown, isUser, readAuthState, withAuthDeadline } from '../shared/auth'
 import { registrationPasswordError } from '../shared/passwords'
 import { Journal } from '../features/albums/Journal'
 
@@ -12,19 +13,12 @@ type SessionState =
   | { phase: 'error'; error: unknown }
   | { phase: 'user'; user: User }
 
-function isUser(value: unknown): value is User {
-  if (!value || typeof value !== 'object') return false
-  const user = value as Partial<User>
-  return [user.id, user.username, user.created_at].every(field => typeof field === 'string' && field.length > 0)
-}
-
 async function readSession(controller: AbortController) {
-  const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)])
-  const user = await api<User>('/auth/me', { signal }, false)
-  if (!isUser(user)) {
-    throw new ApiError(200, 'RESPONSE_INVALID', '登录状态响应无法识别，请重新连接后再试。')
-  }
-  return user
+  return withAuthDeadline(controller.signal, async signal => {
+    const user = await api<User>('/auth/me', { signal }, false)
+    if (!isUser(user)) throw new ApiError(200, 'RESPONSE_INVALID', '登录状态响应无法识别，请重新连接后再试。')
+    return user
+  })
 }
 
 function connectionTitle(error: unknown) {
@@ -53,20 +47,60 @@ function ConnectionHelp() {
 function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: User) => void }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const [username, setUsername] = useState<string>(location.state?.registeredUsername ?? '')
+  const [username, setUsername] = useState<string>(location.state?.registeredUsername ?? location.state?.recoveryUsername ?? '')
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const notice = location.state?.registeredUsername ? '账号已创建，请使用新密码登录。' : ''
+  const [recovery, setRecovery] = useState<{ kind: 'login' | 'register'; username: string } | null>(null)
+  const [checking, setChecking] = useState(false)
+  const operation = useRef(0)
+  const recoveryPanel = useRef<HTMLDivElement | null>(null)
+  const notice = location.state?.registeredUsername ? '账号已创建，请使用新密码登录。'
+    : location.state?.recoveryUsername ? '注册结果尚未确认，请尝试登录。' : ''
   const activeRequest = useRef<AbortController | null>(null)
 
-  useEffect(() => () => activeRequest.current?.abort(), [])
+  useEffect(() => () => { operation.current++; activeRequest.current?.abort() }, [])
+  useEffect(() => { if (recovery) recoveryPanel.current?.focus() }, [recovery])
+
+  function begin() {
+    activeRequest.current?.abort()
+    const controller = new AbortController()
+    activeRequest.current = controller
+    const id = ++operation.current
+    return { controller, current: () => operation.current === id && !controller.signal.aborted }
+  }
+
+  async function checkLogin() {
+    if (!recovery || recovery.kind !== 'login' || busy) return
+    clearSessionState()
+    const { controller, current } = begin()
+    setBusy(true); setChecking(true); setError('')
+    try {
+      const snapshot = await withAuthDeadline(controller.signal, readAuthState)
+      if (!current()) return
+      setCsrfToken(snapshot.csrfToken)
+      if (!snapshot.user) {
+        setRecovery(null)
+        setError('当前未登录，可重新登录；这不代表之前的请求未被处理。')
+      } else if (snapshot.user.username.toLowerCase() !== recovery.username.toLowerCase()) {
+        setError('当前浏览器登录的账号与本次输入不一致，请重新填写并登录，或刷新页面核对账号。')
+      } else {
+        setPassword(''); setConfirmation('')
+        onLogin(snapshot.user)
+      }
+    } catch (reason) {
+      if (current()) setError(authErrorMessage(reason, errorMessage))
+    } finally {
+      if (current()) { setBusy(false); setChecking(false) }
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (busy || recovery) return
     setError('')
     if (!/^[A-Za-z0-9_]{3,32}$/.test(username)) {
       setError('用户名须为 3–32 位英文字母、数字或下划线。')
@@ -84,22 +118,25 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
       return
     }
     setBusy(true)
-    const controller = new AbortController()
-    activeRequest.current = controller
+    const { controller, current } = begin()
+    const submittedUsername = username
     try {
       if (register) {
-        await api<User>('/auth/register', {
-          method: 'POST', signal: controller.signal,
+        const result = await withAuthDeadline(controller.signal, signal => api<User>('/auth/register', {
+          method: 'POST', signal,
           body: JSON.stringify({ username, password, password_confirm: confirmation }),
-        }, false)
+        }, false))
+        if (!current()) return
+        if (!isUser(result) || result.username.toLowerCase() !== submittedUsername.toLowerCase()) throw new ApiError(200, 'RESPONSE_INVALID', '注册响应无法识别，请尝试登录核对结果。')
         setPassword('')
         setConfirmation('')
         navigate('/login', { replace: true, state: { registeredUsername: username } })
       } else {
-        const result = await api<LoginResult>('/auth/login', {
-          method: 'POST', signal: controller.signal, body: JSON.stringify({ username, password }),
-        }, false)
-        if (!isUser(result?.user) || typeof result.csrf_token !== 'string' || !result.csrf_token.trim()) {
+        const result = await withAuthDeadline(controller.signal, signal => api<LoginResult>('/auth/login', {
+          method: 'POST', signal, body: JSON.stringify({ username, password }),
+        }, false))
+        if (!current()) return
+        if (!isUser(result?.user) || result.user.username.toLowerCase() !== submittedUsername.toLowerCase() || typeof result.csrf_token !== 'string' || !result.csrf_token.trim()) {
           throw new ApiError(200, 'RESPONSE_INVALID', '登录响应无法识别，请重新核对登录结果后再试。')
         }
         setPassword('')
@@ -108,9 +145,15 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
         onLogin(result.user)
       }
     } catch (reason: unknown) {
-      if (!isAbort(reason)) setError(errorMessage(reason))
+      if (!current()) return
+      setError(authErrorMessage(reason, errorMessage))
+      if (authResultUnknown(reason)) {
+        clearSessionState()
+        setShowPassword(false); setShowConfirmation(false)
+        setRecovery({ kind: register ? 'register' : 'login', username: submittedUsername })
+      }
     } finally {
-      if (!controller.signal.aborted) setBusy(false)
+      if (current()) setBusy(false)
     }
   }
 
@@ -166,8 +209,18 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
             </div>
           </>}
           {error && <p className="form-error" role="alert">{error}</p>}
+          {recovery && <div className="auth-recovery" role="status" tabIndex={-1} ref={recoveryPanel}>
+            <p>{recovery.kind === 'login' ? '登录结果尚未确认' : '注册结果尚未确认'}</p>
+            <p>{recovery.kind === 'login'
+              ? '请先核对当前登录状态；超时或停止等待不会撤销服务端操作。'
+              : '账号可能已创建，请用刚才的用户名和密码尝试登录。不要重复提交注册。'}</p>
+            {recovery.kind === 'login' ? <>
+              <button className="quiet-button" type="button" disabled={busy} onClick={() => void checkLogin()}>{checking ? '正在核对…' : '核对登录状态'}</button>
+              <button className="quiet-button" type="button" disabled={busy} onClick={() => { setRecovery(null); setError('请核对账号和密码后再明确提交登录。') }}>重新填写并登录</button>
+            </> : <Link className="quiet-button" to="/login" state={{ recoveryUsername: recovery.username }}>前往登录</Link>}
+          </div>}
           {notice && <p role="status">{notice}</p>}
-          <button className="primary-button" type="submit" disabled={busy}>
+          <button className="primary-button" type="submit" disabled={busy || recovery !== null}>
             {busy ? '请稍候…' : register ? '创建账号' : '登录我的手帐'}<span aria-hidden="true">→</span>
           </button>
           <p className="form-footnote">{register ? '注册完成后，请使用新账号登录。' : '还没有账号？'}
@@ -185,10 +238,20 @@ export function App() {
   const channel = useRef<BroadcastChannel | null>(null)
   const activeUser = useRef<string | null>(null)
   const logoutPending = useRef(false)
+  const logoutOwner = useRef<User | null>(null)
+  const logoutOperation = useRef(0)
+  const logoutRequest = useRef<AbortController | null>(null)
+  const [checkingLogout, setCheckingLogout] = useState(false)
+  const [logoutAccountChanged, setLogoutAccountChanged] = useState(false)
+  const logoutFeedback = useRef<HTMLElement | null>(null)
   const sessionRequest = useRef<AbortController | null>(null)
   const checkRequest = useRef<AbortController | null>(null)
   const [sessionNotice, setSessionNotice] = useState<unknown>()
   const [checkingSession, setCheckingSession] = useState(false)
+
+  useEffect(() => {
+    if (session.phase === 'logout-error' && !checkingLogout) logoutFeedback.current?.focus()
+  }, [session.phase, checkingLogout])
 
   const loadSession = useCallback(() => {
     if (logoutPending.current) return
@@ -238,7 +301,15 @@ export function App() {
     loadSession()
     const bus = new BroadcastChannel('city-memories-auth')
     channel.current = bus
-    bus.onmessage = refresh
+    bus.onmessage = () => {
+      if (logoutPending.current) {
+        logoutOperation.current++; logoutRequest.current?.abort()
+        clearSessionState(); setCheckingLogout(false); setLogoutAccountChanged(true)
+        setSession({ phase: 'logout-error', message: '浏览器登录状态已变化，退出结果尚未确认，请先核对退出状态。' })
+        return
+      }
+      refresh()
+    }
     const expired = () => { logoutPending.current = false; activeUser.current = null; setSessionNotice(undefined); setCheckingSession(false); setSession({ phase: 'guest', message: '登录已过期，请重新登录。' }) }
     const restored = (event: PageTransitionEvent) => { if (event.persisted) refresh() }
     const visible = () => {
@@ -253,6 +324,7 @@ export function App() {
     return () => {
       bus.close()
       sessionRequest.current?.abort(); checkRequest.current?.abort()
+      logoutRequest.current?.abort()
       clearSessionState()
       window.removeEventListener('city-memories:expired', expired)
       window.removeEventListener('pageshow', restored)
@@ -262,27 +334,24 @@ export function App() {
 
   function loggedIn(user: User) {
     logoutPending.current = false
+    logoutOwner.current = null; setCheckingLogout(false); setLogoutAccountChanged(false)
     activeUser.current = user.id; setSessionNotice(undefined)
     setSession({ phase: 'user', user })
     channel.current?.postMessage('changed')
     navigate('/', { replace: true })
   }
 
-  async function logout() {
-    logoutPending.current = true
-    activeUser.current = null; setSessionNotice(undefined); setCheckingSession(false)
-    sessionRequest.current?.abort(); checkRequest.current?.abort()
-    clearSessionState()
-    setSession({ phase: 'logging-out' })
-    try {
-      await api<void>('/auth/logout', { method: 'POST' }, false)
-    } catch (error: unknown) {
-      if (isAbort(error)) return
-      if (!(error instanceof ApiError && error.status === 401)) {
-        setSession({ phase: 'logout-error', message: '退出尚未完成。' + errorMessage(error) })
-        return
-      }
-    }
+  function beginLogoutCheck() {
+    logoutRequest.current?.abort()
+    const controller = new AbortController()
+    logoutRequest.current = controller
+    const id = ++logoutOperation.current
+    return { controller, current: () => logoutOperation.current === id && !controller.signal.aborted }
+  }
+
+  function finishLogout() {
+    logoutOperation.current++; logoutRequest.current = null
+    logoutOwner.current = null; setCheckingLogout(false); setLogoutAccountChanged(false)
     clearSessionState()
     logoutPending.current = false
     setSession({ phase: 'guest' })
@@ -290,8 +359,62 @@ export function App() {
     navigate('/login', { replace: true })
   }
 
+  async function verifyLogout() {
+    if (!logoutPending.current || checkingLogout) return
+    clearSessionState()
+    const { controller, current } = beginLogoutCheck()
+    setCheckingLogout(true)
+    try {
+      const snapshot = await withAuthDeadline(controller.signal, readAuthState)
+      if (!current()) return
+      if (!snapshot.user) { finishLogout(); return }
+      const changed = snapshot.user.id !== logoutOwner.current?.id
+      setLogoutAccountChanged(changed)
+      setSession({ phase: 'logout-error', message: changed
+        ? '当前浏览器的账号已变化，未退出另一个账号。请重新连接核对。'
+        : '当前仍处于登录状态，请选择重试退出。' })
+    } catch (error) {
+      if (current()) setSession({ phase: 'logout-error', message: '退出尚未完成，退出结果尚未确认。' + authErrorMessage(error, errorMessage) })
+    } finally { if (current()) setCheckingLogout(false) }
+  }
+
+  async function logout() {
+    const owner = logoutPending.current ? logoutOwner.current : session.phase === 'user' ? session.user : null
+    if (!owner) return
+    logoutOwner.current = owner
+    logoutPending.current = true
+    activeUser.current = null; setSessionNotice(undefined); setCheckingSession(false)
+    sessionRequest.current?.abort(); checkRequest.current?.abort()
+    clearSessionState()
+    const { controller, current } = beginLogoutCheck()
+    setCheckingLogout(false); setLogoutAccountChanged(false)
+    setSession({ phase: 'logging-out' })
+    try {
+      const changed = await withAuthDeadline(controller.signal, async signal => {
+        const snapshot = await readAuthState(signal)
+        signal.throwIfAborted()
+        if (!current()) throw new DOMException('操作已改变', 'AbortError')
+        if (!snapshot.user) return false
+        if (snapshot.user.id !== owner.id) return true
+        setCsrfToken(snapshot.csrfToken)
+        const result = await api<null>('/auth/logout', { method: 'POST', signal }, false)
+        if (result !== null) throw new ApiError(200, 'RESPONSE_INVALID', '退出响应无法识别，请核对退出状态。')
+        return false
+      })
+      if (!current()) return
+      if (changed) {
+        setLogoutAccountChanged(true)
+        setSession({ phase: 'logout-error', message: '当前浏览器的账号已变化，未退出另一个账号。请重新连接核对。' })
+        return
+      }
+      finishLogout()
+    } catch (error: unknown) {
+      if (current()) setSession({ phase: 'logout-error', message: '退出尚未完成，退出结果尚未确认。' + authErrorMessage(error, errorMessage) })
+    }
+  }
+
   if (session.phase !== 'guest' && session.phase !== 'user') {
-    return <main className="status-page"><section className="status-card connection-card">
+    return <main className="status-page"><section className="status-card connection-card" ref={logoutFeedback} tabIndex={session.phase === 'logout-error' ? -1 : undefined}>
       <p className="eyebrow">CIJIANJI</p><h1>此间集</h1>
       {session.phase === 'loading' || session.phase === 'error' ? <>
         <OperationFeedback tone={session.phase === 'error' ? 'error' : 'progress'} title={session.phase === 'error' ? connectionTitle(session.error) : '正在连接此间集'}>
@@ -299,8 +422,13 @@ export function App() {
         </OperationFeedback>
         <button className="primary-button" onClick={refresh}>重新连接</button>
         <ConnectionHelp />
-      </> : <p role={session.message ? 'alert' : 'status'}>{session.message ?? '正在退出…'}</p>}
-      {session.phase === 'logout-error' && <button className="primary-button" onClick={() => void logout()}>重试退出</button>}
+      </> : <p role={session.message && !checkingLogout ? 'alert' : 'status'}>{checkingLogout ? '正在核对退出状态…' : session.message ?? '正在退出…'}</p>}
+      {session.phase === 'logout-error' && <>
+        <button className="quiet-button" disabled={checkingLogout} onClick={() => void verifyLogout()}>核对退出状态</button>
+        {logoutAccountChanged
+          ? <button className="primary-button" disabled={checkingLogout} onClick={() => { logoutPending.current = false; logoutOwner.current = null; refresh() }}>重新连接并核对账号</button>
+          : <button className="primary-button" disabled={checkingLogout} onClick={() => void logout()}>重试退出</button>}
+      </>}
     </section></main>
   }
   if (session.phase === 'user') {

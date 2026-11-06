@@ -104,6 +104,9 @@ form input::placeholder { color: #b1a494; font-size: 13px; }
 .password-field input { flex: 1; min-width: 0; }
 .password-field input::-ms-reveal { display: none; }
 .password-field .password-toggle { flex: none; min-width: 56px; min-height: 44px; padding: 8px 10px; font-size: var(--text-small); white-space: nowrap; }
+.auth-recovery { margin-top: 16px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface-soft); font-size: var(--text-small); line-height: 1.7; }
+.auth-recovery p { margin: 0 0 8px; }
+.auth-recovery .quiet-button { display: inline-flex; align-items: center; min-height: 44px; margin: 4px 8px 0 0; }
 .field-help { color: var(--muted); font-size: var(--text-small); line-height: 1.7; margin: 8px 0 0; }
 .primary-button { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 13px 18px; margin-top: 28px; border: 1px solid #a4643c; border-radius: 8px; color: #fffaf4; background: #ac704a; font-weight: 600; font-size: 14px; }
 .primary-button:hover:not(:disabled) { background: #95603e; }

@@ -39,7 +39,7 @@
 | [playwright.config.ts](../frontend/playwright.config.ts) | 默认 Edge 测试及隔离服务配置，可覆盖测试端口避开日常实例 |
 | [playwright.delivery.config.ts](../frontend/playwright.delivery.config.ts) | 构建版空库验收及独立测试端口，复用连续流程 |
 | [playwright.scale.config.ts](../frontend/playwright.scale.config.ts) | 显式启用的重量级规模测试配置 |
-| [scripts/test-e2e.mjs](../frontend/scripts/test-e2e.mjs) | 默认既有业务/导入/地图/连续流程/首页与相册五组运行，各自重建隔离服务，避免测试登录累计限流 |
+| [scripts/test-e2e.mjs](../frontend/scripts/test-e2e.mjs) | 默认既有业务/认证恢复/导入/地图/连续流程/首页与相册六组运行，各自重建隔离服务，避免测试登录累计限流 |
 | [scripts/test-scale.mjs](../frontend/scripts/test-scale.mjs) | 先规模浏览器测试，再执行离线维护与哈希审计 |
 
 ### 公共地图资产
@@ -58,6 +58,7 @@
 | [src/vite-env.d.ts](../frontend/src/vite-env.d.ts) | Vite 客户端的 TypeScript 类型声明 |
 | [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、启动连接帮助、会话手动核对、退出清理和顶层路由 |
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
+| [src/shared/auth.ts](../frontend/src/shared/auth.ts) | 认证操作整体 15 秒期限、未知结果分类及 CSRF/当前身份核对，不改变通用上传请求期限 |
 | [src/shared/passwords.ts](../frontend/src/shared/passwords.ts) | 新注册密码与确认密码的长度、可见 ASCII 和有限常见弱密码校验，与登录兼容规则分离 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
 | [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、共享字体/字号/圆角、侧栏大封面、地图高度与状态边线；含手机控件、局部横滚和短屏查看层 |
@@ -85,6 +86,7 @@
 | 文件 | 用途 |
 | --- | --- |
 | [tests/e2e/auth.spec.ts](../frontend/tests/e2e/auth.spec.ts) | 注册/登录/退出、启动异常与超时重连、会话核对、草稿和权限隔离 |
+| [tests/e2e/auth-recovery.spec.ts](../frontend/tests/e2e/auth-recovery.spec.ts) | 登录/注册/退出等待期限、真实提交后丢响应、当前身份核对及迟到结果隔离 |
 | [tests/e2e/albums.spec.ts](../frontend/tests/e2e/albums.spec.ts) | 城市搜索、空影集、年份和账号隔离 |
 | [tests/e2e/library.spec.ts](../frontend/tests/e2e/library.spec.ts) | 城市相册/多个年份影集层级、分页/逐级返回、空态/失败/换号隔离、跨页封面选择和冲突核对 |
 | [tests/e2e/library-filters.spec.ts](../frontend/tests/e2e/library-filters.spec.ts) | 城市聚合筛选/排序及全市统计、完整年份选项、分页返回及失败/迟到请求/账号隔离 |
@@ -235,6 +237,7 @@
 | [reports/v2/map-interaction.md](reports/v2/map-interaction.md) | 2026-10-26 市界/画布、小城定位与选中入口，两轮几何和交互证据 |
 | [reports/v2/ui-refinement.md](reports/v2/ui-refinement.md) | 2026-10-30～11-06 首页、照片上传、侧栏视觉三轮整理，保留分轮结果与未测范围 |
 | [reports/v2/2026-11-07-account-password.md](reports/v2/2026-11-07-account-password.md) | 账号密码规则、旧密码登录兼容、显隐输入及隔离验证 |
+| [reports/v2/2026-11-07-auth-recovery.md](reports/v2/2026-11-07-auth-recovery.md) | 认证有限等待、结果不明恢复、退出期间隐藏及隔离回归 |
 
 ### 维护报告
 

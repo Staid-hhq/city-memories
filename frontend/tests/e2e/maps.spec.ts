@@ -141,6 +141,7 @@ test('完整城市入口灰底且没有世界瓦片，空影集不点亮，跨�
   const photo = (await read(other, `${albumPath}/photos`)).items[0]
   await other.close()
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
   await login(page, 'Map_Two')
   await expect(page.locator('[data-city-region]')).toHaveCount(391)
   await expect(litRegions(page)).toHaveCount(0)
@@ -495,6 +496,7 @@ test('退出时取消地图加载，迟到响应不能带回上一账号点亮',
   await login(page, 'Map_Failure')
   await expect.poll(() => calls.assets).toBe(1)
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
   await login(page, 'Map_Two')
   state.hold = false; state.release()
   await expect(page.locator('[data-city-region]')).toHaveCount(391)

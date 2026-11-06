@@ -245,6 +245,8 @@ test('实际 Edge 注册、错误密码、网络失败、重名、重载和退�
   await page.getByRole('button', { name: '登录我的手帐' }).click()
   await expect(page.getByRole('alert')).toContainText('暂时连接不上服务')
   await page.unroute('**/api/v1/auth/login')
+  await page.getByRole('button', { name: '核对登录状态', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('当前未登录，可重新登录')
   await page.route('**/api/v1/auth/login', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ data: {} }),
   }))
@@ -252,6 +254,8 @@ test('实际 Edge 注册、错误密码、网络失败、重名、重载和退�
   await expect(page.getByRole('alert')).toHaveText('登录响应无法识别，请重新核对登录结果后再试。')
   await expect(page.getByRole('button', { name: '退出登录', exact: true })).toHaveCount(0)
   await page.unroute('**/api/v1/auth/login')
+  await page.getByRole('button', { name: '核对登录状态', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('当前未登录，可重新登录')
   await login(page, 'Ui_One')
   await page.reload()
   await expect(page.getByRole('heading', { name: '你好，Ui_One' })).toBeVisible()
@@ -421,7 +425,7 @@ test('连接等待中可手动重连，旧响应不回写；会话读取超时�
     await expect(page.getByRole('heading', { name: '你好，Late_Test_User', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: '翻开你的手帐', exact: true })).toBeVisible()
 
-    // Native AbortSignal.timeout uses the browser clock, so exercise its actual deadline.
+    // Exercise the startup session check's actual deadline in this existing regression.
     const timeoutGate = new Promise<void>(resolve => { release = resolve })
     await page.unroute('**/api/v1/auth/me')
     let timeoutReads = 0
