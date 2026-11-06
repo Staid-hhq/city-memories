@@ -285,9 +285,6 @@
 | [travel-journal/map-data-probe.html](../prototype/travel-journal/map-data-probe.html) | 原型地图数据诊断页面 |
 | [travel-journal/map-data-probe.js](../prototype/travel-journal/map-data-probe.js) | 原型目录/边界诊断逻辑 |
 | [travel-journal/assets/china-cities-source.md](../prototype/travel-journal/assets/china-cities-source.md) | 地图资料来源、审核和使用边界 |
-| [travel-journal/assets/pin.svg](../prototype/travel-journal/assets/pin.svg) | 有记录城市的原型标记图标 |
-| [travel-journal/assets/pin-empty.svg](../prototype/travel-journal/assets/pin-empty.svg) | 空城市的原型标记图标 |
-| [travel-journal/assets/cluster.svg](../prototype/travel-journal/assets/cluster.svg) | 密集城市的原型聚合图标 |
 
 ## 本机可能看到、但不提交的目录和文件
 
