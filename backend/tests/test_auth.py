@@ -2,6 +2,7 @@ import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from pathlib import Path
+from threading import Event
 from uuid import uuid4
 
 import pytest
@@ -9,7 +10,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.exc import OperationalError
 
 from city_memories.auth import ANONYMOUS_TTL, COOKIE_NAME, LOGIN_TTL, LOGIN_WINDOW, Registration
@@ -19,6 +20,7 @@ from city_memories.models import AuthRateLimit, LoginSession, User
 
 PASSWORD = "UiTest_2026!"
 WRONG_PASSWORD = "Wrong_Pass2026!"
+NEW_PASSWORD = "New_Trip2026!"
 ORIGIN = "http://testserver"
 
 
@@ -74,6 +76,28 @@ def login(client, name="Traveler", password=PASSWORD):
             "password": password,
         },
     )
+
+
+def change_password(client, user_id, *, headers=None, **changes):
+    payload = {
+        "expected_user_id": user_id,
+        "current_password": PASSWORD,
+        "password": NEW_PASSWORD,
+        "password_confirm": NEW_PASSWORD,
+    } | changes
+    return client.post(
+        "/api/v1/auth/password",
+        headers=csrf(client) if headers is None else headers,
+        json=payload,
+    )
+
+
+@pytest.fixture
+def authenticated(environment):
+    _, client, _, _ = environment
+    user = register(client).json()["data"]
+    assert login(client).status_code == 200
+    return (*environment, user)
 
 
 def test_registration_hash_and_private_response(environment):
@@ -287,7 +311,7 @@ def test_rotation_logout_and_old_cookie_rejected(environment):
     assert stale.get("/api/v1/auth/me").status_code == 401
 
 
-@pytest.mark.parametrize("endpoint", ["register", "login", "logout"])
+@pytest.mark.parametrize("endpoint", ["register", "login", "logout", "password"])
 @pytest.mark.parametrize(
     "bad_kind",
     [
@@ -585,3 +609,312 @@ def test_api_not_found_uses_safe_error_envelope(environment):
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "NOT_FOUND"
     assert response.json()["error"]["request_id"] == response.headers["x-request-id"]
+
+
+def test_password_change_revokes_all_owned_sessions_and_keeps_other_account(authenticated):
+    app, client, _, _, user = authenticated
+    sibling = TestClient(app)
+    other = TestClient(app)
+    assert login(sibling).status_code == 200
+    other_user = register(other, "OtherTraveler").json()["data"]
+    assert login(other, "OtherTraveler").status_code == 200
+    response = change_password(client, user["id"])
+    assert response.status_code == 204 and not response.content
+    assert 'Max-Age=0' in response.headers["set-cookie"]
+    assert client.get("/api/v1/auth/me").status_code == 401
+    assert sibling.get("/api/v1/auth/me").status_code == 401
+    assert other.get("/api/v1/auth/me").json()["data"]["id"] == other_user["id"]
+    with app.state.auth.sessions() as db:
+        owned = db.scalars(select(LoginSession).where(LoginSession.user_id == user["id"])).all()
+        assert len(owned) == 2 and all(item.revoked_at is not None for item in owned)
+        untouched = db.scalars(
+            select(LoginSession).where(LoginSession.user_id == other_user["id"])
+        ).all()
+        assert all(item.revoked_at is None for item in untouched)
+        assert app.state.auth.passwords.verify(NEW_PASSWORD, db.get(User, user["id"]).password_hash)
+        assert app.state.auth.passwords.verify(
+            PASSWORD, db.get(User, other_user["id"]).password_hash
+        )
+        limits = db.scalars(
+            select(AuthRateLimit).where(AuthRateLimit.scope.like("password_change_%"))
+        ).all()
+        assert {item.scope: item.attempts for item in limits} == {
+            "password_change_source": 1, "password_change_user": 1,
+        }
+    assert login(client).status_code == 401
+    assert login(client, password=NEW_PASSWORD).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("current", "new"),
+    [
+        ("Abc!2345", "New!2345"),
+        ("Abcdefgh1234!@#$", "Newpass1234!@#$%"),
+        (" " + "旅" * 14 + "x ", NEW_PASSWORD),
+        (" " + "旅" * 125 + "x ", NEW_PASSWORD),
+    ],
+)
+def test_password_change_accepts_existing_current_password_without_normalization(
+    environment, current, new
+):
+    app, client, _, now = environment
+    user_id = str(uuid4())
+    with app.state.auth.sessions.begin() as db:
+        db.add(User(
+            id=user_id, username="LegacyTraveler", username_key="legacytraveler",
+            password_hash=app.state.auth.passwords.hash(current), created_at=now[0],
+        ))
+    assert login(client, "LegacyTraveler", current).status_code == 200
+    if current.strip() != current:
+        response = change_password(client, user_id, current_password=current.strip())
+        assert response.status_code == 400
+        assert response.json()["error"]["code"] == "CURRENT_PASSWORD_INCORRECT"
+    assert change_password(
+        client, user_id, current_password=current, password=new, password_confirm=new
+    ).status_code == 204
+    assert login(client, "LegacyTraveler", current).status_code == 401
+    assert login(client, "LegacyTraveler", new).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("changes", "code"),
+    [
+        ({"current_password": "Ab!1234"}, "CURRENT_PASSWORD_LENGTH"),
+        ({"current_password": "旅" * 129}, "CURRENT_PASSWORD_LENGTH"),
+        ({"password": "Ab!1234"}, "PASSWORD_LENGTH"),
+        ({"password": "Abcdefgh1234!@#$%"}, "PASSWORD_LENGTH"),
+        ({"password": "Abcdefg中"}, "PASSWORD_CHARACTERS"),
+        ({"password": " Abcdefg"}, "PASSWORD_CHARACTERS"),
+        ({"password": "PaSsWoRd123!"}, "PASSWORD_COMMON"),
+        ({"password_confirm": "Ab!1234"}, "PASSWORD_CONFIRM_LENGTH"),
+        ({"password_confirm": "Abcdefgh1234!@#$%"}, "PASSWORD_CONFIRM_LENGTH"),
+        ({"password_confirm": "Abcdefg中"}, "PASSWORD_CONFIRM_CHARACTERS"),
+        ({"password_confirm": "Abcdefg "}, "PASSWORD_CONFIRM_CHARACTERS"),
+        ({"password_confirm": "PaSsWoRd123!"}, "PASSWORD_CONFIRM_COMMON"),
+        ({"password_confirm": "Other_Trip2026!"}, "PASSWORD_MISMATCH"),
+        ({"owner_id": "another-account"}, "VALIDATION_FAILED"),
+    ],
+)
+def test_password_change_validation_is_specific_and_never_echoes_secrets(
+    authenticated, changes, code
+):
+    app, client, _, _, user = authenticated
+    with app.state.auth.sessions() as db:
+        original_hash = db.get(User, user["id"]).password_hash
+    response = change_password(client, user["id"], **changes)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == code
+    assert set(response.json()["error"]) == {"code", "message", "request_id"}
+    assert PASSWORD not in response.text and NEW_PASSWORD not in response.text
+    assert all(value not in response.text for value in changes.values())
+    assert client.get("/api/v1/auth/me").status_code == 200
+    with app.state.auth.sessions() as db:
+        assert db.get(User, user["id"]).password_hash == original_hash
+
+
+@pytest.mark.parametrize(
+    ("changes", "status", "code"),
+    [
+        ({"current_password": WRONG_PASSWORD}, 400, "CURRENT_PASSWORD_INCORRECT"),
+        ({"password": PASSWORD, "password_confirm": PASSWORD}, 422, "PASSWORD_UNCHANGED"),
+        ({"expected_user_id": "another-account"}, 409, "ACCOUNT_CHANGED"),
+    ],
+)
+def test_password_change_refusals_preserve_password_and_session(
+    authenticated, changes, status, code
+):
+    app, client, _, _, user = authenticated
+    response = change_password(client, user["id"], **changes)
+    assert response.status_code == status
+    assert response.json()["error"]["code"] == code
+    assert PASSWORD not in response.text and WRONG_PASSWORD not in response.text
+    assert NEW_PASSWORD not in response.text
+    assert client.get("/api/v1/auth/me").json()["data"]["id"] == user["id"]
+    with app.state.auth.sessions() as db:
+        assert app.state.auth.passwords.verify(PASSWORD, db.get(User, user["id"]).password_hash)
+
+
+def test_password_change_requires_authenticated_unexpired_session(environment):
+    app, client, _, now = environment
+    response = change_password(client, "unowned-account")
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTH_REQUIRED"
+    user = register(client).json()["data"]
+    assert login(client).status_code == 200
+    headers = csrf(client)
+    now[0] += LOGIN_TTL
+    response = change_password(client, user["id"], headers=headers)
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "SESSION_EXPIRED"
+    with app.state.auth.sessions() as db:
+        assert app.state.auth.passwords.verify(PASSWORD, db.get(User, user["id"]).password_hash)
+
+
+def test_password_change_user_limit_persists_and_expires(authenticated):
+    app, client, settings, now, user = authenticated
+    headers = csrf(client)
+    cookie = client.cookies[COOKIE_NAME]
+    for _ in range(10):
+        assert change_password(
+            client, user["id"], headers=headers, current_password=WRONG_PASSWORD
+        ).status_code == 400
+    response = change_password(client, user["id"], headers=headers)
+    assert response.status_code == 429
+    assert int(response.headers["Retry-After"]) == LOGIN_WINDOW // 1000
+    restarted = create_app(settings)
+    with TestClient(restarted) as second:
+        restarted.state.auth.clock = lambda: now[0]
+        response = change_password(
+            second, user["id"], headers=headers | {"Cookie": f"{COOKIE_NAME}={cookie}"}
+        )
+        assert response.status_code == 429
+    with app.state.auth.sessions() as db:
+        limits = db.scalars(select(AuthRateLimit)).all()
+        assert all(user["id"] not in item.key_hash for item in limits)
+        assert all(len(item.key_hash) == 64 for item in limits)
+    now[0] += LOGIN_WINDOW
+    assert change_password(client, user["id"], headers=headers).status_code == 204
+
+
+def test_password_change_source_limit_covers_multiple_accounts_and_ignores_forwarded_for(
+    environment,
+):
+    app, _, _, _ = environment
+    accounts = []
+    for index in range(4):
+        client = TestClient(app)
+        name = f"SourceTraveler_{index}"
+        user = register(client, name).json()["data"]
+        assert login(client, name).status_code == 200
+        accounts.append((client, user["id"], csrf(client)))
+    for client, user_id, headers in accounts[:3]:
+        for index in range(10):
+            response = change_password(
+                client, user_id, current_password=WRONG_PASSWORD,
+                headers=headers | {"X-Forwarded-For": f"192.0.2.{index}"},
+            )
+            assert response.status_code == 400
+    client, user_id, headers = accounts[-1]
+    response = change_password(client, user_id, headers=headers)
+    assert response.status_code == 429
+    assert int(response.headers["Retry-After"]) == LOGIN_WINDOW // 1000
+    assert client.get("/api/v1/auth/me").status_code == 200
+
+
+def test_password_change_rolls_back_hash_if_session_revocation_fails(authenticated):
+    app, client, _, _, user = authenticated
+    sibling = TestClient(app)
+    assert login(sibling).status_code == 200
+    with app.state.auth.sessions() as db:
+        original_hash = db.get(User, user["id"]).password_hash
+
+    def fail_revocation(conn, cursor, statement, parameters, context, many):
+        if statement.startswith("UPDATE sessions SET revoked_at") and "user_id" in statement:
+            raise OperationalError("private SQL", {}, Exception("private path"))
+
+    event.listen(app.state.engine, "before_cursor_execute", fail_revocation)
+    try:
+        response = change_password(client, user["id"])
+    finally:
+        event.remove(app.state.engine, "before_cursor_execute", fail_revocation)
+    assert response.status_code == 503
+    assert "set-cookie" not in response.headers
+    assert all(secret not in response.text for secret in [PASSWORD, NEW_PASSWORD, "private SQL"])
+    with app.state.auth.sessions() as db:
+        assert db.get(User, user["id"]).password_hash == original_hash
+    assert client.get("/api/v1/auth/me").status_code == 200
+    assert sibling.get("/api/v1/auth/me").status_code == 200
+    assert change_password(client, user["id"]).status_code == 204
+
+
+def test_password_change_hashing_has_no_transaction_and_rechecks_expiry(authenticated, monkeypatch):
+    app, client, _, now, user = authenticated
+    verify = app.state.auth.passwords.verify
+    hash_password = app.state.auth.passwords.hash
+
+    def checked_verify(*args):
+        assert app.state.engine.pool.checkedout() == 0
+        return verify(*args)
+
+    def slow_hash(*args):
+        assert app.state.engine.pool.checkedout() == 0
+        result = hash_password(*args)
+        now[0] += LOGIN_TTL
+        return result
+
+    monkeypatch.setattr(app.state.auth.passwords, "verify", checked_verify)
+    monkeypatch.setattr(app.state.auth.passwords, "hash", slow_hash)
+    response = change_password(client, user["id"])
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "SESSION_EXPIRED"
+    with app.state.auth.sessions() as db:
+        assert verify(PASSWORD, db.get(User, user["id"]).password_hash)
+        assert all(item.revoked_at is None for item in db.scalars(
+            select(LoginSession).where(LoginSession.user_id == user["id"])
+        ))
+
+
+def test_concurrent_password_changes_have_one_winner(authenticated):
+    app, client, _, _, user = authenticated
+    headers = csrf(client) | {"Cookie": f"{COOKIE_NAME}={client.cookies[COOKIE_NAME]}"}
+    passwords = [NEW_PASSWORD, "Other_Trip2026!"]
+
+    def attempt(password):
+        return change_password(
+            client, user["id"], headers=headers, password=password, password_confirm=password
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(attempt, passwords))
+    assert sorted(response.status_code for response in responses) == [204, 401]
+    winner = passwords[next(index for index, response in enumerate(responses)
+                            if response.status_code == 204)]
+    with app.state.auth.sessions() as db:
+        assert app.state.auth.passwords.verify(winner, db.get(User, user["id"]).password_hash)
+    fresh = TestClient(app)
+    assert login(fresh, password=winner).status_code == 200
+
+
+@pytest.mark.parametrize("first", ["login", "change"])
+def test_password_change_serializes_with_old_password_login(authenticated, monkeypatch, first):
+    app, client, _, _, user = authenticated
+    fresh = TestClient(app)
+    login_headers = csrf(fresh) | {"Cookie": f"{COOKIE_NAME}={fresh.cookies[COOKIE_NAME]}"}
+    change_headers = csrf(client) | {"Cookie": f"{COOKIE_NAME}={client.cookies[COOKIE_NAME]}"}
+    entered, release = Event(), Event()
+    verify = app.state.auth.passwords.verify
+    calls = 0
+
+    def held_verify(*args):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            entered.set()
+            assert release.wait(10)
+        return verify(*args)
+
+    monkeypatch.setattr(app.state.auth.passwords, "verify", held_verify)
+
+    def attempt(kind):
+        if kind == "change":
+            return change_password(client, user["id"], headers=change_headers)
+        return fresh.post(
+            "/api/v1/auth/login", headers=login_headers,
+            json={"username": "Traveler", "password": PASSWORD},
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        leading = executor.submit(attempt, first)
+        try:
+            assert entered.wait(10)
+            trailing = executor.submit(attempt, "change" if first == "login" else "login")
+        finally:
+            release.set()
+        leading_response, trailing_response = leading.result(15), trailing.result(15)
+    expected = (200, 204) if first == "login" else (204, 401)
+    assert (leading_response.status_code, trailing_response.status_code) == expected
+    with app.state.auth.sessions() as db:
+        assert verify(NEW_PASSWORD, db.get(User, user["id"]).password_hash)
+        owned = db.scalars(select(LoginSession).where(LoginSession.user_id == user["id"])).all()
+        assert all(item.revoked_at is not None for item in owned)
+    assert fresh.get("/api/v1/auth/me").status_code == 401

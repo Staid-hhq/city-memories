@@ -71,7 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(request: Request, error: RequestValidationError):
         # 不回显 Pydantic 的 input / 请求体，避免在错误响应中泄露密码。
-        if request.url.path == "/api/v1/auth/register":
+        if request.url.path in {"/api/v1/auth/register", "/api/v1/auth/password"}:
             for detail in error.errors():
                 if password_error := PASSWORD_ERRORS.get(detail.get("type")):
                     return error_response(request, ApiError(422, *password_error))
@@ -80,7 +80,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ApiError(
                 422,
                 "VALIDATION_FAILED",
-                "请检查用户名、密码长度及两次密码是否一致"
+                "请检查当前密码、新密码及两次输入是否一致"
+                if request.url.path == "/api/v1/auth/password"
+                else "请检查用户名、密码长度及两次密码是否一致"
                 if request.url.path.startswith("/api/v1/auth/")
                 else "请检查输入：年份和分页参数须有效，文件名、大小和校验信息须完整",
             ),

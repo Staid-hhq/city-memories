@@ -22,7 +22,7 @@ FastAPI、SQLAlchemy 与 Alembic 工程，采用 Python `src` 布局。以下命
 | --- | --- |
 | [main.py](src/city_memories/main.py)、[config.py](src/city_memories/config.py) | 应用工厂、生命周期与配置 |
 | [auth.py](src/city_memories/auth.py)、[boundary.py](src/city_memories/boundary.py)、[errors.py](src/city_memories/errors.py) | 会话、CSRF、来源/频率限制及统一错误边界 |
-| [passwords.py](src/city_memories/passwords.py) | 新注册密码规则、固定错误和有限常见弱密码表；不限制旧密码登录字符 |
+| [passwords.py](src/city_memories/passwords.py) | 新注册/改密的新密码规则、固定错误和有限常见弱密码表；不限制旧密码登录字符 |
 | [models.py](src/city_memories/models.py)、[database.py](src/city_memories/database.py)、`migrations/` | 数据模型、连接及迁移链 |
 | [albums.py](src/city_memories/albums.py)、[province_centers.py](src/city_memories/province_centers.py) | 城市/年份影集、城市聚合、封面和省会视图 |
 | [imports.py](src/city_memories/imports.py)、[storage.py](src/city_memories/storage.py) | 导入、暂存、原图存储与恢复状态 |
@@ -30,6 +30,8 @@ FastAPI、SQLAlchemy 与 Alembic 工程，采用 Python `src` 布局。以下命
 | [trash.py](src/city_memories/trash.py)、[cleanup.py](src/city_memories/cleanup.py)、[backup.py](src/city_memories/backup.py) | 回收恢复、到期/遗留清理与离线备份 |
 | [maps.py](src/city_memories/maps.py)、[city-catalog.json](src/city_memories/city-catalog.json) | 已审核城市目录、稳定业务 ID 及第一版地图兼容接口 |
 | `tests/` | 临时数据和合成图片的接口/维护/重启测试 |
+
+`POST /api/v1/auth/password` 仅供已登录账号凭当前密码主动修改，沿用 CSRF 与来源检查并增加独立账号/来源限流。新密码哈希与撤销本人全部会话在同一事务内完成，不涉及迁移；当前密码兼容旧规则。接口及并发语义见[账号契约](../docs/architecture/data-api-design.md#3-注册与会话)。
 
 完整职责见[文件导航](../docs/file-guide.md#后端)。
 

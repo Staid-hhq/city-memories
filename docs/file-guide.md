@@ -56,7 +56,7 @@
 | --- | --- |
 | [src/main.tsx](../frontend/src/main.tsx) | 创建 React 根节点和 Router，加载全局样式 |
 | [src/vite-env.d.ts](../frontend/src/vite-env.d.ts) | Vite 客户端的 TypeScript 类型声明 |
-| [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、启动连接帮助、会话手动核对、退出清理和顶层路由 |
+| [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、连接与会话核对、退出清理、改密后的显式登录门禁和顶层路由 |
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/shared/auth.ts](../frontend/src/shared/auth.ts) | 认证操作整体 15 秒期限、未知结果分类及 CSRF/当前身份核对，不改变通用上传请求期限 |
 | [src/shared/authFields.ts](../frontend/src/shared/authFields.ts) | 登录/注册字段校验、首错顺序和注册服务端错误精确白名单，不改变密码规则 |
@@ -66,6 +66,7 @@
 | [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录导航、紧凑首页与选城、城市/年份逐级返回、图库优先与统一添加入口、旧单张任务访问兼容、计数和地图联动 |
 | [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 一城市一卡的相册库、城市聚合筛选/排序分页、条件/返回位置记忆及城市/年份封面卡 |
 | [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹与年份影集统计、最近首本大封面与后两本紧凑行、相册总入口及唯一选城入口 |
+| [src/features/account/PasswordChange.tsx](../frontend/src/features/account/PasswordChange.tsx) | 当前/新/确认密码表单、字段错误、账号预检、15 秒等待及未知结果转登录核对 |
 | [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、城市相册聚合、年份影集和个人地图统计类型，不依赖页面组件 |
 | [src/features/imports/UploadPanel.tsx](../frontend/src/features/imports/UploadPanel.tsx) | 旧 ?import= 单张任务恢复、原图校验/保存、重试/取消，更新查询参数保留返回来源 |
 | [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 统一添加照片页面，单张/多张/拖入共用核对；队列执行、重选重试和恢复，保留返回来源 |
@@ -89,6 +90,7 @@
 | [tests/e2e/auth.spec.ts](../frontend/tests/e2e/auth.spec.ts) | 注册/登录/退出、启动异常与超时重连、会话核对、草稿和权限隔离 |
 | [tests/e2e/auth-recovery.spec.ts](../frontend/tests/e2e/auth-recovery.spec.ts) | 登录/注册/退出等待期限、真实提交后丢响应、当前身份核对及迟到结果隔离 |
 | [tests/e2e/auth-fields.spec.ts](../frontend/tests/e2e/auth-fields.spec.ts) | 多字段就近错误、ARIA 关联、首错焦点、编辑依赖、服务端字段映射及窄屏状态 |
+| [tests/e2e/password-change.spec.ts](../frontend/tests/e2e/password-change.spec.ts) | 修改密码、旧凭据兼容、全会话撤销、异常恢复/显式登录门禁与窄屏导航 |
 | [tests/e2e/albums.spec.ts](../frontend/tests/e2e/albums.spec.ts) | 城市搜索、空影集、年份和账号隔离 |
 | [tests/e2e/library.spec.ts](../frontend/tests/e2e/library.spec.ts) | 城市相册/多个年份影集层级、分页/逐级返回、空态/失败/换号隔离、跨页封面选择和冲突核对 |
 | [tests/e2e/library-filters.spec.ts](../frontend/tests/e2e/library-filters.spec.ts) | 城市聚合筛选/排序及全市统计、完整年份选项、分页返回及失败/迟到请求/账号隔离 |
@@ -127,8 +129,8 @@
 | [src/city_memories/models.py](../backend/src/city_memories/models.py) | 数据表 ORM 模型、字段、索引与约束 |
 | [src/city_memories/errors.py](../backend/src/city_memories/errors.py) | 统一业务错误及 API 响应格式 |
 | [src/city_memories/boundary.py](../backend/src/city_memories/boundary.py) | 请求边界：CSRF、请求体限制、安全缓存头和异常转换 |
-| [src/city_memories/auth.py](../backend/src/city_memories/auth.py) | 密码哈希、会话、CSRF、注册登录与限流 |
-| [src/city_memories/passwords.py](../backend/src/city_memories/passwords.py) | 新注册密码错误分类、可见 ASCII 及有限常见弱密码表，不改变旧账号登录密码 |
+| [src/city_memories/auth.py](../backend/src/city_memories/auth.py) | 密码哈希、会话、CSRF、注册登录、改密及全会话撤销与限流 |
+| [src/city_memories/passwords.py](../backend/src/city_memories/passwords.py) | 新注册/改密密码错误分类、可见 ASCII 及有限常见弱密码表，不改变旧账号登录密码 |
 | [src/city_memories/albums.py](../backend/src/city_memories/albums.py) | 城市相册聚合、省会/全目录视图分页、城市/年份影集查找及年份选项、本人封面/统计和独立签名游标 |
 | [src/city_memories/province_centers.py](../backend/src/city_memories/province_centers.py) | 各省级地区默认城市的稳定业务 ID 与明确拼音排序键，不改城市目录或状态 |
 | [src/city_memories/imports.py](../backend/src/city_memories/imports.py) | 导入批次、上传租约、内容接收、幂等提交、取消及队列查询 |
@@ -241,6 +243,7 @@
 | [reports/v2/2026-11-07-account-password.md](reports/v2/2026-11-07-account-password.md) | 账号密码规则、旧密码登录兼容、显隐输入及隔离验证 |
 | [reports/v2/2026-11-07-auth-recovery.md](reports/v2/2026-11-07-auth-recovery.md) | 认证有限等待、结果不明恢复、退出期间隐藏及隔离回归 |
 | [reports/v2/2026-11-07-auth-fields.md](reports/v2/2026-11-07-auth-fields.md) | 账号模块步骤 2：字段错误、焦点、辅助描述、服务端白名单与验证 |
+| [reports/v2/2026-11-07-password-change.md](reports/v2/2026-11-07-password-change.md) | 账号模块步骤 3：凭当前密码主动改密、全部会话失效、结果未确认恢复及隔离验证 |
 
 ### 维护报告
 

@@ -1,4 +1,4 @@
-"""Bounded registration policy. Login continues to accept existing passwords unchanged."""
+"""Bounded new-password policy. Existing passwords remain valid for authentication."""
 
 COMMON_PASSWORDS = frozenset(
     {
@@ -31,6 +31,9 @@ COMMON_PASSWORDS = frozenset(
 # Only these fixed messages may cross the API boundary. Never copy validation
 # input, context or an arbitrary exception message into an error response.
 PASSWORD_ERRORS = {
+    "current_password_length": (
+        "CURRENT_PASSWORD_LENGTH", "当前密码长度须为 8–128 个字符。"
+    ),
     "password_length": ("PASSWORD_LENGTH", "密码长度须为 8–16 位。"),
     "password_characters": (
         "PASSWORD_CHARACTERS",

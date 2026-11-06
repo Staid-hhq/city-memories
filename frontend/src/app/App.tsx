@@ -8,6 +8,7 @@ import { authErrorMessage, authResultUnknown, isUser, readAuthState, withAuthDea
 import { authFieldOrder, registrationErrorField, validateAuthFields } from '../shared/authFields'
 import type { AuthField } from '../shared/authFields'
 import { Journal } from '../features/albums/Journal'
+import { PasswordChange } from '../features/account/PasswordChange'
 
 type SessionState =
   | { phase: 'loading' | 'guest' | 'logging-out' | 'logout-error'; message?: string }
@@ -267,6 +268,7 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
 
 export function App() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [session, setSession] = useState<SessionState>({ phase: 'loading' })
   const channel = useRef<BroadcastChannel | null>(null)
   const activeUser = useRef<string | null>(null)
@@ -281,13 +283,33 @@ export function App() {
   const checkRequest = useRef<AbortController | null>(null)
   const [sessionNotice, setSessionNotice] = useState<unknown>()
   const [checkingSession, setCheckingSession] = useState(false)
+  const passwordPending = useRef(false)
+  const requireExplicitLogin = useRef(false)
+
+  const passwordLoginRequired = useCallback((message: string, changed = false) => {
+    requireExplicitLogin.current = true; passwordPending.current = false
+    sessionRequest.current?.abort(); checkRequest.current?.abort()
+    activeUser.current = null; clearSessionState()
+    setSessionNotice(undefined); setCheckingSession(false)
+    setSession({ phase: 'guest', message })
+    if (changed) channel.current?.postMessage('changed')
+    navigate('/login', { replace: true })
+  }, [navigate])
+
+  const passwordPendingChanged = useCallback((pending: boolean) => {
+    passwordPending.current = pending
+    if (pending) {
+      sessionRequest.current?.abort(); checkRequest.current?.abort(); clearSessionState()
+      setSessionNotice(undefined); setCheckingSession(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (session.phase === 'logout-error' && !checkingLogout) logoutFeedback.current?.focus()
   }, [session.phase, checkingLogout])
 
   const loadSession = useCallback(() => {
-    if (logoutPending.current) return
+    if (logoutPending.current || passwordPending.current || requireExplicitLogin.current) return
     sessionRequest.current?.abort(); checkRequest.current?.abort()
     const controller = new AbortController(); sessionRequest.current = controller
     activeUser.current = null; setSessionNotice(undefined); setCheckingSession(false)
@@ -304,13 +326,13 @@ export function App() {
   }, [])
 
   const refresh = useCallback(() => {
-    if (logoutPending.current) return
+    if (logoutPending.current || passwordPending.current || requireExplicitLogin.current) return
     setSession({ phase: 'loading' })
     loadSession()
   }, [loadSession])
 
   const verifySession = useCallback(async () => {
-    if (logoutPending.current) return
+    if (logoutPending.current || passwordPending.current || requireExplicitLogin.current) return
     if (!activeUser.current) { refresh(); return }
     checkRequest.current?.abort()
     const controller = new AbortController(); checkRequest.current = controller
@@ -335,6 +357,11 @@ export function App() {
     const bus = new BroadcastChannel('city-memories-auth')
     channel.current = bus
     bus.onmessage = () => {
+      if (requireExplicitLogin.current) return
+      if (passwordPending.current) {
+        passwordLoginRequired('浏览器登录状态已变化，修改结果尚未确认。请重新登录核对。')
+        return
+      }
       if (logoutPending.current) {
         logoutOperation.current++; logoutRequest.current?.abort()
         clearSessionState(); setCheckingLogout(false); setLogoutAccountChanged(true)
@@ -343,7 +370,10 @@ export function App() {
       }
       refresh()
     }
-    const expired = () => { logoutPending.current = false; activeUser.current = null; setSessionNotice(undefined); setCheckingSession(false); setSession({ phase: 'guest', message: '登录已过期，请重新登录。' }) }
+    const expired = () => {
+      if (passwordPending.current || requireExplicitLogin.current) return
+      logoutPending.current = false; activeUser.current = null; setSessionNotice(undefined); setCheckingSession(false); setSession({ phase: 'guest', message: '登录已过期，请重新登录。' })
+    }
     const restored = (event: PageTransitionEvent) => { if (event.persisted) refresh() }
     const visible = () => {
       if (document.visibilityState !== 'visible') return
@@ -363,9 +393,10 @@ export function App() {
       window.removeEventListener('pageshow', restored)
       document.removeEventListener('visibilitychange', visible)
     }
-  }, [refresh, loadSession, verifySession])
+  }, [refresh, loadSession, verifySession, passwordLoginRequired])
 
   function loggedIn(user: User) {
+    requireExplicitLogin.current = false; passwordPending.current = false
     logoutPending.current = false
     logoutOwner.current = null; setCheckingLogout(false); setLogoutAccountChanged(false)
     activeUser.current = user.id; setSessionNotice(undefined)
@@ -471,7 +502,9 @@ export function App() {
         <p>{checkingSession ? '正在重新确认登录状态，未保存内容仍在本页。' : '会话核对暂时失败，未保存内容仍在本页；请检查连接后再保存。'}</p>
         {!checkingSession && <p>{connectionDescription(sessionNotice)}</p>}
       </OperationFeedback>
-    </div>}<Journal key={session.user.id} user={session.user} onLogout={() => void logout()} /></>
+    </div>}{location.pathname === '/account/password'
+      ? <PasswordChange key={session.user.id} user={session.user} onPending={passwordPendingChanged} onLoginRequired={passwordLoginRequired} />
+      : <Journal key={session.user.id} user={session.user} onLogout={() => void logout()} />}</>
   }
   return <>
     {session.message && <p className="global-notice" role="status">{session.message}</p>}

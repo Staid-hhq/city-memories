@@ -95,6 +95,10 @@ h1, h2 { font-family: var(--font-heading); }
 .auth-tabs a[aria-current="page"] { border-bottom: 2px solid #ae6842; color: #7a482f; }
 .auth-card .eyebrow { font-size: 11px; margin-bottom: 10px; }
 .auth-card h2 { margin: 0; font-size: 29px; font-weight: 600; letter-spacing: .03em; }
+.password-settings { width: min(600px, calc(100% - 32px)); margin: 40px auto; }
+.password-settings h1 { margin: 0; font-size: 29px; }
+.password-settings .auth-card { padding: clamp(20px, 5vw, 40px); }
+.password-settings .password-cancel { margin-top: 14px; width: 100%; }
 .auth-description { font-size: 13px; color: #8a7b6c; margin: 14px 0 27px; line-height: 1.7; }
 form label { display: block; font-size: 13px; font-weight: 600; margin: 20px 0 9px; }
 form input { width: 100%; padding: 12px 14px; border: 1px solid #dcccba; border-radius: 8px; background: #fffdf8; color: #49372d; font-size: 15px; }
@@ -490,9 +494,10 @@ form input, .note-editor textarea, .move-picker select { background: #fff; color
 @media (max-width: 480px) {
   .home-header { padding: 19px 20px; gap: 18px 12px; }
   .wordmark { font-size: 23px; }
-  .account-menu { gap: 8px; flex-wrap: nowrap; font-size: 11px; }
+  .account-menu { grid-column: 1 / -1; grid-row: 2; gap: 8px; flex-wrap: wrap; font-size: 11px; }
   .account-menu > span { display: none; }
   .account-menu .quiet-button { padding: 7px 9px; }
+  .journal-nav { grid-row: 3; }
   .journal-nav a[aria-current=page]::after { bottom: -19px; }
   .journal-main, .journal-main.map-home { padding-inline: 20px; }
   .album-grid { gap: 22px 14px; }

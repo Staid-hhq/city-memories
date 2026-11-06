@@ -57,6 +57,14 @@ class Credentials(BaseModel):
         return value
 
 
+def validate_new_password(value: object, info: ValidationInfo) -> object:
+    raw = value.get_secret_value() if isinstance(value, SecretStr) else value
+    if isinstance(raw, str) and (issue := registration_password_issue(raw)):
+        error_type = f"{info.field_name}_{issue}"
+        raise PydanticCustomError(error_type, PASSWORD_ERRORS[error_type][1])
+    return value
+
+
 class Registration(Credentials):
     password: SecretStr = Field(min_length=8, max_length=16)
     password_confirm: SecretStr = Field(min_length=8, max_length=16)
@@ -64,14 +72,39 @@ class Registration(Credentials):
     @field_validator("password", "password_confirm", mode="before")
     @classmethod
     def registration_password(cls, value: object, info: ValidationInfo) -> object:
-        raw = value.get_secret_value() if isinstance(value, SecretStr) else value
-        if isinstance(raw, str) and (issue := registration_password_issue(raw)):
-            error_type = f"{info.field_name}_{issue}"
-            raise PydanticCustomError(error_type, PASSWORD_ERRORS[error_type][1])
-        return value
+        return validate_new_password(value, info)
 
     @model_validator(mode="after")
     def passwords_match(self) -> "Registration":
+        if self.password.get_secret_value() != self.password_confirm.get_secret_value():
+            raise PydanticCustomError("password_mismatch", PASSWORD_ERRORS["password_mismatch"][1])
+        return self
+
+
+class PasswordChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_user_id: str = Field(min_length=1, max_length=64)
+    current_password: SecretStr = Field(min_length=8, max_length=128)
+    password: SecretStr = Field(min_length=8, max_length=16)
+    password_confirm: SecretStr = Field(min_length=8, max_length=16)
+
+    @field_validator("current_password", mode="before")
+    @classmethod
+    def current_password_length(cls, value: object) -> object:
+        raw = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if isinstance(raw, str) and not 8 <= len(raw) <= 128:
+            raise PydanticCustomError(
+                "current_password_length", PASSWORD_ERRORS["current_password_length"][1]
+            )
+        return value
+
+    @field_validator("password", "password_confirm", mode="before")
+    @classmethod
+    def new_password(cls, value: object, info: ValidationInfo) -> object:
+        return validate_new_password(value, info)
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> "PasswordChange":
         if self.password.get_secret_value() != self.password_confirm.get_secret_value():
             raise PydanticCustomError("password_mismatch", PASSWORD_ERRORS["password_mismatch"][1])
         return self
@@ -322,6 +355,52 @@ class AuthService:
             COOKIE_NAME, path="/", secure=self.settings.cookie_secure, httponly=True, samesite="lax"
         )
 
+    def change_password(self, request: Request, response: Response, data: PasswordChange) -> None:
+        # Login and password changes share one lock, so an old-password login
+        # either precedes this transaction (and is revoked) or verifies the new hash.
+        with self.lock:
+            identity = self.check_csrf(request)
+            if identity.user_id is None:
+                raise ApiError(401, "AUTH_REQUIRED", "请先登录")
+            if identity.user_id != data.expected_user_id:
+                raise ApiError(409, "ACCOUNT_CHANGED", "当前账号已改变，请重新核对登录状态")
+            self.consume_limit("password_change_source", source(request), 30, LOGIN_WINDOW)
+            self.consume_limit("password_change_user", identity.user_id, 10, LOGIN_WINDOW)
+            with self.sessions() as db:
+                user = db.get(User, identity.user_id)
+            if user is None:
+                raise ApiError(401, "AUTH_REQUIRED", "请先登录")
+            current = data.current_password.get_secret_value()
+            if not self.passwords.verify(current, user.password_hash):
+                raise ApiError(400, "CURRENT_PASSWORD_INCORRECT", "当前密码不正确，请重新输入。")
+            password = data.password.get_secret_value()
+            if hmac.compare_digest(current.encode(), password.encode()):
+                raise ApiError(422, "PASSWORD_UNCHANGED", "新密码不能与当前密码相同。")
+            # Both expensive operations happen with no database transaction open.
+            password_hash = self.passwords.hash(password)
+            now = self.clock()
+            if identity.expires_at <= now:
+                raise ApiError(401, "SESSION_EXPIRED", "页面已过期，请重新登录后再试")
+            with self.sessions.begin() as db:
+                changed = db.execute(
+                    update(User)
+                    .where(User.id == identity.user_id, User.password_hash == user.password_hash)
+                    .values(password_hash=password_hash)
+                )
+                if changed.rowcount != 1:
+                    raise ApiError(409, "ACCOUNT_CHANGED", "账号状态已改变，请重新登录后再试")
+                db.execute(
+                    update(LoginSession)
+                    .where(
+                        LoginSession.user_id == identity.user_id,
+                        LoginSession.revoked_at.is_(None),
+                    )
+                    .values(revoked_at=now)
+                )
+        response.delete_cookie(
+            COOKIE_NAME, path="/", secure=self.settings.cookie_secure, httponly=True, samesite="lax"
+        )
+
     def set_cookie(self, response: Response, token: str, ttl: int) -> None:
         response.set_cookie(
             COOKIE_NAME,
@@ -386,3 +465,8 @@ def me(user: CurrentUser) -> UserResponse:
 @router.post("/logout", status_code=204)
 def logout(request: Request, response: Response) -> None:
     request.app.state.auth.logout(request, response)
+
+
+@router.post("/password", status_code=204)
+def change_password(request: Request, response: Response, data: PasswordChange) -> None:
+    request.app.state.auth.change_password(request, response, data)

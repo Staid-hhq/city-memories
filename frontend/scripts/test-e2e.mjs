@@ -9,7 +9,7 @@ const cli = fileURLToPath(new URL('../node_modules/@playwright/test/cli.js', imp
 const tests = readdirSync(new URL('../tests/e2e/', import.meta.url)).filter(name => name.endsWith('.spec.ts')).sort()
 const args = process.argv.slice(2)
 const imports = ['batches.spec.ts', 'uploads.spec.ts']
-const authChecks = ['auth-fields.spec.ts', 'auth-recovery.spec.ts']
+const authChecks = ['auth-fields.spec.ts', 'auth-recovery.spec.ts', 'password-change.spec.ts']
 const groups = args.length ? [args] : [
   tests.filter(name => !imports.includes(name) && !authChecks.includes(name) && !name.startsWith('map') && !name.startsWith('journey') && !name.startsWith('library') && !name.startsWith('home-sidebar')).map(name => `tests/e2e/${name}`),
   authChecks.filter(name => tests.includes(name)).map(name => `tests/e2e/${name}`),
