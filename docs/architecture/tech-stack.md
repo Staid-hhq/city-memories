@@ -6,7 +6,7 @@
 
 用户本轮确认：有编程基础，具体技术由助手选择；兼顾学习与开发效率；初期供自己和朋友使用，10 人以内。以下选型据此制定，不代表已经通过多人、容量或上线测试。
 
-依据：[项目定位](../product/project-brief.md)、[第一版需求](../product/requirements.md)、[账号与原图存储方案](account-storage-plan.md)、[页面与流程](../product/page-flow.md)。阶段 4 的实际 Edge 关键检查已完成，见 [复查记录](../reports/preparation/edge-review-2026-09-21.md)。
+依据：[项目定位](../product/project-brief.md)、[第一版需求](../product/requirements.md)、[原型检查](../reports/preparation/edge-review-2026-09-21.md#早期原型检查补充)。阶段 4 的实际 Edge 关键检查已完成，见 [复查记录](../reports/preparation/edge-review-2026-09-21.md)。
 
 ## 1. 选型结论
 
@@ -139,7 +139,7 @@ T11 恢复只写 Git 工作区外的全新目录，核对影集、账号归属�
 
 前端仅对编号解析、年份组织和排序等易出错规则做针对性测试；后端重点覆盖权限、数据库约束及存储失败。原型已经通过的 Edge 检查保留为依据，正式实现改变了存储和账号后需重新验收对应流程，不能复用原型结果当作后端通过证明。
 
-阶段 6「数据与接口设计」已形成工作基线，见 [数据与接口设计](data-api-design.md) 及其 SQL 设计样例，覆盖账号、影集、上传、原图、排序、移动、文字和回收站。阶段 7 [开发任务拆分](../planning/development-plan.md) 已形成六个本地开发批次及后续上线任务。当前完成 T01–T16，地图实现见 [T13 记录](../reports/v1/t13-map-verification.md)，实际 Edge 流程回归见 [T14 记录](../reports/v1/t14-edge-verification.md)，规模与双账号并发见 [T15 记录](../reports/v1/t15-scale-verification.md)，本地交付见 [T16 手册](../guides/local-first-release.md)；T17 部署待安排。
+阶段 6「数据与接口设计」已形成工作基线，见 [数据与接口设计](data-api-design.md) 及正式模型/迁移，覆盖账号、影集、上传、原图、排序、移动、文字和回收站。阶段 7 [开发任务拆分](../planning/development-plan.md) 已形成六个本地开发批次及后续上线任务。当前完成 T01–T16，地图实现见 [T13 记录](../reports/v1/t13-map-verification.md)，实际 Edge 流程回归见 [T14 记录](../reports/v1/t14-edge-verification.md)，规模与双账号并发见 [T15 记录](../reports/v1/t15-scale-verification.md)，本地交付见 [T16 手册](../guides/local-first-release.md)；T17 部署待安排。
 
 T16 的 `npm run start:local` 在 127.0.0.1:5173 提供已构建的 dist，继承 Vite 中 `/api` 到 8000 的代理配置；strictPort 禁止占用时自动换端口。构建预览不作为互联网生产服务器，不开放所有网卡。`test:delivery` 通过独立 Edge 和新建空库实际验证构建产物、深链接、代理、端口拒绝与连续业务流程；没有预填充产品账号或改动接口。
 

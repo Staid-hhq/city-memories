@@ -146,7 +146,7 @@
 | [migrations/versions/b61e24f803a7_seed_verified_cities.py](../backend/migrations/versions/b61e24f803a7_seed_verified_cities.py) | 初始已核对城市种子迁移；后续目录补齐由应用负责 |
 | [migrations/versions/c7e9a162b4d8_add_album_cover_preference.py](../backend/migrations/versions/c7e9a162b4d8_add_album_cover_preference.py) | 为相册增加可空封面偏好；旧行默认使用自动封面 |
 
-迁移历史不是可随意删除的旧代码；实际数据库结构以迁移与模型为准，不直接执行文档中的 SQL 设计样例覆盖数据库。
+迁移历史不是可随意删除的旧代码；实际数据库结构以迁移与模型为准，不用设计草稿覆盖数据库。
 
 ### 后端测试
 
@@ -184,15 +184,11 @@
 | [guides/backup-restore.md](guides/backup-restore.md) | 离线备份、校验、恢复的具体命令及安全条件 |
 | [product/project-brief.md](product/project-brief.md) | 产品定位、目标用户、价值与不做的事 |
 | [product/requirements.md](product/requirements.md) | 需求、确认口径、验收条件与任务对应 |
-| [product/page-flow.md](product/page-flow.md) | 页面设计、交互流程及原型阶段补充 |
 | [architecture/tech-stack.md](architecture/tech-stack.md) | 技术选型、组件关系、运行和数据保存方式 |
 | [architecture/data-api-design.md](architecture/data-api-design.md) | 数据关系、约束、接口契约和失败恢复协议 |
-| [architecture/data-model.sql](architecture/data-model.sql) | 设计阶段 SQL 样例，不是运行数据库或正式迁移入口 |
-| [architecture/account-storage-plan.md](architecture/account-storage-plan.md) | 账号隔离、原图存储和备份方案依据 |
 | [architecture/map-plan.md](architecture/map-plan.md) | 地图供应商、来源、调用和加载方案依据 |
-| [planning/development-plan.md](planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖和逐项实施记录 |
-| [reference/t03-city-mappings.md](reference/t03-city-mappings.md) | 初期三城 UUID/供应商映射与核对依据 |
-| [reference/t13-city-catalog.md](reference/t13-city-catalog.md) | 正式目录审核、特殊地区口径和待开放项 |
+| [planning/development-plan.md](planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖、验收条件和记录入口 |
+| [reference/t13-city-catalog.md](reference/t13-city-catalog.md) | 正式目录审核、首批三城稳定 ID/来源、特殊地区口径和待开放项 |
 | [reports/README.md](reports/README.md) | 按准备阶段、第一版、第二版和维护分类的交付报告索引 |
 
 ### 准备阶段报告
@@ -248,11 +244,7 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| [reports/maintenance/2026-10-17-repository-organization.md](reports/maintenance/2026-10-17-repository-organization.md) | 本轮目录变更、路径说明及复测记录 |
-| [reports/maintenance/2026-10-17-ide-startup.md](reports/maintenance/2026-10-17-ide-startup.md) | 开发软件核对、PyCharm 运行配置和隔离验证记录 |
-| [reports/maintenance/2026-11-06-product-rename.md](reports/maintenance/2026-11-06-product-rename.md) | 此间集产品改名、启动配置、兼容标识与本轮验证 |
-| [reports/maintenance/2026-11-06-file-organization.md](reports/maintenance/2026-11-06-file-organization.md) | 报告分组、入口精简、引用审计与本地测试产物清理 |
-| [reports/maintenance/2026-11-06-documentation-refresh.md](reports/maintenance/2026-11-06-documentation-refresh.md) | 常用文档过时说明修正、安装更新分流与本轮静态验证 |
+| [reports/maintenance/maintenance-log.md](reports/maintenance/maintenance-log.md) | 合并的维护结论、改名兼容标识、验证摘要与提交号 |
 
 ## 独立验证工具
 

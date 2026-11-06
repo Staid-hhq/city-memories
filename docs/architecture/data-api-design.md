@@ -1,6 +1,6 @@
 # 此间集数据与接口设计
 
-基线日期：2026-09-21，状态更新：2026-10-25。依据 [需求](../product/requirements.md) 和 [技术方案](tech-stack.md)。T01–T16 的工程、账号、影集、原图、整理、回收站、清理、备份、城市目录及本地交付已实现；后续 V2-01/V2-04 增加本人影集查找、封面、城市相册聚合和省会默认入口。当前页面按“城市相册 → 年份影集 → 照片”组织，新聚合接口见第 11 节，城市列表视图见第 12 节；两者不增加数据库表。[SQL 设计样例](data-model.sql) 保留为准备阶段设计依据，历史章节的验收数不代替当前验证。
+基线日期：2026-09-21，状态更新：2026-10-25。依据 [需求](../product/requirements.md) 和 [技术方案](tech-stack.md)。T01–T16 的工程、账号、影集、原图、整理、回收站、清理、备份、城市目录及本地交付已实现；后续 V2-01/V2-04 增加本人影集查找、封面、城市相册聚合和省会默认入口。当前页面按“城市相册 → 年份影集 → 照片”组织，新聚合接口见第 11 节，城市列表视图见第 12 节；两者不增加数据库表。当前字段与约束以[正式模型](../../backend/src/city_memories/models.py)和迁移为准，旧设计样例已精简，历史章节的验收数不代替当前验证。
 
 本轮复查补齐数据关系图、请求/响应示例及城市入口的跨年份导入衔接。结构与接口设计完成不代表真实接口测试通过，整体状态见 [项目总览](../../README.md)。
 
@@ -46,7 +46,7 @@ erDiagram
 | upload_items | id、owner_id、batch_id、item_index、expected_bytes、expected_sha256、storage_key、reserved_photo_id、state、lease_until | 单个上传及重试，保存服务端实测的格式、字节、哈希和尺寸 |
 | photos | id、owner_id、album_id、upload_item_id、storage_key、original_filename、mime_type、byte_size、sha256、width、height、position、note、state、revision、deleted_at、purge_after | 已提交照片及其当前影集、顺序、文字和回收站状态 |
 
-完整字段、CHECK、外键和索引见 [SQL 设计样例](data-model.sql)。数据库不保存图片 BLOB、源绝对路径或永久公开原图 URL。`storage_key` 只由服务端生成，通过配置定位私有目录，不发给前端。
+完整字段、CHECK、外键和索引见[正式模型](../../backend/src/city_memories/models.py)及[初始迁移](../../backend/migrations/versions/4a097ff7fccb_create_initial_schema.py)，后续升级按迁移链补充。数据库不保存图片 BLOB、源绝对路径或永久公开原图 URL。`storage_key` 只由服务端生成，通过配置定位私有目录，不发给前端。
 
 城市表只维护业务必需的标识与映射，不在本轮批量下载或打包第三方目录。正式可新增影集的城市须完成映射核对；停用城市的既有影集仍可读取。地级单位、直辖市、港澳台等对应关系继续按 [地图方案](map-plan.md) 核对，不能把省级代码当城市代码。
 
@@ -122,7 +122,7 @@ T02 实现补充：匿名会话签发为每来源每小时 60 次，复用有效
 
 ### T03 已实现的响应格式
 
-城市目录为 `data: {items, next_cursor}`；城市字段为 id、name、parent_name、unit_kind、can_create。名称或所属地区按 q 子串匹配（最多 80 字符），只列出已核对且启用的城市。首批历史范围见 [三城映射](../reference/t03-city-mappings.md)，当前 391 个开放入口见 [T13 审核](../reference/t13-city-catalog.md)。
+城市目录为 `data: {items, next_cursor}`；城市字段为 id、name、parent_name、unit_kind、can_create。名称或所属地区按 q 子串匹配（最多 80 字符），只列出已核对且启用的城市。首批历史范围见 [三城映射](../reference/t13-city-catalog.md#首批三城映射)，当前 391 个开放入口见 [T13 审核](../reference/t13-city-catalog.md)。
 
 城市年份列表为 `data: {city, items, next_cursor}`，城市与年份列表默认 24 条、最多 100 条；签名游标绑定查询范围，私人年份游标绑定账号和城市。年份按 year 降序（null 最后）加 ID 排序，新插入已读页之前的年份需刷新列表查看。`GET /albums/{id}` 的 data 为 id、city、year、revision、photo_count、cover_photo_id、original_url、created_at、updated_at；POST 创建在这些字段上增加 created。year 必填，严格整数 1–9999 或 null，不接受字符串、布尔值和客户端 owner_id。并发重复创建不覆盖原有记录。
 
@@ -329,7 +329,7 @@ T15 在 3400 份有效原图下执行 30 轮正式清理，p95 325.733 ms，失�
 
 ## 9. 验证与交接
 
-本轮使用 Windows Python 3.13 自带 SQLite 3.50.4，在空内存数据库执行 SQL 设计样例，**25 项检查通过**：覆盖建表及外键、具体年份和未标年份唯一、跨账号关联拒绝、同哈希多份照片、有效位置唯一、上传完成资料约束、排序与文字关联、版本条件更新、跨影集移动、回收站状态和恢复期限、清理后幂等收据保留、数据库完整性。仅使用虚构资料，没有操作任何照片文件，也没有测试 WAL 并发或真实 FastAPI 接口。文档链接另作本地检查，不代替未来接口与文件恢复测试。
+准备阶段曾使用 Windows Python 3.13 自带 SQLite 3.50.4，在空内存数据库执行当时的 SQL 设计样例（已移入 Git 历史，不代表当前 schema），**25 项检查通过**：覆盖建表及外键、具体年份和未标年份唯一、跨账号关联拒绝、同哈希多份照片、有效位置唯一、上传完成资料约束、排序与文字关联、版本条件更新、跨影集移动、回收站状态和恢复期限、清理后幂等收据保留、数据库完整性。仅使用虚构资料，没有操作任何照片文件，也没有测试 WAL 并发或真实 FastAPI 接口。文档链接另作本地检查，不代替未来接口与文件恢复测试。
 
 正式实现还须验证：越权原图及上传拒绝、CSRF/会话到期、并发分页与版本冲突、响应丢失后的幂等重放、并发上传顺序、部分失败显式提交、清理与恢复竞争、文件系统故障、原图哈希及 Edge 关键操作。此前地图和小范围原图检查不重复执行；真实规模与地图未完成项继续跟踪。
 

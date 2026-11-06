@@ -5,7 +5,7 @@
 - 默认用中文沟通，按 README.md 的导航和 docs/planning/development-plan.md 推进；每次完成一个任务或紧密相关的任务组。
 - 开始工作前检查 Git 状态并保留已有改动；实现后执行与变更范围相称的验证，并更新对应任务状态和交付记录。
 - 文件职责见 docs/file-guide.md，文档分类见 docs/README.md；新增或移动文件时同步导航，根目录运行 `node scripts/check-repository.mjs` 核对文件链接和项目模块导入。
-- 交付报告按 docs/reports/preparation/、v1/、v2/、maintenance/ 分类，新增记录同步 docs/reports/README.md 与文件导航；历史测试结果和当时操作含义保持原样。
+- 功能与独立验收报告按 docs/reports/preparation/、v1/、v2/ 分类；小型改名、整理和文档维护追加 docs/reports/maintenance/maintenance-log.md，不再每次新建报告。新增记录同步索引；历史测试结果和当时操作含义保持原样。
 - 用户已要求：以后每完成一个开发步骤，都要把代码和相关文档同步到 GitHub。这是持续授权，无需每次再询问是否提交或推送。
 - “每一步”指可独立交付的开发任务、修复或文档更新，不要求每条命令后都创建提交。仅讨论或只读检查、没有文件改动时无需创建空提交。
 
