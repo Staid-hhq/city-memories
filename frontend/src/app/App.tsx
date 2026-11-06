@@ -30,7 +30,7 @@ function connectionTitle(error: unknown) {
   if (error instanceof DOMException && error.name === 'TimeoutError') return '连接等待超时'
   if (error instanceof ApiError && error.status >= 500) return '服务暂时不可用'
   if (error instanceof ApiError && error.code === 'RESPONSE_INVALID') return '服务响应无法识别'
-  return '暂时无法连接城影记'
+  return '暂时无法连接此间集'
 }
 
 function connectionDescription(error: unknown) {
@@ -41,8 +41,8 @@ function connectionDescription(error: unknown) {
 
 function ConnectionHelp() {
   return <details className="connection-help"><summary>查看本机启动步骤</summary>
-    <ol><li>在 PyCharm 选择“城影记－启动”，确认前后端都已运行完成。</li>
-      <li>如果只启动了网页，请启动“城影记－后端”；已有服务时不用重复运行。</li>
+    <ol><li>在 PyCharm 选择“此间集－启动”，确认前后端都已运行完成。</li>
+      <li>如果只启动了网页，请启动“此间集－后端”；已有服务时不用重复运行。</li>
       <li>服务就绪后点击“重新连接”。仍未恢复时，查看 PyCharm 运行窗口中的报错。</li></ol>
     <p>连接提示无法确定具体原因；服务未就绪或连接中断都可能导致当前情况。</p>
     {navigator.onLine === false && <p>浏览器提示当前离线，恢复连接后可再试一次。</p>}
@@ -111,8 +111,8 @@ function AuthPage({ register, onLogin }: { register: boolean; onLogin: (user: Us
   return (
     <main className="auth-page">
       <section className="journal-intro" aria-labelledby="brand-title">
-        <p className="eyebrow">CITY MEMORIES · 私人旅行手帐</p>
-        <h1 id="brand-title">城影记</h1>
+        <p className="eyebrow">CIJIANJI · 私人旅行手帐</p>
+        <h1 id="brand-title">此间集</h1>
         <p className="brand-line">走过一座城，<br />留下一本故事。</p>
         <p className="intro-copy">把旅行里的光影收好。<br />下一次想起，就从那座城市翻开。</p>
         <div className="paper-stack" aria-hidden="true">
@@ -276,9 +276,9 @@ export function App() {
 
   if (session.phase !== 'guest' && session.phase !== 'user') {
     return <main className="status-page"><section className="status-card connection-card">
-      <p className="eyebrow">CITY MEMORIES</p><h1>城影记</h1>
+      <p className="eyebrow">CIJIANJI</p><h1>此间集</h1>
       {session.phase === 'loading' || session.phase === 'error' ? <>
-        <OperationFeedback tone={session.phase === 'error' ? 'error' : 'progress'} title={session.phase === 'error' ? connectionTitle(session.error) : '正在连接城影记'}>
+        <OperationFeedback tone={session.phase === 'error' ? 'error' : 'progress'} title={session.phase === 'error' ? connectionTitle(session.error) : '正在连接此间集'}>
           <p>{session.phase === 'error' ? connectionDescription(session.error) : '正在确认服务和登录状态，请稍候。'}</p>
         </OperationFeedback>
         <button className="primary-button" onClick={refresh}>重新连接</button>

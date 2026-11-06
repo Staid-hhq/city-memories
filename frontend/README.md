@@ -1,4 +1,4 @@
-# 城影记前端
+# 此间集前端
 
 React 19 + TypeScript + Vite + React Router。命令从本目录执行，依赖由 `package-lock.json` 固定；首次安装使用 `npm ci`，日常运行不重复安装。
 

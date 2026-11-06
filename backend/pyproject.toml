@@ -1,7 +1,7 @@
 [project]
 name = "city-memories-backend"
 version = "0.1.0"
-description = "城影记的 FastAPI 服务"
+description = "此间集的 FastAPI 服务"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [

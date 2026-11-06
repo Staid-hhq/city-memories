@@ -468,7 +468,7 @@ def restore_backup(backup_dir: Path, destination: Path, *, clock=_now) -> dict:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="城影记离线备份：先正常停止后端，仅写全新目录")
+    parser = argparse.ArgumentParser(description="此间集离线备份：先正常停止后端，仅写全新目录")
     commands = parser.add_subparsers(dest="command", required=True)
     create = commands.add_parser("create", help="创建一致备份，不改变源数据")
     create.add_argument("--data-dir", required=True, type=Path)

@@ -229,6 +229,7 @@
 | [reports/2026-10-30-home-map-round-one.md](reports/2026-10-30-home-map-round-one.md) | V2-04 首页第一轮：欢迎区收紧、地图搜索/缩放集中、小城入口与更多工具及验证 |
 | [reports/2026-10-30-photo-upload-round-two.md](reports/2026-10-30-photo-upload-round-two.md) | V2-04 第二轮：图库优先、统一单多张/拖入入口、旧任务恢复、卡片更多操作及验证 |
 | [reports/2026-11-06-sidebar-visual-round-three.md](reports/2026-11-06-sidebar-visual-round-three.md) | V2-04 第三轮：侧栏内容层级、大横封面、长名称和常用视觉规则及本轮验证 |
+| [reports/2026-11-06-product-rename.md](reports/2026-11-06-product-rename.md) | 此间集产品改名、启动配置、兼容标识与本轮验证 |
 
 ## 独立验证工具
 

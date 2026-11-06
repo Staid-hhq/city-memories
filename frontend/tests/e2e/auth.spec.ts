@@ -26,6 +26,9 @@ test('实际 Edge 注册、错误密码、网络失败、重名、重载和退�
   await page.goto('/login')
   console.log('Browser:', await page.evaluate(() => navigator.userAgent))
   await expect(page.getByRole('heading', { name: '翻开你的手帐' })).toBeVisible()
+  await expect(page).toHaveTitle('此间集')
+  await expect(page.getByRole('heading', { name: '此间集', exact: true })).toBeVisible()
+  await expect(page.getByText('CIJIANJI · 私人旅行手帐', { exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('login.png'), fullPage: true })
   await register(page, 'Ui_One')
   await page.getByLabel('密码', { exact: true }).fill('Deliberately wrong password')
@@ -143,7 +146,7 @@ test('启动遇到非 JSON 服务错误明确说明服务不可用，查看本�
   await expect(page.getByText('服务暂时不可用', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: '翻开你的手帐', exact: true })).toHaveCount(0)
   await page.getByText('查看本机启动步骤', { exact: true }).click()
-  await expect(page.getByText('如果只启动了网页，请启动“城影记－后端”；已有服务时不用重复运行。', { exact: true })).toBeVisible()
+  await expect(page.getByText('如果只启动了网页，请启动“此间集－后端”；已有服务时不用重复运行。', { exact: true })).toBeVisible()
   for (const width of [360, 320]) {
     await page.setViewportSize({ width, height: 850 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
@@ -157,7 +160,7 @@ test('启动遇到非 JSON 服务错误明确说明服务不可用，查看本�
 test('启动区分网络中断与非法成功响应，未核对成功前不放行登录或私人页面', async ({ page }) => {
   await page.route('**/api/v1/auth/me', route => route.abort('failed'))
   await page.goto('/')
-  await expect(page.getByText('暂时无法连接城影记', { exact: true })).toBeVisible()
+  await expect(page.getByText('暂时无法连接此间集', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: '翻开你的手帐', exact: true })).toHaveCount(0)
   await page.unroute('**/api/v1/auth/me')
   await page.route('**/api/v1/auth/me', route => route.fulfill({
@@ -200,7 +203,7 @@ test('连接等待中可手动重连，旧响应不回写；会话读取超时�
   })
   try {
     await page.goto('/')
-    await expect(page.getByText('正在连接城影记', { exact: true })).toBeVisible()
+    await expect(page.getByText('正在连接此间集', { exact: true })).toBeVisible()
     await expect.poll(() => pendingReads).toBeGreaterThan(0)
     mode = 'guest'
     await page.getByRole('button', { name: '重新连接', exact: true }).click()
@@ -222,7 +225,7 @@ test('连接等待中可手动重连，旧响应不回写；会话读取超时�
     })
     mode = 'timeout'
     await page.reload()
-    await expect(page.getByText('正在连接城影记', { exact: true })).toBeVisible()
+    await expect(page.getByText('正在连接此间集', { exact: true })).toBeVisible()
     await expect.poll(() => timeoutReads).toBeGreaterThan(0)
     await expect(page.getByText('连接等待超时', { exact: true })).toBeVisible({ timeout: 20_000 })
     mode = 'guest'

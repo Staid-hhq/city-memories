@@ -23,6 +23,7 @@ async function login(page: Page, username: string) {
   await page.getByLabel('密码', { exact: true }).fill(password)
   await page.getByRole('button', { name: '登录我的手帐', exact: true }).click()
   await expect(page.getByRole('heading', { name: `你好，${username}` })).toBeVisible()
+  await expect(page.getByRole('banner').getByRole('link', { name: /^此间集(?:\s*CIJIANJI)?$/ })).toBeVisible()
 }
 
 async function read(page: Page, path: string) {

@@ -56,7 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             engine.dispose()
 
-    app = FastAPI(title="城影记 API", version="0.13.0", lifespan=lifespan)
+    app = FastAPI(title="此间集 API", version="0.13.0", lifespan=lifespan)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=list({urlsplit(origin).hostname for origin in settings.allowed_origins}),

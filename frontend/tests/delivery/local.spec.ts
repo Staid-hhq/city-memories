@@ -36,6 +36,9 @@ test('T16 空库启动、构建产物、深链接刷新和同源 API 代理', as
   expect(index).not.toContain('/@vite/client')
   expect(index).not.toContain('/src/main.tsx')
   expect(await page.evaluate(() => navigator.userAgent)).toContain('Edg/')
+  await expect(page).toHaveTitle('此间集')
+  await expect(page.getByRole('heading', { name: '此间集', exact: true })).toBeVisible()
+  await expect(page.getByText('CIJIANJI · 私人旅行手帐', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '登录我的手帐', exact: true })).toBeVisible()
 
   const assets = [...index.matchAll(/(?:src|href)="(\/assets\/[^"?]+\.(?:js|css))"/g)].map(match => match[1])
