@@ -164,6 +164,14 @@ test('首页地图与旅行侧栏左右排列，最近整理按真实更新时�
     const left = (await map.boundingBox())!, right = (await panel.boundingBox())!
     expect(right.y).toBeGreaterThanOrEqual(left.y + left.height - 1)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+    if (width <= 760) {
+      for (const card of await panel.locator('.home-sidebar-panel').all()) {
+        expect(Math.abs((await card.boundingBox())!.width - right.width)).toBeLessThan(1)
+      }
+      const cover = (await panel.locator('.recent-album-featured .home-recent-cover').boundingBox())!
+      expect(cover.width).toBeGreaterThan(right.width * .8)
+      expect(Math.abs(cover.width / cover.height - 1.6)).toBeLessThan(.01)
+    }
     if (width === 360) {
       await page.screenshot({ path: info.outputPath('home-sidebar-mobile.png'), fullPage: true })
       await page.screenshot({ path: info.outputPath('home-round-one-mobile.png') })

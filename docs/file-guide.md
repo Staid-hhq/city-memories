@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-10-30。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新：2026-11-06。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -59,10 +59,10 @@
 | [src/app/App.tsx](../frontend/src/app/App.tsx) | 注册/登录、启动连接帮助、会话手动核对、退出清理和顶层路由 |
 | [src/shared/api.ts](../frontend/src/shared/api.ts) | HTTP 请求及响应状态分类、错误翻译、CSRF、账号切换隔离、上传及原图字节读取 |
 | [src/shared/OperationFeedback.tsx](../frontend/src/shared/OperationFeedback.tsx) | 页面内持续的操作进度、成功、警示及失败反馈，含无障碍状态和就近操作 |
-| [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、地图高度与状态边线、导航和封面卡；含手机触控控件、局部横滚和短屏查看层 |
+| [src/styles/global.css](../frontend/src/styles/global.css) | 白色界面、共享字体/字号/圆角、侧栏大封面、地图高度与状态边线；含手机控件、局部横滚和短屏查看层 |
 | [src/features/albums/Journal.tsx](../frontend/src/features/albums/Journal.tsx) | 登录导航、紧凑首页与选城、城市/年份逐级返回、图库优先与统一添加入口、旧单张任务访问兼容、计数和地图联动 |
 | [src/features/albums/AlbumLibrary.tsx](../frontend/src/features/albums/AlbumLibrary.tsx) | 一城市一卡的相册库、城市聚合筛选/排序分页、条件/返回位置记忆及城市/年份封面卡 |
-| [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹与年份影集统计、最近三本年份影集及相册/选城快捷入口 |
+| [src/features/albums/HomeSidebar.tsx](../frontend/src/features/albums/HomeSidebar.tsx) | 首页本人足迹与年份影集统计、最近首本大封面与后两本紧凑行、相册总入口及唯一选城入口 |
 | [src/features/albums/types.ts](../frontend/src/features/albums/types.ts) | 城市、城市相册聚合、年份影集和个人地图统计类型，不依赖页面组件 |
 | [src/features/imports/UploadPanel.tsx](../frontend/src/features/imports/UploadPanel.tsx) | 旧 ?import= 单张任务恢复、原图校验/保存、重试/取消，更新查询参数保留返回来源 |
 | [src/features/imports/BatchImport.tsx](../frontend/src/features/imports/BatchImport.tsx) | 统一添加照片页面，单张/多张/拖入共用核对；队列执行、重选重试和恢复，保留返回来源 |
@@ -228,6 +228,7 @@
 | [reports/2026-10-26-small-city-access.md](reports/2026-10-26-small-city-access.md) | V2-04 小城快捷入口、几何适配定位、选中城市卡和验证 |
 | [reports/2026-10-30-home-map-round-one.md](reports/2026-10-30-home-map-round-one.md) | V2-04 首页第一轮：欢迎区收紧、地图搜索/缩放集中、小城入口与更多工具及验证 |
 | [reports/2026-10-30-photo-upload-round-two.md](reports/2026-10-30-photo-upload-round-two.md) | V2-04 第二轮：图库优先、统一单多张/拖入入口、旧任务恢复、卡片更多操作及验证 |
+| [reports/2026-11-06-sidebar-visual-round-three.md](reports/2026-11-06-sidebar-visual-round-three.md) | V2-04 第三轮：侧栏内容层级、大横封面、长名称和常用视觉规则及本轮验证 |
 
 ## 独立验证工具
 
