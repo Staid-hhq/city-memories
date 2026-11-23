@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新：2026-11-07。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新于 2026-11-23。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -196,60 +196,8 @@
 | [architecture/data-api-design.md](architecture/data-api-design.md) | 数据关系、约束、接口契约和失败恢复协议 |
 | [planning/development-plan.md](planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖、验收条件和记录入口 |
 | [reference/t13-city-catalog.md](reference/t13-city-catalog.md) | 正式目录审核、首批三城稳定 ID/来源、特殊地区口径和待开放项 |
-| [reports/README.md](reports/README.md) | 按准备阶段、第一版、第二版和维护分类的交付报告索引 |
-
-### 准备阶段报告
-
-| 文件 | 用途 |
-| --- | --- |
-| [reports/preparation/feasibility.md](reports/preparation/feasibility.md) | 准备阶段关键可行性验证与限制 |
-| [reports/preparation/edge-review-2026-09-21.md](reports/preparation/edge-review-2026-09-21.md) | 早期原型实际 Edge 操作复查 |
-
-### 第一版报告
-
-| 文件 | 用途 |
-| --- | --- |
-| [reports/v1/t02-auth-verification.md](reports/v1/t02-auth-verification.md) | T02 账号认证交付证据 |
-| [reports/v1/t03-albums-verification.md](reports/v1/t03-albums-verification.md) | T03 城市和年份影集证据 |
-| [reports/v1/t04-originals-verification.md](reports/v1/t04-originals-verification.md) | T04 原图上传、校验和保存证据 |
-| [reports/v1/t05-browsing-verification.md](reports/v1/t05-browsing-verification.md) | T05 原图按需加载和浏览证据 |
-| [reports/v1/t06-batch-import-verification.md](reports/v1/t06-batch-import-verification.md) | T06 批量导入及重试证据 |
-| [reports/v1/t07-editing-verification.md](reports/v1/t07-editing-verification.md) | T07 文字、排序、草稿和冲突证据 |
-| [reports/v1/t08-organizing-verification.md](reports/v1/t08-organizing-verification.md) | T08 跨影集移动与重复查看证据 |
-| [reports/v1/t09-trash-verification.md](reports/v1/t09-trash-verification.md) | T09 回收站与恢复证据 |
-| [reports/v1/t10-cleanup-verification.md](reports/v1/t10-cleanup-verification.md) | T10 到期清理和故障恢复证据 |
-| [reports/v1/t11-backup-verification.md](reports/v1/t11-backup-verification.md) | T11 一致备份/校验/恢复证据 |
-| [reports/v1/t12-map-data-loading.md](reports/v1/t12-map-data-loading.md) | T12 地图来源、配额、城市口径和加载核对 |
-| [reports/v1/t13-map-verification.md](reports/v1/t13-map-verification.md) | T13 正式地图交付和真实来源检查 |
-| [reports/v1/t14-edge-verification.md](reports/v1/t14-edge-verification.md) | T14 Edge 连续流程、隔离和布局回归 |
-| [reports/v1/t15-scale-verification.md](reports/v1/t15-scale-verification.md) | T15 3400 份合成原图规模、双账号、内存与审计 |
-| [reports/v1/t16-local-delivery-verification.md](reports/v1/t16-local-delivery-verification.md) | T16 本地第一版、空库与真实构建资源验收 |
-
-### 第二版报告
-
-| 文件 | 用途 |
-| --- | --- |
-| [reports/v2/2026-10-21-v2-album-library.md](reports/v2/2026-10-21-v2-album-library.md) | V2-01 白色界面、独立相册、封面偏好、迁移/备份兼容与本轮验证 |
-| [reports/v2/2026-10-22-china-city-map.md](reports/v2/2026-10-22-china-city-map.md) | V2-02/V2-03 中国市级地图、公开源覆盖、交互与隔离端口验证 |
-| [reports/v2/2026-10-23-home-map-sidebar.md](reports/v2/2026-10-23-home-map-sidebar.md) | V2-04 首页双栏、足迹/最近相册、滚轮滚页及专项验证 |
-| [reports/v2/2026-10-23-connection-feedback.md](reports/v2/2026-10-23-connection-feedback.md) | V2-04 连接错误分类、启动帮助、会话核对及隔离验证 |
-| [reports/v2/2026-10-23-mobile-details.md](reports/v2/2026-10-23-mobile-details.md) | V2-04 手机触控控件、批量列表、短屏原图查看和地图触控的范围、验证及真机边界 |
-| [reports/v2/2026-10-23-province-borders.md](reports/v2/2026-10-23-province-borders.md) | V2-04 省市边界层级、公共省界源线、保留城市交互及本轮验证 |
-| [reports/v2/2026-10-25-province-city-entries.md](reports/v2/2026-10-25-province-city-entries.md) | V2-04 省会默认入口、城市拼音排序、全目录搜索兼容、更新和验证 |
-| [reports/v2/album-browsing.md](reports/v2/album-browsing.md) | 相册筛选、卡片与城市/年份层级，按 2026-10-23～24 各轮保留接口、失败修正与验证 |
-| [reports/v2/operation-feedback.md](reports/v2/operation-feedback.md) | 2026-10-23 操作进度、结果核对与上传空闲入口提示，两项独立验证 |
-| [reports/v2/map-interaction.md](reports/v2/map-interaction.md) | 2026-10-26 市界/画布、小城定位与选中入口，两轮几何和交互证据 |
-| [reports/v2/ui-refinement.md](reports/v2/ui-refinement.md) | 2026-10-30～11-06 首页、照片上传、侧栏视觉三轮整理，保留分轮结果与未测范围 |
-| [reports/v2/2026-11-07-account-password.md](reports/v2/2026-11-07-account-password.md) | 账号密码规则、旧密码登录兼容、显隐输入及隔离验证 |
-| [reports/v2/2026-11-07-auth-recovery.md](reports/v2/2026-11-07-auth-recovery.md) | 认证有限等待、结果不明恢复、退出期间隐藏及隔离回归 |
-| [reports/v2/2026-11-07-auth-fields.md](reports/v2/2026-11-07-auth-fields.md) | 账号模块步骤 2：字段错误、焦点、辅助描述、服务端白名单与验证 |
-| [reports/v2/2026-11-07-password-change.md](reports/v2/2026-11-07-password-change.md) | 账号模块步骤 3：凭当前密码主动改密、全部会话失效、结果未确认恢复及隔离验证 |
-
-### 维护报告
-
-| 文件 | 用途 |
-| --- | --- |
-| [reports/maintenance/maintenance-log.md](reports/maintenance/maintenance-log.md) | 合并的维护结论、改名兼容标识、验证摘要与提交号 |
+| [reports/README.md](reports/README.md) | 各阶段历史交付报告的 Git 归档入口 |
+| [reports/maintenance/maintenance-log.md](reports/maintenance/maintenance-log.md) | 维护记录、改名兼容约定与验证摘要 |
 
 ## 独立验证工具
 

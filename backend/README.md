@@ -72,7 +72,7 @@ if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动服务' }
 
 清理协调未提交/过期导入、遗留临时文件、到期回收站、会话及限流资料；保留已提交导入的幂等收据，永久删除照片后也不能因重放旧请求重新生成。实例锁在关闭清理时仍保留，不手动删除锁文件。日志仅输出固定错误和汇总，不输出密钥、私人内容或完整异常；服务停机、积压或故障时不保证准点释放空间。
 
-排障先核对磁盘、权限和占用，解除后重试；不手工清空 `originals/`、`staging/` 或修改数据库。完整规则与边界见[数据设计](../docs/architecture/data-api-design.md)及[历史验证](../docs/reports/v1/t10-cleanup-verification.md)。
+排障先核对磁盘、权限和占用，解除后重试；不手工清空 `originals/`、`staging/` 或修改数据库。完整规则与边界见[数据设计](../docs/architecture/data-api-design.md)及[历史验证](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1/t10-cleanup-verification.md)。
 
 ## 离线备份与恢复
 

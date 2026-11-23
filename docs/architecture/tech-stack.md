@@ -1,6 +1,6 @@
 # 此间集技术架构与地图
 
-更新：2026-11-06。本文描述当前实现；字段和失败协议见[数据与接口契约](data-api-design.md)，安装与命令见[本地手册](../guides/local-first-release.md)。第一版在线地图选型与实测留在 [T12](../reports/v1/t12-map-data-loading.md)、[T13](../reports/v1/t13-map-verification.md)，不作为第二版运行方式。
+更新：2026-11-06。本文描述当前实现；字段和失败协议见[数据与接口契约](data-api-design.md)，安装与命令见[本地手册](../guides/local-first-release.md)。第一版在线地图选型与实测留在 [T12](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1/t12-map-data-loading.md)、[T13](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1/t13-map-verification.md)，不作为第二版运行方式。
 
 T01–T16 和第二版已交付子项可用；V2-04、第二版整体验收与 T17 部署仍待安排，以[开发计划](../planning/development-plan.md)为准。初期面向本人和朋友、10 人以内，这是产品定位，不是容量或并发保证。
 
@@ -47,7 +47,7 @@ SQLite 启用外键、WAL 与锁等待；每次请求使用独立会话，文件
 
 照片 ID、原图字节、文字和顺序分开保存。文字变化只增加照片 revision；纯排序只增加影集 revision。排序读取完整影集，临时位移和最终位置写入同一事务，兼容删除或移走后留下的稀疏位置。版本冲突或响应不明先查询核对，编辑操作不自动重放。
 
-当前单实例方案已有 [T15 规模与双账号验证](../reports/v1/t15-scale-verification.md)，但不据此承诺任意并发或长期内存表现。若实测持续写锁等待或需要多实例，再评估数据库和部署方案；不能只换连接地址就视为完成迁移。
+当前单实例方案已有 [T15 规模与双账号验证](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1/t15-scale-verification.md)，但不据此承诺任意并发或长期内存表现。若实测持续写锁等待或需要多实例，再评估数据库和部署方案；不能只换连接地址就视为完成迁移。
 
 ## 4. 账号与私人访问
 
@@ -85,12 +85,12 @@ SVG 提供拖动/缩放、全国自适应、搜索定位、选中卡、键盘与
 
 当前页面不请求 `/map/config`、在线逐市边界或世界瓦片，不需要地图 Key。后端兼容配置接口和旧适配器保留供第一版复现，不能据其存在误写当前依赖。固定快照不是实时导航数据，保留许可不代表已经完成官方地图审查；对外展示仍纳入 T17 核对。
 
-生成工具 [build-china-map-data.py](../../scripts/build-china-map-data.py) 校验固定 URL / SHA256 后生成资产，原始公共下载留在被忽略的测试目录；日常启动不下载重建。来源、几何覆盖等独立证据见[中国地图报告](../reports/v2/2026-10-22-china-city-map.md)和[省界报告](../reports/v2/2026-10-23-province-borders.md)。
+生成工具 [build-china-map-data.py](../../scripts/build-china-map-data.py) 校验固定 URL / SHA256 后生成资产，原始公共下载留在被忽略的测试目录；日常启动不下载重建。来源、几何覆盖等独立证据见[中国地图报告](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v2/2026-10-22-china-city-map.md)和[省界报告](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v2/2026-10-23-province-borders.md)。
 
 ## 7. 验证与历史入口
 
 当前契约以正式模型、迁移和路由 schema 为依据；改动按范围运行导航检查、后端/前端静态检查或隔离业务回归，不用旧结果替代本轮验证。
 
 - 第一版账号、导入、编辑、恢复、清理与备份：见[第一版报告](../reports/README.md#第一版t02t16)。
-- 实际 Edge 连续流程、规模/并发、本地空库交付：分别见 [T14](../reports/v1/t14-edge-verification.md)、[T15](../reports/v1/t15-scale-verification.md)、[T16](../reports/v1/t16-local-delivery-verification.md)，各有合成样本及未测范围。
+- 实际 Edge 连续流程、规模/并发、本地空库交付：分别见 [T14](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1/t14-edge-verification.md)、[T15](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1/t15-scale-verification.md)、[T16](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1/t16-local-delivery-verification.md)，各有合成样本及未测范围。
 - 第二版地图、相册与界面迭代：见[第二版报告](../reports/README.md#第二版)。各子项已交付不代表 V2-04 和第二版整体验收完成。

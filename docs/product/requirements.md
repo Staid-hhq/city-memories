@@ -2,7 +2,7 @@
 
 本文件保留 2026-09-21 第一版需求与验收基线，包含准备阶段 6 的确认，用于追溯规则和任务对应。第二版当前入口与操作见[功能指南](../guides/user-guide.md)，实现状态以[开发计划](../planning/development-plan.md)为准；历史界面设想不表示当前页面仍采用同一布局。
 
-依据：[项目定位](project-brief.md)。下表是正式产品的验收要求，不表示已经实现；原型与技术小样通过的范围见 [可行性记录](../reports/preparation/feasibility.md) 和 [Edge 复查](../reports/preparation/edge-review-2026-09-21.md)。任务编号见 [开发计划](../planning/development-plan.md)。
+依据：[项目定位](project-brief.md)。下表是正式产品的验收要求，不表示已经实现；原型与技术小样通过的范围见 [可行性记录](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/preparation/feasibility.md) 和 [Edge 复查](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/preparation/edge-review-2026-09-21.md)。任务编号见 [开发计划](../planning/development-plan.md)。
 
 ## 功能与验收清单
 
@@ -75,4 +75,4 @@ R-24 的删除方式由用户委托助手选定。其余条目中的具体控件
 
 第一版先在本地完成真实账号和照片管理，再部署并验证跨电脑访问。电脑/Edge、联网、私人影集、原图和手动整理是当前范围；手机专门适配、公共浏览、共同维护、第三方登录、离线同步、智能整理、导航和完整游记不纳入当前实现。
 
-核心规则及验收清单已齐备；正式功能仍待开发。新版原型的通过结果、地图完整性和加载速度、真实规模等待验事项集中见 [七阶段总览](../../README.md) 和 [可行性记录](../reports/preparation/feasibility.md)。
+核心规则及验收清单已齐备；正式功能仍待开发。新版原型的通过结果、地图完整性和加载速度、真实规模等待验事项集中见 [七阶段总览](../../README.md) 和 [可行性记录](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/preparation/feasibility.md)。

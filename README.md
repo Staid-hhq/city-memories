@@ -45,7 +45,7 @@ npm run start:local
 | --- | --- |
 | `frontend/` | 正式页面、公共地图资产和前端测试 |
 | `backend/` | 接口、数据模型、数据库迁移和后端测试 |
-| `docs/` | 使用指南、需求、架构、开发计划与分类报告 |
+| `docs/` | 使用指南、需求、架构、开发计划与历史报告索引 |
 | `scripts/` | 仓库检查、公共地图数据生成 |
 | `validation/` | 交付/规模验证，以及保留原路径的历史探针 |
 | `prototype/` | 历史可点击原型，供设计和验证复现参考 |
@@ -57,7 +57,7 @@ npm run start:local
 
 前端命令见[前端说明](frontend/README.md)，后端环境与命令见[后端说明](backend/README.md)。根目录运行 `node scripts/check-repository.mjs` 检查文档目标、文件导航和本地模块导入。
 
-测试使用隔离数据和合成图片；重量级规模验证须单独执行，见[验证工具索引](validation/README.md)。历次测试条件、通过项与未测范围分别保存在[分类报告](docs/reports/README.md)，历史结果不代替本轮验证。
+测试使用隔离数据和合成图片；重量级规模验证须单独执行，见[验证工具索引](validation/README.md)。历次测试条件、通过项与未测范围见[历史报告索引](docs/reports/README.md)。
 
 ## 使用边界
 

@@ -1,6 +1,6 @@
 # 文档索引
 
-更新：2026-11-07。先按用途查找；逐文件说明在[文件导航](file-guide.md)，任务状态统一维护在[开发计划](planning/development-plan.md)。
+更新于 2026-11-23。逐文件说明见[文件导航](file-guide.md)，任务状态见[开发计划](planning/development-plan.md)。
 
 ## 常用入口
 
@@ -21,20 +21,11 @@
 | `architecture/` | [技术与地图架构](architecture/tech-stack.md)、[当前数据/API 契约](architecture/data-api-design.md) |
 | `planning/` | [开发计划与任务状态](planning/development-plan.md) |
 | `reference/` | [城市目录审核与首批三城映射](reference/t13-city-catalog.md) |
-| `reports/` | [按准备阶段、第一版、第二版、维护分类的报告索引](reports/README.md) |
+| `reports/` | [历史交付与维护](reports/README.md) |
 
 ## 验证与交付记录
 
-完整记录集中在[报告索引](reports/README.md)，这里仅保留近期入口：
-
-- [三轮界面整理](reports/v2/ui-refinement.md)。
-- [账号密码规则与输入体验](reports/v2/2026-11-07-account-password.md)：新注册规则、旧密码兼容及显隐输入验证。
-- [认证等待与恢复](reports/v2/2026-11-07-auth-recovery.md)：登录/注册/退出的等待期限与结果不明处理。
-- [表单错误提示](reports/v2/2026-11-07-auth-fields.md)：字段标记、首错聚焦、辅助描述与服务错误分类。
-- [修改密码](reports/v2/2026-11-07-password-change.md)：当前密码验证、新密码规则、全部会话失效与异常恢复。
-- [维护日志](reports/maintenance/maintenance-log.md)：改名兼容、文件整理、文档优化与精简。
-
-T01–T16 和已交付的第二版子项保留各自验收条件；V2-04、第二版整体验收与 T17 部署仍待安排。历史报告中的名称、测试条数和输出路径表示当时情况；本地测试产物可按已记录的清理操作移除，需要时重新运行工具生成。
+准备阶段、第一版和第二版旧报告可从[报告索引](reports/README.md)查阅。近期目录整理、文档维护和改名兼容记录见[维护日志](reports/maintenance/maintenance-log.md)。
 
 ## 文档维护规则
 

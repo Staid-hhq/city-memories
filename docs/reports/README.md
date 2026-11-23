@@ -1,60 +1,23 @@
-# 验证、交付与维护报告
+# 验证与交付记录
 
-按阶段归档，独立任务保留编号；连续迭代按主题合并、按日期分节。历史结论只适用于当时条件；当前进度见[开发计划](../planning/development-plan.md)，日常操作见[使用指南](../guides/user-guide.md)，逐文件职责见[文件导航](../file-guide.md)。
-
-历史命令、测试条数与输出路径按各自日期理解；旧的本地截图、缓存和合成数据库可能已清理，需要时用现有脚本重新生成。小型维护已合并为一份日志，完整旧报告仍可从 Git 历史查看。
+当前任务状态见[开发计划](../planning/development-plan.md)。各阶段报告的原文保存在提交 `0d4ab11`，可通过[精简前的完整报告索引](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/README.md)逐项查阅。历史测试条件、通过项和未测范围以当时记录为准。
 
 ## 准备阶段
 
-| 记录 | 范围 |
-| --- | --- |
-| [原型 Edge 复查](preparation/edge-review-2026-09-21.md) | 2026-09-21 可点击原型，不是正式产品回归 |
-| [早期可行性](preparation/feasibility.md) | 地图、账号存储和原图显示的首轮证据 |
+保留早期地图、账号存储、原图显示的可行性记录，以及可点击原型的 Edge 复查。[准备阶段报告](https://github.com/Staid-hhq/city-memories/tree/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/preparation)
 
 ## 第一版（T02–T16）
 
-| 记录 | 范围 |
-| --- | --- |
-| [T02](v1/t02-auth-verification.md) | 注册、登录与授权 |
-| [T03](v1/t03-albums-verification.md) | 城市与年份影集 |
-| [T04](v1/t04-originals-verification.md) | 原图接收、校验、保存 |
-| [T05](v1/t05-browsing-verification.md) | 按需读取与跨页浏览 |
-| [T06](v1/t06-batch-import-verification.md) | 批量导入与重试 |
-| [T07](v1/t07-editing-verification.md) | 文字与影集排序 |
-| [T08](v1/t08-organizing-verification.md) | 跨影集移动与重复查看 |
-| [T09](v1/t09-trash-verification.md) | 回收站与恢复 |
-| [T10](v1/t10-cleanup-verification.md) | 到期清理与故障恢复 |
-| [T11](v1/t11-backup-verification.md) | 一致备份与恢复工具 |
-| [T12](v1/t12-map-data-loading.md) | 地图数据、口径与加载核对 |
-| [T13](v1/t13-map-verification.md) | 正式地图与本人资料联动 |
-| [T14](v1/t14-edge-verification.md) | 实际 Edge 连续流程回归 |
-| [T15](v1/t15-scale-verification.md) | 原图规模、并发与内存 |
-| [T16](v1/t16-local-delivery-verification.md) | 本地构建版空库交付 |
+按任务编号记录账号、相册、原图导入与整理、回收恢复、备份及地图接入。T14 是实际 Edge 连续流程，T15 是合成原图规模和双账号验证，T16 是构建版空库交付。[第一版报告](https://github.com/Staid-hhq/city-memories/tree/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1)
+
+T01 的实施记录见[开发计划](../planning/development-plan.md#t01-工程基础2026-09-22)。
 
 ## 第二版
 
-| 记录 | 范围 |
-| --- | --- |
-| [2026-10-21 V2-01 独立相册](v2/2026-10-21-v2-album-library.md) | 白色界面、独立相册、封面偏好、迁移与新旧备份兼容；地图剩余范围 |
-| [2026-10-22 中国市级地图](v2/2026-10-22-china-city-map.md) | 中国市级静态矢量、391 入口覆盖、本人填色、来源许可及隔离端口验证 |
-| [2026-10-23 连接与启动提示](v2/2026-10-23-connection-feedback.md) | 服务响应分类、启动帮助、手动会话核对与草稿/账号边界 |
-| [2026-10-23 首页双栏与滚动](v2/2026-10-23-home-map-sidebar.md) | 紧凑地图、本人足迹、最近相册、滚轮滚页及最近排序接口 |
-| [2026-10-23 手机端细节](v2/2026-10-23-mobile-details.md) | 触控控件、批量列表局部横滚、短屏原图查看及地图触摸滚页/移动切换 |
-| [2026-10-23 省市边界层级](v2/2026-10-23-province-borders.md) | 增加独立省界线层、保留细市界与逐市填色及交互、固定公开源与隔离验证 |
-| [2026-10-25 省会默认入口](v2/2026-10-25-province-city-entries.md) | 各省级地区一个默认城市、明确拼音排序、完整展示与全国城市搜索兼容 |
-| [相册浏览（10-23～24）](v2/album-browsing.md) | 查找/排序、卡片、城市与年份层级；按三轮保留基线、接口与验证 |
-| [操作与上传反馈（10-23）](v2/operation-feedback.md) | 持续进度、结果核对、空闲光标和选图提示；区分两项范围 |
-| [地图交互（10-26）](v2/map-interaction.md) | 市界/画布、小城入口和几何适配定位；保留两轮修正与未测范围 |
-| [界面整理（10-30～11-06）](v2/ui-refinement.md) | 首页工具、统一添加照片、侧栏与视觉三轮整理；各轮测试独立记录 |
-| [2026-11-07 账号密码规则与输入体验](v2/2026-11-07-account-password.md) | 新注册密码、旧账号登录兼容、显隐按钮及隔离验证 |
-| [2026-11-07 认证等待与恢复](v2/2026-11-07-auth-recovery.md) | 步骤 1：认证整体期限、结果不明核对、退出期间隐藏及账号变化保护 |
-| [2026-11-07 表单错误提示](v2/2026-11-07-auth-fields.md) | 步骤 2：字段就近错误、首错聚焦、辅助描述与服务错误分类 |
-| [2026-11-07 修改密码](v2/2026-11-07-password-change.md) | 步骤 3：当前密码验证、账号及会话隔离、异常恢复与隔离验证 |
+包括独立相册、静态中国市级地图、浏览和界面改进，以及账号专项。[第二版报告](https://github.com/Staid-hhq/city-memories/tree/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v2)
+
+最近一项账号交付为主动修改密码及撤销本人全部会话。第二版整体验收和 T17 部署仍待安排。[修改密码验收记录](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v2/2026-11-07-password-change.md)
 
 ## 项目维护
 
-| 记录 | 范围 |
-| --- | --- |
-| [项目维护日志](maintenance/maintenance-log.md) | 目录/IDE 整理、改名兼容、可再生产物清理、文档优化及精简；按日期保留结论和提交号 |
-
-T01 的实施证据保留在开发计划。产品当前名为「此间集」；曾用名及历史平台应用名按原事实保留，详见改名记录。
+文件整理、产品更名和文档更新集中记录在[维护日志](maintenance/maintenance-log.md)。
