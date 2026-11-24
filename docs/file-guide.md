@@ -194,6 +194,13 @@
 | [current/guides/backup-restore.md](current/guides/backup-restore.md) | 离线备份、校验、恢复的具体命令及安全条件 |
 | [current/product/project-brief.md](current/product/project-brief.md) | 产品定位、目标用户、价值与不做的事 |
 | [refactor/requirements.md](refactor/requirements.md) | 本轮首页、地图与相册的产品需求、验收场景及第一版基线入口 |
+| [refactor/user-flows-and-prototype.md](refactor/user-flows-and-prototype.md) | 三条主要用户流程、返回与异常处理、首屏预览及原型走查任务 |
+| [refactor/prototype/index.html](refactor/prototype/index.html) | 可双击打开的离线页面原型与首页入口 |
+| [refactor/prototype/styles.css](refactor/prototype/styles.css) | 原型的桌面、窄屏布局及卡片和图形样式 |
+| [refactor/prototype/prototype.js](refactor/prototype/prototype.js) | 模拟浏览、切换账号和明确保存照片的前端交互 |
+| [refactor/prototype/lake-sample.webp](refactor/prototype/lake-sample.webp) | 原型使用的 AI 合成杭州湖景样片 |
+| [refactor/prototype/home-desktop.png](refactor/prototype/home-desktop.png) | 桌面尺寸的原型首页预览 |
+| [refactor/prototype/home-mobile.png](refactor/prototype/home-mobile.png) | 窄屏尺寸的原型首页预览 |
 | [current/architecture/tech-stack.md](current/architecture/tech-stack.md) | 当前组件、运行/数据保存与静态地图架构；旧在线方案见历史报告 |
 | [current/architecture/data-api-design.md](current/architecture/data-api-design.md) | 数据关系、约束、接口契约和失败恢复协议 |
 | [current/planning/development-plan.md](current/planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖、验收条件和记录入口 |

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f9f8f2">
+  <title>此间集 · 页面原型</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#app" onclick="event.preventDefault(); document.getElementById('app').focus()">跳至主要内容</a>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a class="brand" href="#home" aria-label="此间集首页">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>此间集</span>
+      </a>
+      <details class="demo-controls" id="demo-controls">
+        <summary>原型设置</summary>
+        <div class="demo-panel">
+          <p>当前账号 <strong id="demo-profile">示例账号</strong></p>
+          <button id="demo-sample" type="button">切换至示例账号</button>
+          <button id="demo-new" type="button">切换至新账号</button>
+          <label><input id="demo-map-fail" type="checkbox"> 模拟地图失败</label>
+        </div>
+      </details>
+    </div>
+  </header>
+  <main class="main" id="app" tabindex="-1">
+    <noscript>请在浏览器中启用 JavaScript，以体验页面原型。</noscript>
+  </main>
+
+  <template id="home-template">
+    <section class="home" aria-labelledby="home-heading">
+      <div class="home-heading">
+        <h1 id="home-heading">我的旅行手记</h1>
+        <a class="add-button" href="#add"><span aria-hidden="true">＋</span>添加照片</a>
+      </div>
+      <div class="entry-grid">
+        <a class="entry-card" href="#map" aria-labelledby="map-title" aria-describedby="map-desc">
+          <div class="card-art map-art" aria-hidden="true">
+            <div class="folded-map">
+              <div class="map-leaf leaf-a"></div>
+              <div class="map-leaf leaf-b"></div>
+              <div class="map-leaf leaf-c"></div>
+              <div class="route-leg leg-one"></div><div class="route-leg leg-two"></div>
+              <i class="city-pin pin-a"></i><i class="city-pin pin-b"></i><i class="city-pin pin-c"></i>
+            </div>
+          </div>
+          <div class="entry-caption">
+            <div><h2 id="map-title">城市地图</h2><p id="map-desc">按地点翻看旅行照片</p></div>
+            <span class="entry-arrow" aria-hidden="true">↗</span>
+          </div>
+        </a>
+        <a class="entry-card" href="#albums" aria-labelledby="albums-title" aria-describedby="albums-desc">
+          <div class="card-art album-art" aria-hidden="true">
+            <div class="print-back"></div>
+            <div class="print-front"><div class="photo-art art-lake"></div></div>
+          </div>
+          <div class="entry-caption">
+            <div><h2 id="albums-title">我的相册</h2><p id="albums-desc">按城市和年份翻阅相册</p></div>
+            <span class="entry-arrow" aria-hidden="true">↗</span>
+          </div>
+        </a>
+      </div>
+    </section>
+  </template>
+</body>
+</html>
