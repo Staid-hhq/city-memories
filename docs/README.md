@@ -1,6 +1,6 @@
 # 文档索引
 
-更新于 2026-11-23。逐文件说明见[文件导航](file-guide.md)，任务状态见[开发计划](planning/development-plan.md)。
+更新于 2026-11-24。逐文件说明见[文件导航](file-guide.md)，任务状态见[开发计划](planning/development-plan.md)。
 
 ## 常用入口
 
@@ -17,7 +17,7 @@
 | 目录 | 内容与入口 |
 | --- | --- |
 | `guides/` | 上表中的日常使用、启动、安装和维护说明 |
-| `product/` | [项目定位](product/project-brief.md)、[需求与验收](product/requirements.md) |
+| `product/` | [产品需求与验收标准（本轮重构）](product/requirements.md)、[项目定位](product/project-brief.md) |
 | `architecture/` | [技术与地图架构](architecture/tech-stack.md)、[当前数据/API 契约](architecture/data-api-design.md) |
 | `planning/` | [开发计划与任务状态](planning/development-plan.md) |
 | `reference/` | [城市目录审核与首批三城映射](reference/t13-city-catalog.md) |

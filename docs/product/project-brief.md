@@ -1,6 +1,6 @@
 # 此间集 · 项目定位
 
-更新：2026-11-06。本页说明当前定位和范围，具体规则见[需求与验收](requirements.md)，已完成与待安排任务以[开发计划](../planning/development-plan.md)为准。
+本页说明已交付版本的定位和范围。本轮前端重构以功能卡首页和按需打开地图为目标，见[产品需求与验收标准](requirements.md)。进度见[开发计划](../planning/development-plan.md)。
 
 ## 为谁解决什么问题
 

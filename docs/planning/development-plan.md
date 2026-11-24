@@ -1,19 +1,20 @@
 # 此间集开发计划
 
-更新于 2026-11-23。本页维护任务、依赖、验收条件和状态。历史验证见[报告索引](../reports/README.md)，文档维护见[维护日志](../reports/maintenance/maintenance-log.md)。
+更新于 2026-11-24。本页维护任务、依赖、验收条件和状态。历史验证见[报告索引](../reports/README.md)，文档维护见[维护日志](../reports/maintenance/maintenance-log.md)。
 
 ## 当前状态与下一步
 
 - 第一版 T01–T16 已完成，本机应用可使用；T17 公开部署与跨电脑访问待安排。
 - V2-01 独立相册、V2-02 地图来源核对、V2-03 中国市级地图已完成。
 - V2-04 已交付相册查找、封面/卡片、操作/连接提示、窄屏、城市与年份层级、省会入口、小城市定位及三轮界面整理；V2-04 和第二版整体验收仍待安排。
-- 后续先确定并执行剩余整体验收；进入 T17 时再确定域名、主机、容量/费用、HTTPS、数据迁移及真实独立备份策略。未纳入独立图文游记正文、社交或原生手机应用。
+- 2026-11-24 已整理本轮[产品需求与验收标准](../product/requirements.md)。下一步画出功能卡首页、地图和相册之间的用户流程与页面原型，再实现并验收前端。后端改动按后续需求安排。
+- 进入 T17 时再确定域名、主机、容量/费用、HTTPS、数据迁移及真实独立备份策略。未纳入独立图文游记正文、社交或原生手机应用。
 
-范围见[项目定位](../product/project-brief.md)及[第一版需求](../product/requirements.md)，当前操作见[功能指南](../guides/user-guide.md)，字段与失败规则见[数据/API 设计](../architecture/data-api-design.md)。
+当前操作见[功能指南](../guides/user-guide.md)，产品边界见[项目定位](../product/project-brief.md)，字段与失败规则见[数据/API 设计](../architecture/data-api-design.md)。
 
 ## 第一版任务清单
 
-下表保留第一版各任务当时的范围与完成条件。“依赖”表示前置任务。T02–T16 的验证按任务编号查阅[第一版报告](../reports/README.md#第一版t02t16)。
+下表保留各任务当时的范围与完成条件。“依赖”表示前置任务。原始验收口径见[第一版需求](https://github.com/Staid-hhq/city-memories/blob/c435dacba522a426b7d6eefbc0e38e063ce90720/docs/product/requirements.md)，T02–T16 的验证按任务编号查阅[第一版报告](../reports/README.md#第一版t02t16)。
 
 | ID | 批次 | 任务 | 依赖 | 交付内容与完成标准 | 状态 |
 | --- | --- | --- | --- | --- | --- |

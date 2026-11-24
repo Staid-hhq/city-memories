@@ -191,7 +191,7 @@
 | [guides/user-guide.md](guides/user-guide.md) | 地图、导入、浏览、文字、整理、移动、回收站的操作说明 |
 | [guides/backup-restore.md](guides/backup-restore.md) | 离线备份、校验、恢复的具体命令及安全条件 |
 | [product/project-brief.md](product/project-brief.md) | 产品定位、目标用户、价值与不做的事 |
-| [product/requirements.md](product/requirements.md) | 需求、确认口径、验收条件与任务对应 |
+| [product/requirements.md](product/requirements.md) | 本轮首页、地图与相册的产品需求、验收场景及第一版基线入口 |
 | [architecture/tech-stack.md](architecture/tech-stack.md) | 当前组件、运行/数据保存与静态地图架构；旧在线方案见历史报告 |
 | [architecture/data-api-design.md](architecture/data-api-design.md) | 数据关系、约束、接口契约和失败恢复协议 |
 | [planning/development-plan.md](planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖、验收条件和记录入口 |

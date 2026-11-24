@@ -21,3 +21,5 @@ T01 的实施记录见[开发计划](../planning/development-plan.md#t01-工程�
 ## 项目维护
 
 文件整理、产品更名和文档更新集中记录在[维护日志](maintenance/maintenance-log.md)。
+
+2026-11-24 更新了首页重构的产品需求和验收场景。[本次维护记录](maintenance/maintenance-log.md#2026-11-24-前端重构的产品需求)
