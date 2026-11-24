@@ -1,8 +1,8 @@
 # 仓库文件导航
 
-更新于 2026-11-23。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新于 2026-11-24。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
-先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](guides/local-first-release.md)，不用逐一打开下面所有文件。
+先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](current/guides/local-first-release.md)，不用逐一打开下面所有文件。
 
 ## 根目录与维护工具
 
@@ -186,18 +186,20 @@
 | --- | --- |
 | [README.md](README.md) | 按阅读目的分类的文档与交付索引 |
 | [file-guide.md](file-guide.md) | 当前逐文件职责表及私人/生成文件边界 |
-| [guides/local-first-release.md](guides/local-first-release.md) | 本地启动、停止、首次安装、升级、配置和排障 |
-| [guides/ide-startup.md](guides/ide-startup.md) | 本机开发软件选择、PyCharm 点选启动/停止与解释器排障 |
-| [guides/user-guide.md](guides/user-guide.md) | 地图、导入、浏览、文字、整理、移动、回收站的操作说明 |
-| [guides/backup-restore.md](guides/backup-restore.md) | 离线备份、校验、恢复的具体命令及安全条件 |
-| [product/project-brief.md](product/project-brief.md) | 产品定位、目标用户、价值与不做的事 |
-| [product/requirements.md](product/requirements.md) | 本轮首页、地图与相册的产品需求、验收场景及第一版基线入口 |
-| [architecture/tech-stack.md](architecture/tech-stack.md) | 当前组件、运行/数据保存与静态地图架构；旧在线方案见历史报告 |
-| [architecture/data-api-design.md](architecture/data-api-design.md) | 数据关系、约束、接口契约和失败恢复协议 |
-| [planning/development-plan.md](planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖、验收条件和记录入口 |
-| [reference/t13-city-catalog.md](reference/t13-city-catalog.md) | 正式目录审核、首批三城稳定 ID/来源、特殊地区口径和待开放项 |
-| [reports/README.md](reports/README.md) | 各阶段历史交付报告的 Git 归档入口 |
-| [reports/maintenance/maintenance-log.md](reports/maintenance/maintenance-log.md) | 维护记录、改名兼容约定与验证摘要 |
+| [current/README.md](current/README.md) | 现行版本的使用、架构、维护与历史交付入口 |
+| [refactor/README.md](refactor/README.md) | 重构各阶段的八项产出、当前文档与下一项工作 |
+| [current/guides/local-first-release.md](current/guides/local-first-release.md) | 本地启动、停止、首次安装、升级、配置和排障 |
+| [current/guides/ide-startup.md](current/guides/ide-startup.md) | 本机开发软件选择、PyCharm 点选启动/停止与解释器排障 |
+| [current/guides/user-guide.md](current/guides/user-guide.md) | 地图、导入、浏览、文字、整理、移动、回收站的操作说明 |
+| [current/guides/backup-restore.md](current/guides/backup-restore.md) | 离线备份、校验、恢复的具体命令及安全条件 |
+| [current/product/project-brief.md](current/product/project-brief.md) | 产品定位、目标用户、价值与不做的事 |
+| [refactor/requirements.md](refactor/requirements.md) | 本轮首页、地图与相册的产品需求、验收场景及第一版基线入口 |
+| [current/architecture/tech-stack.md](current/architecture/tech-stack.md) | 当前组件、运行/数据保存与静态地图架构；旧在线方案见历史报告 |
+| [current/architecture/data-api-design.md](current/architecture/data-api-design.md) | 数据关系、约束、接口契约和失败恢复协议 |
+| [current/planning/development-plan.md](current/planning/development-plan.md) | T01–T17 与 V2-01–V2-04 任务进度、依赖、验收条件和记录入口 |
+| [current/reference/t13-city-catalog.md](current/reference/t13-city-catalog.md) | 正式目录审核、首批三城稳定 ID/来源、特殊地区口径和待开放项 |
+| [current/reports/README.md](current/reports/README.md) | 各阶段历史交付报告的 Git 归档入口 |
+| [current/reports/maintenance/maintenance-log.md](current/reports/maintenance/maintenance-log.md) | 维护记录、改名兼容约定与验证摘要 |
 
 ## 独立验证工具
 

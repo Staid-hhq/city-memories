@@ -23,3 +23,5 @@ T01 的实施记录见[开发计划](../planning/development-plan.md#t01-工程�
 文件整理、产品更名和文档更新集中记录在[维护日志](maintenance/maintenance-log.md)。
 
 2026-11-24 确定了首页三个入口的名称、产品需求和验收场景。[本次维护记录](maintenance/maintenance-log.md#2026-11-24-前端重构的产品需求)
+
+2026-11-24 将现行资料和本轮重构文档分目录管理。[目录调整记录](maintenance/maintenance-log.md#2026-11-24-按版本整理文档)

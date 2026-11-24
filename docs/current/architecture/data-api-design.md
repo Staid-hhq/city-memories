@@ -1,6 +1,6 @@
 # 此间集数据与接口契约
 
-更新：2026-11-07。本文只描述当前实现；结构以[模型](../../backend/src/city_memories/models.py)与[迁移链](../../backend/migrations/versions/c7e9a162b4d8_add_album_cover_preference.py)为准，HTTP schema 由[路由](../../backend/src/city_memories/main.py)生成 OpenAPI。运行结构和地图来源见[技术架构](tech-stack.md)，操作步骤见[功能指南](../guides/user-guide.md)。
+更新：2026-11-07。本文只描述当前实现；结构以[模型](../../../backend/src/city_memories/models.py)与[迁移链](../../../backend/migrations/versions/c7e9a162b4d8_add_album_cover_preference.py)为准，HTTP schema 由[路由](../../../backend/src/city_memories/main.py)生成 OpenAPI。运行结构和地图来源见[技术架构](tech-stack.md)，操作步骤见[功能指南](../guides/user-guide.md)。
 
 第一版各任务与第二版子项的验证保留在[报告索引](../reports/README.md)，不在契约中重复测试条数。V2-04、第二版整体验收与 T17 仍待安排。
 
@@ -114,7 +114,7 @@ CityView 为 `id, name, parent_name, unit_kind, can_create`；AlbumView 为 `id,
 
 q 最多 80 字符，trim 后按城市名或所属地区字面包含匹配。view 为 all（默认）或 province-centers，其他值 422；均只列 active 且 verified，当前 391 个开放入口，草湖市待映射，见[审核目录](../reference/t13-city-catalog.md)。
 
-all 按名称/ID 升序；province-centers 由[明确 UUID 与拼音键](../../backend/src/city_memories/province_centers.py)选出 34 个省级地区对应城市，台湾地区选台北，不猜代码/名称后缀。先筛选排序再分页；首页空搜索使用该视图、limit=100，非空搜索查 all。城市目录与地图完整目录不因默认入口改变而缩减。
+all 按名称/ID 升序；province-centers 由[明确 UUID 与拼音键](../../../backend/src/city_memories/province_centers.py)选出 34 个省级地区对应城市，台湾地区选台北，不猜代码/名称后缀。先筛选排序再分页；首页空搜索使用该视图、limit=100，非空搜索查 all。城市目录与地图完整目录不因默认入口改变而缩减。
 
 ### 城市相册聚合与筛选
 
@@ -212,7 +212,7 @@ TrashView 为 `id, album_id, city, year, original_filename, mime_type, byte_size
 
 ## 9. 物理清理与离线备份
 
-这些是本地维护能力，没有永久删除按钮或备份 HTTP 接口；配置见[后端说明](../../backend/README.md#t10-到期清理及故障恢复)，操作见[备份说明](../guides/backup-restore.md)。
+这些是本地维护能力，没有永久删除按钮或备份 HTTP 接口；配置见[后端说明](../../../backend/README.md#t10-到期清理及故障恢复)，操作见[备份说明](../guides/backup-restore.md)。
 
 清理先短事务置 purging，再删该份独有副本，成功或文件已不存在后删 photos 行；失败保留进度重试。与恢复条件更新竞争，受操作系统实例锁及导入发布锁协调。启动补做，后台每轮结束后默认等待 60 秒；停机或故障不保证第 30 天准时物理删除，但访问期限立即生效。
 

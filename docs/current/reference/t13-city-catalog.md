@@ -1,6 +1,6 @@
 # T13 正式城市业务目录审核
 
-核对日期：2026-10-04。结论：392 条业务审核记录，其中 391 条开放、1 条待供应商映射；不是“392 个地级市”，也不是完整边界数据集。目录位于 [city-catalog.json](../../backend/src/city_memories/city-catalog.json)，不包含中心坐标、轮廓、照片或 Key。
+核对日期：2026-10-04。结论：392 条业务审核记录，其中 391 条开放、1 条待供应商映射；不是“392 个地级市”，也不是完整边界数据集。目录位于 [city-catalog.json](../../../backend/src/city_memories/city-catalog.json)，不包含中心坐标、轮廓、照片或 Key。
 
 ## 来源和对照方法
 
@@ -43,7 +43,7 @@
 
 ### 核对依据和边界
 
-- 平台编码复用现有 [原型映射](../../prototype/travel-journal/app.js) 中的明确对应关系；目录来源、深圳具体响应和 2026-09-21 的在线读取记录见 [数据来源说明](../../prototype/travel-journal/assets/china-cities-source.md)。没有通过拼接省级编码伪造城市入口，也没有复制整个供应商目录。
+- 平台编码复用现有 [原型映射](../../../prototype/travel-journal/app.js) 中的明确对应关系；目录来源、深圳具体响应和 2026-09-21 的在线读取记录见 [数据来源说明](../../../prototype/travel-journal/assets/china-cities-source.md)。没有通过拼接省级编码伪造城市入口，也没有复制整个供应商目录。
 - 名称与六位行政区划代码交叉核对 [中国政府网公布的行政区划代码表](https://www.gov.cn/gzdt/att/att/site1/20091113/00123f3eabca0c6759ac01.pdf)、[深圳市政府的代码说明](https://www.sz.gov.cn/ztfw/shbz/wyw_184041/ywzsk_184570/content/post_8533553.html) 和 [广东政务服务网广州入口](https://www.gdzwfw.gov.cn/portal/index?region=440100)。政府代码表是历史发布的事实核对资料，不声称是 2026 年全量最新目录，也不替换天地图供应商映射。
 - 本轮尝试带既有 Key 的单城在线核验，被执行环境的安全审查阻止，命令未执行；没有读取或外发该 Key。以上映射使用已保存的原型证据与公开资料，未宣称完成新一轮天地图在线响应核验。
 - `verified` 在 T03 仅表示这三项名称、归属和既有平台代码已人工交叉核对，可以创建业务影集；不表示行政几何、全国覆盖、官方底图呈现或供应商条款已验收。特殊行政单位仍留在 T12 逐项核对。

@@ -52,7 +52,7 @@
 - **整理与恢复**　照片移动后保留原图和单张文字。手动排序可在重启后恢复。回收站保留 30 天，恢复后照片回到原影集。备份与恢复须能还原照片归属、原图、顺序与文字。
 - **使用环境**　优先验收电脑端 Edge，窄屏核对首页的浏览与操作。首轮使用现有本机服务。公开部署和跨电脑访问继续按 T17 单独验收。
 
-当前版本的操作和异常处理见[功能使用指南](../guides/user-guide.md)，接口与数据规则见[数据与接口设计](../architecture/data-api-design.md)，交付状态见[开发计划](../planning/development-plan.md)。
+当前版本的操作和异常处理见[功能使用指南](../current/guides/user-guide.md)，接口与数据规则见[数据与接口设计](../current/architecture/data-api-design.md)，交付状态见[开发计划](../current/planning/development-plan.md)。
 
 ## 设计参考与历史依据
 

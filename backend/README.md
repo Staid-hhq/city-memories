@@ -1,10 +1,10 @@
 # 此间集后端
 
-FastAPI、SQLAlchemy 与 Alembic 工程，采用 Python `src` 布局。以下命令从 `backend/` 执行，依赖由 [pyproject.toml](pyproject.toml) 和 `uv.lock` 锁定。日常启动见[本地手册](../docs/guides/local-first-release.md)，接口字段与错误码统一维护在[数据与接口设计](../docs/architecture/data-api-design.md)。
+FastAPI、SQLAlchemy 与 Alembic 工程，采用 Python `src` 布局。以下命令从 `backend/` 执行，依赖由 [pyproject.toml](pyproject.toml) 和 `uv.lock` 锁定。日常启动见[本地手册](../docs/current/guides/local-first-release.md)，接口字段与错误码统一维护在[数据与接口设计](../docs/current/architecture/data-api-design.md)。
 
 ## 环境与启动
 
-首次准备或依赖变化，按[安装与更新步骤](../docs/guides/local-first-release.md#3-新机器首次准备或更新后)同步环境。已有环境时使用项目 Python；本机裸 `python` 可能指向 MSYS2。
+首次准备或依赖变化，按[安装与更新步骤](../docs/current/guides/local-first-release.md#3-新机器首次准备或更新后)同步环境。已有环境时使用项目 Python；本机裸 `python` 可能指向 MSYS2。
 
 确认依赖、实际数据目录和迁移就绪后，使用与 PyCharm 共享配置一致的命令：
 
@@ -31,7 +31,7 @@ FastAPI、SQLAlchemy 与 Alembic 工程，采用 Python `src` 布局。以下命
 | [maps.py](src/city_memories/maps.py)、[city-catalog.json](src/city_memories/city-catalog.json) | 已审核城市目录、稳定业务 ID 及第一版地图兼容接口 |
 | `tests/` | 临时数据和合成图片的接口/维护/重启测试 |
 
-`POST /api/v1/auth/password` 仅供已登录账号凭当前密码主动修改，沿用 CSRF 与来源检查并增加独立账号/来源限流。新密码哈希与撤销本人全部会话在同一事务内完成，不涉及迁移；当前密码兼容旧规则。接口及并发语义见[账号契约](../docs/architecture/data-api-design.md#3-注册与会话)。
+`POST /api/v1/auth/password` 仅供已登录账号凭当前密码主动修改，沿用 CSRF 与来源检查并增加独立账号/来源限流。新密码哈希与撤销本人全部会话在同一事务内完成，不涉及迁移；当前密码兼容旧规则。接口及并发语义见[账号契约](../docs/current/architecture/data-api-design.md#3-注册与会话)。
 
 完整职责见[文件导航](../docs/file-guide.md#后端)。
 
@@ -45,7 +45,7 @@ if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动服务' }
 & .\.venv\Scripts\python.exe -m alembic current
 ```
 
-运行按钮不会迁移；当前头未变时不因普通界面更新重复初始化。迁移会使用当前配置的数据目录，不把备份目录当作运行目录，也不通过删库解决缺字段。恢复后的升级顺序见[备份指南](../docs/guides/backup-restore.md#3-恢复到全新目录并检查)。
+运行按钮不会迁移；当前头未变时不因普通界面更新重复初始化。迁移会使用当前配置的数据目录，不把备份目录当作运行目录，也不通过删库解决缺字段。恢复后的升级顺序见[备份指南](../docs/current/guides/backup-restore.md#3-恢复到全新目录并检查)。
 
 ## 接口与实现约束
 
@@ -57,7 +57,7 @@ if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动服务' }
 - 文字、排序、移动、封面及回收/恢复使用既有版本核对；冲突不覆盖新内容，不以新建操作掩盖结果不明。
 - 后端保存城市业务身份和本人统计；当前前端使用公共静态矢量，不请求旧 `/map/config` 或在线瓦片，无需新增地图 Key。
 
-完整协议以[接口契约](../docs/architecture/data-api-design.md)为准，历史实现过程见[报告索引](../docs/reports/README.md)。
+完整协议以[接口契约](../docs/current/architecture/data-api-design.md)为准，历史实现过程见[报告索引](../docs/current/reports/README.md)。
 
 ## T10 到期清理及故障恢复
 
@@ -72,11 +72,11 @@ if ($LASTEXITCODE -ne 0) { throw '迁移未完成，不要启动服务' }
 
 清理协调未提交/过期导入、遗留临时文件、到期回收站、会话及限流资料；保留已提交导入的幂等收据，永久删除照片后也不能因重放旧请求重新生成。实例锁在关闭清理时仍保留，不手动删除锁文件。日志仅输出固定错误和汇总，不输出密钥、私人内容或完整异常；服务停机、积压或故障时不保证准点释放空间。
 
-排障先核对磁盘、权限和占用，解除后重试；不手工清空 `originals/`、`staging/` 或修改数据库。完整规则与边界见[数据设计](../docs/architecture/data-api-design.md)及[历史验证](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1/t10-cleanup-verification.md)。
+排障先核对磁盘、权限和占用，解除后重试；不手工清空 `originals/`、`staging/` 或修改数据库。完整规则与边界见[数据设计](../docs/current/architecture/data-api-design.md)及[历史验证](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v1/t10-cleanup-verification.md)。
 
 ## 离线备份与恢复
 
-`python -m city_memories.backup` 提供 `create`、`verify`、`restore`，没有网页入口。使用项目 Python，先正常停止后端，再按[备份指南](../docs/guides/backup-restore.md)选择实际数据目录、工作区外全新目标并校验。
+`python -m city_memories.backup` 提供 `create`、`verify`、`restore`，没有网页入口。使用项目 Python，先正常停止后端，再按[备份指南](../docs/current/guides/backup-restore.md)选择实际数据目录、工作区外全新目标并校验。
 
 备份保留有效照片和未到期回收站，不携带 `.env`、认证密钥或旧会话；恢复保留账号密码哈希、原图、关系、文字和顺序，期限不重置。工具接受第一版和当前迁移版本并保留源 schema，不自动升级恢复结果。不覆盖或合并旧资料，不内置加密、定时任务或自动轮换。
 

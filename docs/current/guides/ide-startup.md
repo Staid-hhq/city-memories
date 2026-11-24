@@ -35,10 +35,10 @@ Windows 的 npm 包装进程停止时可能短暂显示“终止批处理操作�
 
 | 运行配置 | 用途 | 对应文件 |
 | --- | --- | --- |
-| 此间集－启动 | 并行启动以下前端和后端，日常选择它 | [local.run.xml](../../.run/local.run.xml) |
-| 此间集－后端 | 项目 Python 环境以模块方式运行 Uvicorn，工作目录 `backend` | [backend.run.xml](../../.run/backend.run.xml) |
-| 此间集－前端 | 在 `frontend` 执行 `npm run start:local`，读取已有 `dist` | [frontend.run.xml](../../.run/frontend.run.xml) |
-| 此间集－前端构建 | 执行 `npm run build`，检查类型并生成页面，成功后正常退出 | [build.run.xml](../../.run/build.run.xml) |
+| 此间集－启动 | 并行启动以下前端和后端，日常选择它 | [local.run.xml](../../../.run/local.run.xml) |
+| 此间集－后端 | 项目 Python 环境以模块方式运行 Uvicorn，工作目录 `backend` | [backend.run.xml](../../../.run/backend.run.xml) |
+| 此间集－前端 | 在 `frontend` 执行 `npm run start:local`，读取已有 `dist` | [frontend.run.xml](../../../.run/frontend.run.xml) |
+| 此间集－前端构建 | 执行 `npm run build`，检查类型并生成页面，成功后正常退出 | [build.run.xml](../../../.run/build.run.xml) |
 
 首次没有 `dist` 时，先运行「此间集－前端构建」，确认 `Process finished with exit code 0`，再启动项目。服务已经运行且只改前端页面时，构建成功后刷新即可，后端无需重启，也不要再启动第二份前端。需要重启的变更按第 3 节正常停止；构建失败先排错。日常没有修改代码时不用每次构建。
 

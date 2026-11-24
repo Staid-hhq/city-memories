@@ -14,9 +14,9 @@ T01–T16 和第二版已交付子项可用；V2-04、第二版整体验收与 T
 | 关系数据 | SQLAlchemy 2、Alembic、SQLite WAL | 账号、城市映射、年份影集、照片元数据、版本与幂等收据 |
 | 原图 | 私有 originals / staging 目录、Pillow 校验 | 保存独立原字节副本，不重编码、不生成缩略图 |
 | 地图 | 随应用分发的公共 JSON、SVG | 391 个已审核入口、本人填色、省界/市界、搜索定位与键盘操作；当前页面不需要地图 Key |
-| 验证 | pytest、Playwright 与实际 Edge、离线地图规则、规模工具 | 使用隔离数据；历史结果见[报告索引](../reports/README.md)，工具见[验证索引](../../validation/README.md) |
+| 验证 | pytest、Playwright 与实际 Edge、离线地图规则、规模工具 | 使用隔离数据；历史结果见[报告索引](../reports/README.md)，工具见[验证索引](../../../validation/README.md) |
 
-依赖由 npm / uv 和已有锁文件管理，准确版本见[前端清单](../../frontend/package.json)、[后端清单](../../backend/pyproject.toml)。不因本文整理升级依赖。
+依赖由 npm / uv 和已有锁文件管理，准确版本见[前端清单](../../../frontend/package.json)、[后端清单](../../../backend/pyproject.toml)。不因本文整理升级依赖。
 
 ## 2. 运行结构与入口
 
@@ -75,7 +75,7 @@ SQLite 启用外键、WAL 与锁等待；每次请求使用独立会话，文件
 
 ## 6. 当前地图与加载
 
-公共资产 [china-cities.v1.json](../../frontend/public/map-data/china-cities.v1.json) 包含 391 个已审核城市及同级目的地；371 个入口来自固定 GeoCode-Release 快照，台湾 20 个入口来自固定 taiwan-atlas 包。城市多面、离岛、内环、国界、海岸与南海源线保留；省界为独立线层。精确版本、源哈希、处理方法和使用条件统一维护在[数据说明](../../frontend/public/map-data/NOTICE.md)及 [LICENSES.txt](../../frontend/public/map-data/LICENSES.txt)。
+公共资产 [china-cities.v1.json](../../../frontend/public/map-data/china-cities.v1.json) 包含 391 个已审核城市及同级目的地；371 个入口来自固定 GeoCode-Release 快照，台湾 20 个入口来自固定 taiwan-atlas 包。城市多面、离岛、内环、国界、海岸与南海源线保留；省界为独立线层。精确版本、源哈希、处理方法和使用条件统一维护在[数据说明](../../../frontend/public/map-data/NOTICE.md)及 [LICENSES.txt](../../../frontend/public/map-data/LICENSES.txt)。
 
 `CityMap.tsx` 通过同源资产加载公共几何，与需登录的 `/map/cities` 按代码、名称、上级和单位类型严格核对；本人统计单独来自 `/me/atlas`，有效照片才点亮，空影集不亮。公共几何不保存账号统计；草湖市仍待映射，不自动新增业务入口。
 
@@ -85,7 +85,7 @@ SVG 提供拖动/缩放、全国自适应、搜索定位、选中卡、键盘与
 
 当前页面不请求 `/map/config`、在线逐市边界或世界瓦片，不需要地图 Key。后端兼容配置接口和旧适配器保留供第一版复现，不能据其存在误写当前依赖。固定快照不是实时导航数据，保留许可不代表已经完成官方地图审查；对外展示仍纳入 T17 核对。
 
-生成工具 [build-china-map-data.py](../../scripts/build-china-map-data.py) 校验固定 URL / SHA256 后生成资产，原始公共下载留在被忽略的测试目录；日常启动不下载重建。来源、几何覆盖等独立证据见[中国地图报告](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v2/2026-10-22-china-city-map.md)和[省界报告](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v2/2026-10-23-province-borders.md)。
+生成工具 [build-china-map-data.py](../../../scripts/build-china-map-data.py) 校验固定 URL / SHA256 后生成资产，原始公共下载留在被忽略的测试目录；日常启动不下载重建。来源、几何覆盖等独立证据见[中国地图报告](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v2/2026-10-22-china-city-map.md)和[省界报告](https://github.com/Staid-hhq/city-memories/blob/0d4ab111c64f83a087f2fc1695b7e4fc4d892029/docs/reports/v2/2026-10-23-province-borders.md)。
 
 ## 7. 验证与历史入口
 
