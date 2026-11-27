@@ -4,12 +4,16 @@
   const app = document.querySelector('#app')
   const mapFailure = document.querySelector('#demo-map-fail')
   const storageKey = 'cijianji.refactor.flow-demo.v1'
+  // Coordinates use the same 720 × 490 projection as the local country overview.
   const cities = [
-    { id: 'hangzhou', name: '杭州', region: '浙江', x: 32, y: 76 },
-    { id: 'suzhou', name: '苏州', region: '江苏', x: 40, y: 26 },
-    { id: 'shanghai', name: '上海', region: '上海', x: 78, y: 42 },
+    { id: 'guangzhou', name: '广州', region: '广东', x: 484.0, y: 409.4, dx: -23, dy: -12 },
+    { id: 'hangzhou', name: '杭州', region: '浙江', x: 544.7, y: 313.8, dx: -22, dy: 19 },
+    { id: 'shenzhen', name: '深圳', region: '广东', x: 492.8, y: 417.9, dx: 20, dy: 15 },
+    { id: 'suzhou', name: '苏州', region: '江苏', x: 551.3, y: 298.9, dx: -18, dy: -16 },
+    { id: 'shanghai', name: '上海', region: '上海', x: 560.3, y: 299.8, dx: 23, dy: -4 },
   ]
   const subjects = {
+    arcade: { name: '骑楼街口.jpg', image: 'arcade-sample.webp', cover: 'arcade-cover.webp', alt: '骑楼街道的合成摄影样片' },
     street: { name: '街口.jpg', image: 'street-sample.webp', cover: 'street-cover.webp', alt: '杭州街口的日常街景' },
     lane: { name: '巷里.jpg', image: 'lane-sample.webp', alt: '阴天里的一条城市小巷' },
     lake: { name: '湖畔.jpg', image: 'lake-sample.webp', alt: '湖畔的薄雾与远山' },
@@ -19,9 +23,12 @@
 
   function initialState() {
     return {
+      version: 2,
       profile: 'sample',
       accounts: {
         sample: [
+          { city: 'guangzhou', year: '2026', photos: [{ id: 'g1', subject: 'arcade', note: '沿着骑楼慢慢走，回头看了一眼街口。' }] },
+          { city: 'shenzhen', year: '2026', photos: [] },
           { city: 'hangzhou', year: '2026', photos: [
             { id: 's3', subject: 'street', note: '散步到街口，在路边停了片刻。' },
             { id: 's4', subject: 'lane' },
@@ -39,7 +46,15 @@
     try {
       const saved = JSON.parse(sessionStorage.getItem(storageKey))
       if (saved && ['sample', 'fresh'].includes(saved.profile)
-        && Array.isArray(saved.accounts?.sample) && Array.isArray(saved.accounts?.fresh)) return saved
+        && Array.isArray(saved.accounts?.sample) && Array.isArray(saved.accounts?.fresh)) {
+        if (!saved.version) {
+          const additions = initialState().accounts.sample.filter(album => ['guangzhou', 'shenzhen'].includes(album.city)
+            && !saved.accounts.sample.some(item => item.city === album.city))
+          saved.accounts.sample.push(...additions)
+          saved.version = 2
+        }
+        return saved
+      }
     } catch { /* Browsers may restrict storage on local file URLs. */ }
     return initialState()
   }
@@ -54,13 +69,14 @@
   let lastHash = null
   let library = { text: '', year: '', scroll: 0 }
   let albumPosition = null
-  let selectedCity = ''
-  let mapState = 'idle'
-  let mapTimer
+  let mapPosition = null
+  let pendingMapFocus = ''
+  let outlineRequest
   let uploadTimer
   const albums = () => state.accounts[state.profile]
   const byCity = id => albums().filter(album => album.city === id)
   const getCity = id => cities.find(city => city.id === id)
+  const searchName = city => city.name + '市 ' + city.region
   const getAlbum = (city, year) => byCity(city).find(album => album.year === year)
   const yearName = year => year === 'unknown' ? '未标年份' : year + ' 年'
   const yearSort = (a, b) => Number(b === 'unknown' ? 0 : b) - Number(a === 'unknown' ? 0 : a)
@@ -141,14 +157,14 @@
     const target = create ? '#create/' : '#add/'
     return page(label, create ? '#albums' : '#home', create ? '我的相册' : '首页',
       '<section class="panel"><h2>选择城市</h2><label class="field">搜索城市或地区<input type="search" id="city-search" placeholder="输入城市名或省份"></label>'
-      + '<div class="city-list">' + cities.map(city => '<a class="button secondary" data-search="' + city.name + city.region + '" href="'
-        + target + city.id + '">' + city.name + '</a>').join('') + '</div><p id="city-no-result" hidden role="status">没有找到城市。原型提供杭州、苏州和上海。</p></section>')
+      + '<div class="city-list">' + cities.map(city => '<a class="button secondary" data-search="' + searchName(city) + '" href="'
+        + target + city.id + '">' + city.name + '</a>').join('') + '</div><p id="city-no-result" hidden role="status">没有匹配的示例城市。</p></section>')
   }
 
   function albumList() {
     const shown = cities.filter(city => {
       const owned = byCity(city.id)
-      return owned.length && (city.name + city.region).includes(library.text.trim()) && (!library.year || owned.some(album => album.year === library.year))
+      return owned.length && searchName(city).includes(library.text.trim()) && (!library.year || owned.some(album => album.year === library.year))
     })
     if (!shown.length && (library.text || library.year)) return status('没有符合筛选条件的城市相册。') + action('clear-filters', '清除筛选', true)
     if (!shown.length) return '<div class="library-empty">' + status('还没有相册。可以先建一本空影集，也可以从首页直接添加照片。') + '</div>'
@@ -217,34 +233,93 @@
     }
   }
 
-  function mapPage() {
-    let content
-    if (mapState === 'error') {
-      content = '<div class="panel">' + status('地图加载失败，可以重试或先去翻相册。') + group(action('retry-map', '重试地图'), nav('#albums', '去我的相册', true)) + '</div>'
-    } else if (mapState !== 'ready') {
-      content = '<div class="panel">' + status('正在加载地图…') + nav('#albums', '去我的相册', true) + '</div>'
-    } else {
-      const selected = getCity(selectedCity)
-      const points = (selected ? [selected] : cities).map(city => {
-        const count = countPhotos(byCity(city.id))
-        return '<button type="button" class="map-point' + (count ? ' lit' : '') + '" style="--x:' + (selected ? 50 : city.x) + '%;--y:' + (selected ? 50 : city.y)
-          + '%" data-locate="' + city.id + '" aria-label="定位' + city.name + '，' + count + '张照片">' + city.name + '</button>'
-      }).join('')
-      content = '<div class="panel"><h2>' + (selected ? '已定位' + selected.name : '城市位置示意') + '</h2><p>深色标记表示该城市有已保存的照片。</p>'
-        + '<div class="map-board" role="group" aria-label="城市位置示意">' + points + '</div>'
-        + (selected ? group(nav(cityUrl(selected.id, 'map'), '查看' + selected.name + '相册'), action('all-cities', '返回全图', true)) : '') + '</div>'
+  function loadCityOutlines() {
+    if (!outlineRequest) {
+      const script = document.createElement('script')
+      outlineRequest = new Promise((resolve, reject) => {
+        script.onload = () => resolve(window.prototypeCityOutlines)
+        script.onerror = () => {
+          script.remove()
+          outlineRequest = undefined
+          reject(new Error('City outlines could not be loaded'))
+        }
+      })
+      script.src = 'city-outlines.js'
+      document.head.append(script)
     }
-    return page('城市地图', '#home', '首页', content)
+    return outlineRequest
   }
 
-  function loadMap() {
-    clearTimeout(mapTimer)
-    mapState = 'loading'
-    mapTimer = setTimeout(() => {
-      if (locationInfo().page !== 'map') return
-      mapState = mapFailure.checked ? 'error' : 'ready'
-      renderAfterWait('[data-action="retry-map"], [data-locate]')
-    }, 550)
+  function mapMarker(city, count, outline) {
+    const label = city.name + '，' + (count ? '已点亮，' + count + ' 张照片' : '暂无照片')
+    const anchor = city.dx < 0 ? 'end' : 'start'
+    const x2 = city.x + city.dx
+    const y2 = city.y + city.dy
+    return '<a id="map-pin-' + city.id + '" class="map-marker ' + (count ? 'lit' : 'unlit') + '" data-map-city="' + city.id
+      + '" href="' + cityUrl(city.id, 'map') + '" aria-label="' + esc(label) + '"><title>' + esc(label) + '</title>'
+      + '<path class="city-outline" d="' + esc(outline) + '"/>'
+      + '<path class="map-leader" d="M' + city.x + ' ' + city.y + ' L' + x2 + ' ' + y2 + '"/>'
+      + '<circle class="map-hit" cx="' + city.x + '" cy="' + city.y + '" r="6" fill="transparent"/>'
+      + '<circle class="map-pin" cx="' + city.x + '" cy="' + city.y + '" r="' + (count ? 4 : 3) + '"/>'
+      + '<text class="map-city-label" x="' + (x2 + Math.sign(city.dx) * 3) + '" y="' + y2 + '" dominant-baseline="central" text-anchor="' + anchor + '">' + city.name + '</text></a>'
+  }
+
+  function renderMap() {
+    app.replaceChildren(document.querySelector('#map-template').content.cloneNode(true))
+    const entries = cities.map(city => {
+      const owned = byCity(city.id).sort((a, b) => yearSort(a.year, b.year))
+      return { city, count: countPhotos(owned), cover: owned.find(album => album.photos.length)?.photos[0] }
+    })
+    const lit = entries.filter(entry => entry.count)
+    app.querySelector('#footprint-count').textContent = lit.length
+    const list = app.querySelector('#footprint-cities')
+    list.innerHTML = lit.map(({ city, cover, count }) => {
+      const region = city.name === city.region ? '' : city.region + ' · '
+      return '<a id="map-row-' + city.id + '" class="footprint-city" data-map-city="' + city.id + '" href="' + cityUrl(city.id, 'map')
+        + '"><span class="footprint-cover">' + art(subjects[cover.subject]) + '</span><span class="footprint-city-text"><strong>' + city.name
+        + '</strong><small>' + region + count + ' 张照片</small></span><span class="footprint-chevron" aria-hidden="true">›</span></a>'
+    }).join('') || '<div class="footprint-empty"><p>还没有点亮的城市。保存第一张照片，就会点亮它所在的城市。</p><a href="#add">添加照片</a></div>'
+    const choices = entries.map(({ city, count }) => '<a class="footprint-choice" id="map-choice-' + city.id + '" data-map-city="' + city.id
+      + '" href="' + cityUrl(city.id, 'map') + '"><strong>' + city.name + '</strong><small>' + (count ? '已点亮' : '暂无照片') + '</small></a>').join('')
+    list.insertAdjacentHTML('beforeend', '<details class="footprint-picker"><summary>按名称选城</summary><div>' + choices + '</div></details>')
+
+    const surface = app.querySelector('#map-surface')
+    function showFailure() {
+      surface.innerHTML = '<div class="map-status">' + status('地图暂时无法显示。可以按名称选城，或重试地图。')
+        + group(action('retry-map', '重试地图'), nav('#albums', '去我的相册', true)) + '</div>'
+      if (pendingMapFocus && app.querySelector('h1') === document.activeElement) {
+        const fallback = app.querySelector('#map-row-' + mapPosition.city) || app.querySelector('.footprint-picker summary')
+        fallback.focus({ preventScroll: true })
+      }
+      pendingMapFocus = ''
+    }
+    if (mapFailure.checked) {
+      showFailure()
+      return
+    }
+    surface.innerHTML = '<div class="footprint-map-art"></div><div class="map-status" role="status">正在加载地图…</div>'
+    const picture = new Image(720, 490)
+    picture.alt = ''
+    picture.className = 'footprint-base'
+    const loaded = new Promise((resolve, reject) => {
+      picture.onload = resolve
+      picture.onerror = reject
+    })
+    const layer = surface.querySelector('.footprint-map-art')
+    layer.append(picture)
+    picture.src = 'map-overview.svg'
+    Promise.all([loaded, loadCityOutlines()]).then(([, outlines]) => {
+      if (!surface.isConnected) return
+      // Paint lit cities last so that an adjacent hollow marker never covers a saved city.
+      const pins = [...entries.filter(entry => !entry.count), ...lit]
+        .map(({ city, count }) => mapMarker(city, count, outlines[city.id])).join('')
+      layer.insertAdjacentHTML('beforeend', '<svg class="footprint-markers" viewBox="0 0 720 490" role="group" aria-label="全国地图上的城市相册">' + pins + '</svg>')
+      surface.querySelector('.map-status').remove()
+      if (pendingMapFocus && app.querySelector('h1') === document.activeElement) {
+        app.querySelector('#' + pendingMapFocus)?.focus({ preventScroll: true })
+      }
+      pendingMapFocus = ''
+    }).catch(() => { if (surface.isConnected) showFailure() })
   }
 
   function addPage(city, fixedYear, via, origin) {
@@ -258,7 +333,7 @@
     let content
     if (draft.stage === 'review') {
       content = '<h2>选择与核对</h2><label class="field">示例照片<select id="sample-photo"><option value="">选择一张示例照片</option>'
-        + ['lake', 'street', 'lane'].map(key => '<option value="' + key + '"' + (key === draft.subject ? ' selected' : '') + '>' + subjects[key].name + '</option>').join('')
+        + ['lake', 'street', 'lane', 'arcade'].map(key => '<option value="' + key + '"' + (key === draft.subject ? ' selected' : '') + '>' + subjects[key].name + '</option>').join('')
         + '</select></label>' + yearField(draft.year, Boolean(fixedYear)) + group(action('queue', '确认队列'), action('cancel', '取消', true))
     } else {
       const subject = subjects[draft.subject]
@@ -285,13 +360,12 @@
     const { page: name, city, year, photo, origin, via } = locationInfo()
     if (name === 'home') {
       app.replaceChildren(document.querySelector('#home-template').content.cloneNode(true))
+    } else if (name === 'map') {
+      renderMap()
     } else {
       const album = city && getAlbum(city.id, year)
       let html
-      if (name === 'map') {
-        if (mapState === 'idle') loadMap()
-        html = mapPage()
-      } else if (name === 'albums') html = libraryPage()
+      if (name === 'albums') html = libraryPage()
       else if (name === 'choose-city-title' || (name === 'add' && !city)) html = chooser(name === 'choose-city-title')
       else if (name === 'add' && city && (!year || album)) html = addPage(city, year, via, origin)
       else if (name === 'create' && city) html = createPage(city, origin)
@@ -319,10 +393,7 @@
     const { page: name, city, year, origin } = locationInfo()
     const leavingPhoto = lastHash?.startsWith('#photo/')
     const previousStep = document.activeElement?.dataset.step
-    if (lastHash !== null && name !== 'map' && mapState === 'loading') {
-      clearTimeout(mapTimer)
-      mapState = 'idle'
-    }
+    pendingMapFocus = ''
     if (name !== 'add' || !city) {
       clearTimeout(uploadTimer)
       draft = null
@@ -331,7 +402,15 @@
     if (lastHash !== null) {
       let focusTarget = app.querySelector('h1')
       let scrollTop = name === 'albums' ? library.scroll : 0
-      if (leavingPhoto && name === 'album' && city && albumPosition?.route === albumUrl(city.id, year, origin)) {
+      if (name === 'map' && mapPosition && lastHash === cityUrl(mapPosition.city, 'map')) {
+        scrollTop = mapPosition.scroll
+        if (mapPosition.link.startsWith('map-choice-')) app.querySelector('.footprint-picker').open = true
+        if (mapPosition.link.startsWith('map-pin-') && !app.querySelector('[data-action="retry-map"]')) {
+          pendingMapFocus = mapPosition.link
+        } else {
+          focusTarget = app.querySelector('#' + mapPosition.link) || app.querySelector('.footprint-picker summary')
+        }
+      } else if (leavingPhoto && name === 'album' && city && albumPosition?.route === albumUrl(city.id, year, origin)) {
         focusTarget = Array.from(app.querySelectorAll('.photo-grid a')).find(link => link.hash === albumPosition.photo) || focusTarget
         scrollTop = albumPosition.scroll
       } else if (leavingPhoto && name === 'photo') {
@@ -351,13 +430,12 @@
   function switchProfile(profile) {
     state.profile = profile
     persist()
-    clearTimeout(mapTimer)
     clearTimeout(uploadTimer)
     draft = null
     library = { text: '', year: '', scroll: 0 }
     albumPosition = null
-    selectedCity = ''
-    mapState = 'idle'
+    mapPosition = null
+    pendingMapFocus = ''
     mapFailure.checked = false
     document.querySelector('#demo-controls').open = false
     if (location.hash === '#home') navigate()
@@ -385,6 +463,8 @@
   })
 
   app.addEventListener('click', event => {
+    const mapLink = event.target.closest('a[data-map-city]')
+    if (mapLink) mapPosition = { city: mapLink.dataset.mapCity, link: mapLink.id, scroll: window.scrollY }
     const photoLink = event.target.closest('.photo-grid a')
     if (photoLink) {
       const { city, year, origin } = locationInfo()
@@ -399,24 +479,14 @@
     }
     const { city, year: routeYear, origin, via } = locationInfo()
     let nextFocus
-    if (button.dataset.locate) {
-      selectedCity = button.dataset.locate
-      render('.actions a')
-      return
-    }
     switch (button.dataset.action) {
-      case 'all-cities':
-        nextFocus = '[data-locate="' + selectedCity + '"]'
-        selectedCity = ''
-        break
       case 'clear-filters':
         library = { text: '', year: '', scroll: 0 }
         nextFocus = '#library-search'
         break
       case 'retry-map':
         mapFailure.checked = false
-        loadMap()
-        nextFocus = '[role="status"]'
+        nextFocus = '.footprint-picker summary'
         break
       case 'create': {
         const year = readYear()
@@ -488,8 +558,6 @@
   document.querySelector('#demo-new').addEventListener('click', () => switchProfile('fresh'))
   document.querySelector('#demo-sample').addEventListener('click', () => switchProfile('sample'))
   mapFailure.addEventListener('change', () => {
-    clearTimeout(mapTimer)
-    mapState = 'idle'
     if (locationInfo().page === 'map') render()
   })
   window.addEventListener('hashchange', navigate)

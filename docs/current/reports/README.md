@@ -31,3 +31,5 @@ T01 的实施记录见[开发计划](../planning/development-plan.md#t01-工程�
 2026-11-24 完成用户流程与离线页面原型评审稿。[原型交付记录](maintenance/maintenance-log.md#2026-11-24-用户流程与页面原型)
 
 2026-11-27 更新相册摄影排版、空封面和单张查看体验。[摄影版原型记录](maintenance/maintenance-log.md#2026-11-27-城市摄影原型)
+
+2026-11-27 将地图设为首页首要入口，新增按城市点亮和直接翻相册的独立地图页。[城市地图原型记录](maintenance/maintenance-log.md#2026-11-27-城市地图入口与按市点亮)
