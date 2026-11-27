@@ -10,7 +10,9 @@
     { id: 'shanghai', name: '上海', region: '上海', x: 78, y: 42 },
   ]
   const subjects = {
-    lake: { name: '湖畔.jpg', art: 'lake' },
+    street: { name: '街口.jpg', image: 'street-sample.webp', cover: 'street-cover.webp', alt: '杭州街口的日常街景' },
+    lane: { name: '巷里.jpg', image: 'lane-sample.webp', alt: '阴天里的一条城市小巷' },
+    lake: { name: '湖畔.jpg', image: 'lake-sample.webp', alt: '湖畔的薄雾与远山' },
     garden: { name: '庭园.jpg', art: 'garden' },
     mountain: { name: '远山.jpg', art: 'mountain' },
   }
@@ -20,8 +22,12 @@
       profile: 'sample',
       accounts: {
         sample: [
-          { city: 'hangzhou', year: '2026', photos: [{ id: 's1', subject: 'lake', note: '湖面刚起一层薄雾。' }] },
-          { city: 'hangzhou', year: '2025', photos: [{ id: 's2', subject: 'mountain', note: '那天的山色很淡。' }] },
+          { city: 'hangzhou', year: '2026', photos: [
+            { id: 's3', subject: 'street', note: '散步到街口，在路边停了片刻。' },
+            { id: 's4', subject: 'lane' },
+            { id: 's1', subject: 'lake', note: '湖面刚起一层薄雾。' },
+          ] },
+          { city: 'hangzhou', year: '2025', photos: [{ id: 's2', subject: 'lane' }] },
           { city: 'suzhou', year: '2025', photos: [] },
         ],
         fresh: [],
@@ -47,6 +53,7 @@
   let draft = null
   let lastHash = null
   let library = { text: '', year: '', scroll: 0 }
+  let albumPosition = null
   let selectedCity = ''
   let mapState = 'idle'
   let mapTimer
@@ -79,6 +86,7 @@
 
   const cityUrl = (city, origin) => '#city/' + city + '?from=' + origin
   const albumUrl = (city, year, origin) => '#album/' + city + '/' + year + '?from=' + origin
+  const photoUrl = (album, photo, origin) => '#photo/' + album.city + '/' + album.year + '/' + photo.id + '?from=' + origin
   const addUrl = (city, year, via, origin) => '#add/' + city + (year ? '/' + year : '') + '?via=' + via + '&from=' + origin
   function importOrigin(city, year, via, origin) {
     if (via === 'album' && year) return albumUrl(city.id, year, origin)
@@ -97,12 +105,18 @@
 
   function art(subject, preview = false) {
     if (!subject) return '<span class="photo-art empty-art" aria-hidden="true"></span>'
-    if (preview && subject.art === 'lake') return '<img class="photo-preview" src="lake-sample.webp" alt="湖畔的薄雾与远山，合成样片">'
+    if (subject.image) {
+      if (preview) return '<img class="photo-preview" src="' + subject.image + '" alt="' + esc(subject.alt) + '">'
+      return '<img class="photo-art" src="' + (subject.cover || subject.image) + '" alt="" loading="lazy" decoding="async">'
+    }
+    // Earlier demo sessions can still contain the original illustrated samples.
     return '<span class="photo-art art-' + subject.art + (preview ? ' photo-preview' : '') + '" role="img" aria-label="' + esc(subject.name + '，合成示意') + '"></span>'
   }
 
   function tile(url, title, detail, subject) {
-    return '<a class="album-card" href="' + esc(url) + '">' + art(subject) + '<strong>' + esc(title) + '</strong><span>' + esc(detail) + '</span></a>'
+    const meta = detail ? '<span class="album-meta">' + esc(detail) + '</span>' : ''
+    return '<a class="album-card' + (subject ? '' : ' album-empty') + '" href="' + esc(url) + '">' + art(subject)
+      + '<span class="album-caption"><strong class="album-title">' + esc(title) + '</strong>' + meta + '</span></a>'
   }
 
   function yearField(value = '', fixed = false) {
@@ -137,17 +151,20 @@
       return owned.length && (city.name + city.region).includes(library.text.trim()) && (!library.year || owned.some(album => album.year === library.year))
     })
     if (!shown.length && (library.text || library.year)) return status('没有符合筛选条件的城市相册。') + action('clear-filters', '清除筛选', true)
-    if (!shown.length) return status('还没有相册。可以先建一本空影集，也可以从首页直接添加照片。')
-    return '<div class="album-grid">' + shown.map(city => {
+    if (!shown.length) return '<div class="library-empty">' + status('还没有相册。可以先建一本空影集，也可以从首页直接添加照片。') + '</div>'
+    return '<div class="album-grid city-grid">' + shown.map(city => {
       const owned = byCity(city.id).sort((a, b) => yearSort(a.year, b.year))
       const cover = owned.find(album => album.photos.length)?.photos[0]
-      return tile(cityUrl(city.id, 'albums'), city.name, owned.length + ' 本影集 · ' + countPhotos(owned) + ' 张照片', subjects[cover?.subject])
+      const years = owned.filter(album => album.year !== 'unknown').map(album => album.year)
+      let period = years.length ? years.at(-1) : '未标年份'
+      if (years.length > 1) period += '–' + years[0]
+      return tile(cityUrl(city.id, 'albums'), city.name, period + ' · ' + owned.length + ' 本影集 · ' + countPhotos(owned) + ' 张照片', subjects[cover?.subject])
     }).join('') + '</div>'
   }
 
   function libraryPage() {
     const years = [...new Set(albums().map(album => album.year))].sort(yearSort)
-    const filters = '<div class="actions"><label class="field">搜索城市<input id="library-search" type="search" value="' + esc(library.text) + '" placeholder="城市名或地区"></label>'
+    const filters = '<div class="actions library-filters"><label class="field">搜索城市<input id="library-search" type="search" value="' + esc(library.text) + '" placeholder="城市名或地区"></label>'
       + '<label class="field">筛选年份<select id="library-year"><option value="">全部年份</option>' + years.map(year => '<option value="' + esc(year) + '"'
         + (year === library.year ? ' selected' : '') + '>' + esc(yearName(year)) + '</option>').join('') + '</select></label></div>'
     return page('我的相册', '#home', '首页', filters + '<div id="library-results">' + albumList() + '</div>'
@@ -156,18 +173,48 @@
 
   function cityPage(city, origin) {
     const owned = byCity(city.id).sort((a, b) => yearSort(a.year, b.year))
-    const grid = '<div class="album-grid">' + owned.map(album => tile(albumUrl(city.id, album.year, origin), yearName(album.year), album.photos.length + ' 张照片', subjects[album.photos[0]?.subject])).join('') + '</div>'
+    const grid = '<div class="album-grid year-grid">' + owned.map(album => tile(albumUrl(city.id, album.year, origin), yearName(album.year), album.photos.length + ' 张照片', subjects[album.photos[0]?.subject])).join('') + '</div>'
     return page(city.name, '#' + origin, origin === 'map' ? '城市地图' : '我的相册', '<h2>年份影集</h2>' + (owned.length ? grid : status('这座城市还没有年份影集。'))
       + group(nav(addUrl(city.id, '', 'city', origin), '添加照片'), nav('#create/' + city.id + '?from=' + origin, '创建年份影集', true)))
   }
 
   function albumPage(city, album, origin) {
-    const grid = '<div class="album-grid">' + album.photos.map(photo => {
+    const grid = '<div class="album-grid photo-grid">' + album.photos.map(photo => {
       const subject = subjects[photo.subject]
-      return tile('#photo/' + city.id + '/' + album.year + '/' + photo.id + '?from=' + origin, subject.name, '查看照片', subject)
+      return tile(photoUrl(album, photo, origin), subject.name, '', subject)
     }).join('') + '</div>'
     return page(city.name + ' · ' + yearName(album.year), cityUrl(city.id, origin), city.name,
       (album.photos.length ? grid : status('这本影集还是空的。')) + group(nav(addUrl(city.id, album.year, 'album', origin), '添加照片')))
+  }
+
+  function photoPage(city, album, photoId, origin) {
+    const index = album.photos.findIndex(photo => photo.id === photoId)
+    if (index < 0) return
+    const item = album.photos[index]
+    const subject = subjects[item.subject]
+    const count = album.photos.length
+    const back = albumUrl(city.id, album.year, origin)
+    const locationLabel = city.name + ' · ' + yearName(album.year)
+    const tools = '<nav class="viewer-tools" aria-label="照片浏览">'
+      + '<a href="' + esc(back) + '" class="viewer-return" aria-label="返回' + esc(locationLabel) + '影集">返回影集</a>'
+      + '<button class="viewer-step" type="button" data-step="-1"' + (index === 0 ? ' disabled' : '') + '>上一张</button>'
+      + '<span class="viewer-count" aria-label="第 ' + (index + 1) + ' 张，共 ' + count + ' 张">' + (index + 1) + ' / ' + count + '</span>'
+      + '<button class="viewer-step" type="button" data-step="1"' + (index === count - 1 ? ' disabled' : '') + '>下一张</button></nav>'
+    return '<section class="photo-viewer"><figure class="viewer-figure"><div class="viewer-stage">' + art(subject, true) + tools
+      + '</div><figcaption class="viewer-caption"><p class="viewer-location">' + esc(locationLabel) + '</p>'
+      + '<h1 tabindex="-1">' + esc(subject.name) + '</h1><p class="viewer-note">' + esc(item.note || '暂无文字记录') + '</p></figcaption></figure></section>'
+  }
+
+  function stepPhoto(direction) {
+    const { city, year, photo, origin } = locationInfo()
+    const album = city && getAlbum(city.id, year)
+    if (!album) return
+    const index = album.photos.findIndex(item => item.id === photo)
+    const next = album.photos[index + direction]
+    if (index >= 0 && next) {
+      // A browser Back from the viewer returns to its entry point, even after several photos.
+      location.replace(photoUrl(album, next, origin))
+    }
   }
 
   function mapPage() {
@@ -211,7 +258,7 @@
     let content
     if (draft.stage === 'review') {
       content = '<h2>选择与核对</h2><label class="field">示例照片<select id="sample-photo"><option value="">选择一张示例照片</option>'
-        + ['lake', 'garden'].map(key => '<option value="' + key + '"' + (key === draft.subject ? ' selected' : '') + '>' + subjects[key].name + '</option>').join('')
+        + ['lake', 'street', 'lane'].map(key => '<option value="' + key + '"' + (key === draft.subject ? ' selected' : '') + '>' + subjects[key].name + '</option>').join('')
         + '</select></label>' + yearField(draft.year, Boolean(fixedYear)) + group(action('queue', '确认队列'), action('cancel', '取消', true))
     } else {
       const subject = subjects[draft.subject]
@@ -250,14 +297,7 @@
       else if (name === 'create' && city) html = createPage(city, origin)
       else if (name === 'city' && city) html = cityPage(city, origin)
       else if (name === 'album' && album) html = albumPage(city, album, origin)
-      else if (name === 'photo' && album) {
-        const item = album.photos.find(item => item.id === photo)
-        if (item) {
-          const subject = subjects[item.subject]
-          html = page(subject.name, albumUrl(city.id, year, origin), city.name + ' · ' + yearName(year),
-            '<figure class="panel">' + art(subject, true) + '<figcaption>' + city.name + ' · ' + esc(yearName(year)) + '</figcaption></figure><p>' + esc(item.note || '暂无文字记录') + '</p>')
-        }
-      }
+      else if (name === 'photo' && album) html = photoPage(city, album, photo, origin)
       app.innerHTML = html || page('找不到这本影集或照片', '#home', '首页', nav('#albums', '打开我的相册'))
     }
     const title = app.querySelector('h1')
@@ -276,21 +316,34 @@
   }
 
   function navigate() {
-    const name = locationInfo().page
+    const { page: name, city, year, origin } = locationInfo()
+    const leavingPhoto = lastHash?.startsWith('#photo/')
+    const previousStep = document.activeElement?.dataset.step
     if (lastHash !== null && name !== 'map' && mapState === 'loading') {
       clearTimeout(mapTimer)
       mapState = 'idle'
     }
-    if (name !== 'add' || !locationInfo().city) {
+    if (name !== 'add' || !city) {
       clearTimeout(uploadTimer)
       draft = null
     }
     render()
     if (lastHash !== null) {
-      const heading = app.querySelector('h1')
-      heading?.setAttribute('tabindex', '-1')
-      heading?.focus({ preventScroll: true })
-      window.scrollTo(0, name === 'albums' ? library.scroll : 0)
+      let focusTarget = app.querySelector('h1')
+      let scrollTop = name === 'albums' ? library.scroll : 0
+      if (leavingPhoto && name === 'album' && city && albumPosition?.route === albumUrl(city.id, year, origin)) {
+        focusTarget = Array.from(app.querySelectorAll('.photo-grid a')).find(link => link.hash === albumPosition.photo) || focusTarget
+        scrollTop = albumPosition.scroll
+      } else if (leavingPhoto && name === 'photo') {
+        scrollTop = window.scrollY
+        if (previousStep) {
+          focusTarget = app.querySelector('.viewer-step[data-step="' + previousStep + '"]:enabled')
+            || app.querySelector('.viewer-step:enabled') || app.querySelector('.viewer-return') || focusTarget
+        }
+      }
+      if (focusTarget?.matches('h1')) focusTarget.tabIndex = -1
+      focusTarget?.focus({ preventScroll: true })
+      window.scrollTo(0, scrollTop)
     }
     lastHash = location.hash
   }
@@ -302,6 +355,7 @@
     clearTimeout(uploadTimer)
     draft = null
     library = { text: '', year: '', scroll: 0 }
+    albumPosition = null
     selectedCity = ''
     mapState = 'idle'
     mapFailure.checked = false
@@ -331,9 +385,18 @@
   })
 
   app.addEventListener('click', event => {
+    const photoLink = event.target.closest('.photo-grid a')
+    if (photoLink) {
+      const { city, year, origin } = locationInfo()
+      albumPosition = { route: albumUrl(city.id, year, origin), photo: photoLink.hash, scroll: window.scrollY }
+    }
     const button = event.target.closest('button')
     if (locationInfo().page === 'albums' && event.target.closest('a')) library.scroll = window.scrollY
     if (!button) return
+    if (button.dataset.step) {
+      stepPhoto(Number(button.dataset.step))
+      return
+    }
     const { city, year: routeYear, origin, via } = locationInfo()
     let nextFocus
     if (button.dataset.locate) {
@@ -407,6 +470,19 @@
       default: return
     }
     render(nextFocus)
+  })
+
+  document.addEventListener('keydown', event => {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (!app.querySelector('.photo-viewer') || document.querySelector('#demo-controls').open) return
+    if (!app.contains(event.target) && event.target !== document.body) return
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      app.querySelector('.viewer-return').click()
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      stepPhoto(event.key === 'ArrowLeft' ? -1 : 1)
+    }
   })
 
   document.querySelector('#demo-new').addEventListener('click', () => switchProfile('fresh'))

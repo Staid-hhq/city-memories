@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f9f8f2">
+  <meta name="theme-color" content="#faf9f6">
   <title>此间集 · 页面原型</title>
   <link rel="stylesheet" href="styles.css">
   <script src="prototype.js" defer></script>
@@ -13,7 +13,10 @@
   <header class="masthead">
     <div class="masthead-inner">
       <a class="brand" href="#home" aria-label="此间集首页">
-        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M3 7h9m8 0h9v7m0 5v7h-9M3 19v7h9M3 12V7" stroke="currentColor" stroke-width="2"/>
+          <circle cx="16" cy="16.5" r="5.8" stroke="currentColor" stroke-width="2"/>
+        </svg>
         <span>此间集</span>
       </a>
       <details class="demo-controls" id="demo-controls">
@@ -38,29 +41,55 @@
         <a class="add-button" href="#add"><span aria-hidden="true">＋</span>添加照片</a>
       </div>
       <div class="entry-grid">
-        <a class="entry-card" href="#map" aria-labelledby="map-title" aria-describedby="map-desc">
-          <div class="card-art map-art" aria-hidden="true">
-            <div class="folded-map">
-              <div class="map-leaf leaf-a"></div>
-              <div class="map-leaf leaf-b"></div>
-              <div class="map-leaf leaf-c"></div>
-              <div class="route-leg leg-one"></div><div class="route-leg leg-two"></div>
-              <i class="city-pin pin-a"></i><i class="city-pin pin-b"></i><i class="city-pin pin-c"></i>
-            </div>
+        <a class="entry-card album-entry" href="#albums" aria-labelledby="albums-title" aria-describedby="albums-desc">
+          <div class="entry-visual album-visual">
+            <img src="street-cover.webp" alt="" width="840" height="560" decoding="async">
           </div>
           <div class="entry-caption">
-            <div><h2 id="map-title">城市地图</h2><p id="map-desc">按地点翻看旅行照片</p></div>
-            <span class="entry-arrow" aria-hidden="true">↗</span>
+            <div><h2 id="albums-title">我的相册</h2><p id="albums-desc">按城市与年份翻阅照片</p></div>
+            <span class="entry-arrow" aria-hidden="true">→</span>
           </div>
         </a>
-        <a class="entry-card" href="#albums" aria-labelledby="albums-title" aria-describedby="albums-desc">
-          <div class="card-art album-art" aria-hidden="true">
-            <div class="print-back"></div>
-            <div class="print-front"><div class="photo-art art-lake"></div></div>
+        <a class="entry-card map-entry" href="#map" aria-labelledby="map-title" aria-describedby="map-desc">
+          <div class="entry-visual map-visual" aria-hidden="true">
+            <svg viewBox="0 0 400 312" preserveAspectRatio="xMidYMid slice" width="400" height="312" focusable="false">
+              <defs>
+                <pattern id="street-blocks" width="106" height="77" patternUnits="userSpaceOnUse" patternTransform="rotate(-22)">
+                  <path fill="#e9e6da" d="M0 0h106v77H0z"/>
+                  <path fill="#d9d8c9" d="M6 6h54v28H6zm61 0h32v28H67zM6 43h30v27H6zm38 0h55v27H44z"/>
+                  <path fill="none" stroke="#c8cabb" stroke-width="2" d="M12 12h24v14H12zm32 0h10v14H44zm29 0h19v14H73zM12 49h17v13H12zm38 0h17v13H50zm23 0h20v13H73z"/>
+                  <path fill="none" stroke="#f7f4e9" stroke-width="4" d="M0 1h106M1 0v77"/>
+                </pattern>
+              </defs>
+              <rect width="400" height="312" fill="url(#street-blocks)"/>
+              <g fill="#bfccb2" stroke="#b5c2a8">
+                <path d="M-9 0h145l-26 27-16 31-54 15-49-21z"/>
+                <path d="m307 223 80-34 25 24v108h-84l-39-43z"/>
+                <path d="m38 231 32-14 21 39-35 17z"/>
+              </g>
+              <path d="M306-24c-4 66-77 52-89 109s-57 65-90 92-17 70-75 95-56 53-66 63" fill="none" stroke="#e8e8d8" stroke-width="34"/>
+              <path d="M306-24c-4 66-77 52-89 109s-57 65-90 92-17 70-75 95-56 53-66 63" fill="none" stroke="#a8bfba" stroke-width="25"/>
+              <g fill="none" stroke-linecap="round">
+                <g stroke="#c3c0ad" stroke-width="10">
+                  <path d="M-17 150c61-47 77-48 131-46s130 61 200 53 82-30 110-39"/>
+                  <path d="m79-15 47 84 82 112 79 147"/>
+                </g>
+                <g stroke="#f7f2e3" stroke-width="7">
+                  <path d="M-17 150c61-47 77-48 131-46s130 61 200 53 82-30 110-39"/>
+                  <path d="m79-15 47 84 82 112 79 147"/>
+                </g>
+                <path d="M39 39c52-2 58-24 85-26m197 284c11-23 21-36 46-53" stroke="#f4efdf" stroke-width="3"/>
+              </g>
+              <g fill="#fbf9f0" stroke="#6d7867" stroke-width="2.5">
+                <circle cx="119" cy="104" r="5"/><circle cx="296" cy="158" r="5"/>
+              </g>
+              <path d="M213 106a11 11 0 0 1 22 0c0 9-11 22-11 22s-11-13-11-22z" fill="#894830" stroke="#faf7eb" stroke-width="2"/>
+              <circle cx="224" cy="106" r="3.5" fill="#faf7eb"/>
+            </svg>
           </div>
           <div class="entry-caption">
-            <div><h2 id="albums-title">我的相册</h2><p id="albums-desc">按城市和年份翻阅相册</p></div>
-            <span class="entry-arrow" aria-hidden="true">↗</span>
+            <div><h2 id="map-title">城市地图</h2><p id="map-desc">从地点找回旅行记忆</p></div>
+            <span class="entry-arrow" aria-hidden="true">→</span>
           </div>
         </a>
       </div>

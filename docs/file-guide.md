@@ -1,6 +1,6 @@
 # 仓库文件导航
 
-更新于 2026-11-24。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
+更新于 2026-11-27。本页逐项说明 Git 管理的源码、文档、测试与配置；目录路径均相对于仓库根目录。点击文件名可打开对应文件。
 
 先记住：`frontend` 是页面、`backend` 是服务、`docs` 是说明、`validation` 是专项测试、`prototype` 是历史原型。日常启动看[使用手册](current/guides/local-first-release.md)，不用逐一打开下面所有文件。
 
@@ -199,6 +199,11 @@
 | [refactor/prototype/styles.css](refactor/prototype/styles.css) | 原型的桌面、窄屏布局及卡片和图形样式 |
 | [refactor/prototype/prototype.js](refactor/prototype/prototype.js) | 模拟浏览、切换账号和明确保存照片的前端交互 |
 | [refactor/prototype/lake-sample.webp](refactor/prototype/lake-sample.webp) | 原型使用的 AI 合成杭州湖景样片 |
+| [refactor/prototype/street-sample.webp](refactor/prototype/street-sample.webp) | 原型使用的合成横向街景样片 |
+| [refactor/prototype/street-cover.webp](refactor/prototype/street-cover.webp) | 首页相册入口的轻量街景封面 |
+| [refactor/prototype/lane-sample.webp](refactor/prototype/lane-sample.webp) | 原型使用的合成竖向街巷样片 |
+| [refactor/prototype/album-preview.webp](refactor/prototype/album-preview.webp) | 摄影版原型的相册浏览预览 |
+| [refactor/prototype/viewer-preview.webp](refactor/prototype/viewer-preview.webp) | 摄影版原型的单张查看预览 |
 | [refactor/prototype/home-desktop.png](refactor/prototype/home-desktop.png) | 桌面尺寸的原型首页预览 |
 | [refactor/prototype/home-mobile.png](refactor/prototype/home-mobile.png) | 窄屏尺寸的原型首页预览 |
 | [current/architecture/tech-stack.md](current/architecture/tech-stack.md) | 当前组件、运行/数据保存与静态地图架构；旧在线方案见历史报告 |
